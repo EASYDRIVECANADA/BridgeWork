@@ -1,0 +1,16 @@
+{
+  "name": "bridgework-root",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix jiffy-replica/backend install && npm --prefix jiffy-replica/frontend install",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm --prefix jiffy-replica/backend run dev\" \"npm --prefix jiffy-replica/frontend run dev\"",
+    "dev:backend": "npm --prefix jiffy-replica/backend run dev",
+    "dev:frontend": "npm --prefix jiffy-replica/frontend run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "all": "^0.0.0"
+  }
+}
