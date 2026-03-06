@@ -87,8 +87,8 @@ export default function SpendingAccountTermsPage() {
               https://BridgeWork.com/terms_and_conditions
             </Link>
             {' '}(the "General Terms") and the terms of the BridgeWork+ Terms and Conditions available at{' '}
-            <Link href="/jiffy-terms" className="text-[#2D7FE6] hover:underline">
-              https://BridgeWork.com/jiffy_plus_terms_and_conditions
+            <Link href="/bridgework-terms" className="text-[#2D7FE6] hover:underline">
+              https://BridgeWork.com/bridgework_plus_terms_and_conditions
             </Link>
             {' '}(the "BridgeWork+ Terms"), which apply in respect of the BridgeWork+ membership.
           </p>

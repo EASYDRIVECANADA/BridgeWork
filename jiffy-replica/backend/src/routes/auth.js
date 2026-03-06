@@ -77,4 +77,6 @@ router.post('/reset-password',
     authController.resetPassword
 );
 
+router.get('/search-users', authenticate, authController.searchUsers);
+
 module.exports = router;

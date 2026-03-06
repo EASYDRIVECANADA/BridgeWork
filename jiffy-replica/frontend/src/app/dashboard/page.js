@@ -660,7 +660,7 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-gray-400 text-xs mt-4">
                       The $25 discount applies once per job. BridgeWork+ Member continues for $10/month until cancelled.{' '}
-                      <Link href="/jiffy-terms" className="text-[#2D7FE6] hover:underline">
+                      <Link href="/bridgework-terms" className="text-[#2D7FE6] hover:underline">
                         See BridgeWork+ Terms & Conditions
                       </Link>
                     </p>

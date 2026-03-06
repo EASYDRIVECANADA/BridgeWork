@@ -16,7 +16,7 @@ export default function Navbar() {
   const { user, profile } = useSelector((state) => state.auth);
   const unreadCount = useSelector((state) => state.messages.unreadCount);
   
-  // /Hide navigation links on login and signup pages
+  // Hide navigation links on login and signup pages
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/pro-login' || pathname === '/become-pro';
   const isAuthenticated = !!user;
   const isPro = profile?.role === 'pro';
@@ -43,7 +43,7 @@ export default function Navbar() {
     "active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60";
 
   const primaryCtaClass =
-    "relative overflow-hidden bg-white text-[#142841] px-6 py-2.5 rounded-xl text-sm font-semibold " +
+    "relative overflow-hidden bg-white text-[#042E5C] px-6 py-2.5 rounded-xl text-sm font-semibold " +
     "shadow-sm ring-1 ring-white/30 transition-all duration-200 ease-out " +
     "hover:bg-white/90 hover:-translate-y-[1px] hover:shadow-md hover:ring-white/40 " +
     "active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
@@ -52,14 +52,9 @@ export default function Navbar() {
   const navMobileButtonClass = navButtonClass + " w-full text-left";
 
   return (
-    <nav className="sticky top-0 z-50 relative overflow-hidden bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-xl shadow-black/20 ring-1 ring-white/10">
-      {/* Decorative brand accents (no layout impact) */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        {/* Linear highlights (no radial glow) */}
-        <div className="absolute inset-x-0 top-0 h-16 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.18),transparent)] opacity-80" />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08),transparent_35%,rgba(255,255,255,0.04))] opacity-80" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent" />
-      </div>
+    <nav className="sticky top-0 z-50 relative overflow-hidden bg-[#3391FF] shadow-xl shadow-black/20 ring-1 ring-white/10">
+      {/* Subtle bottom border */}
+      <div aria-hidden className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-white/20" />
 
       {/* Full-width container so content sits closer to edges */}
       <div className="relative mx-auto w-full px-4 sm:px-6 lg:px-10 xl:px-14">
@@ -85,6 +80,9 @@ export default function Navbar() {
                     <Link href="/pro-dashboard" className={navLinkClass}>
                       Pro Dashboard
                     </Link>
+                    <Link href="/pro-dashboard/quotes" className={navLinkClass}>
+                      Quotes
+                    </Link>
                     <Link href="/help" className={navLinkClass}>
                       Help Center
                     </Link>
@@ -97,6 +95,11 @@ export default function Navbar() {
                     {isAuthenticated && (
                       <Link href="/my-jobs" className={navLinkClass}>
                         My Jobs
+                      </Link>
+                    )}
+                    {isAuthenticated && (
+                      <Link href="/dashboard/quotes" className={navLinkClass}>
+                        Quotes
                       </Link>
                     )}
                     <Link href="/help" className={navLinkClass}>
@@ -117,10 +120,13 @@ export default function Navbar() {
                     <Link href="/admin/revenue" className={navLinkClass}>
                       Admin Dashboard
                     </Link>
+                    <Link href="/admin/support-chat" className={navLinkClass}>
+                      Support Chat
+                    </Link>
                     <Link href="/messages" className={navLinkClass + " relative"}>
                       Messages
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#142841]">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#042E5C]">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
@@ -146,7 +152,7 @@ export default function Navbar() {
                     <Link href="/messages" className={navLinkClass + " relative"}>
                       Messages
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#142841]">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#042E5C]">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
@@ -220,6 +226,9 @@ export default function Navbar() {
                   <Link href="/pro-dashboard" className={navMobileLinkClass}>
                     Pro Dashboard
                   </Link>
+                  <Link href="/pro-dashboard/quotes" className={navMobileLinkClass}>
+                    Quotes & Invoices
+                  </Link>
                   <Link href="/help" className={navMobileLinkClass}>
                     Help Center
                   </Link>
@@ -241,6 +250,11 @@ export default function Navbar() {
                   {isAuthenticated && (
                     <Link href="/my-jobs" className={navMobileLinkClass}>
                       My Jobs
+                    </Link>
+                  )}
+                  {isAuthenticated && (
+                    <Link href="/dashboard/quotes" className={navMobileLinkClass}>
+                      Quotes & Invoices
                     </Link>
                   )}
                   <Link href="/help" className={navMobileLinkClass}>

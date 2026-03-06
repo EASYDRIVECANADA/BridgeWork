@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { paymentsAPI, prosAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, quotesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 import {
   ArrowLeft,
@@ -26,6 +26,9 @@ import {
   Percent,
   Save,
   RotateCw,
+  FileText,
+  Eye,
+  Send,
 } from 'lucide-react';
 
 const txStatusConfig = {
@@ -52,6 +55,12 @@ export default function AdminRevenuePage() {
   const [editingProId, setEditingProId] = useState(null);
   const [editRate, setEditRate] = useState('');
   const [savingCommission, setSavingCommission] = useState(false);
+  const [allQuotes, setAllQuotes] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]);
+  const [qiLoading, setQiLoading] = useState(false);
+  const [qiSubTab, setQiSubTab] = useState('quotes');
+  const [qiPage, setQiPage] = useState(0);
+  const QI_PAGE_SIZE = 15;
 
   useEffect(() => {
     if (!authInitialized) return;
@@ -66,6 +75,7 @@ export default function AdminRevenuePage() {
     }
     fetchRevenue();
     fetchPros();
+    fetchQuotesInvoices();
   }, [user, authInitialized, profile, router]);
 
   const fetchRevenue = async () => {
@@ -78,6 +88,21 @@ export default function AdminRevenuePage() {
       toast.error('Failed to load revenue data');
     }
     setLoading(false);
+  };
+
+  const fetchQuotesInvoices = async () => {
+    setQiLoading(true);
+    try {
+      const [qRes, iRes] = await Promise.all([
+        quotesAPI.getQuotes({ limit: 200 }),
+        quotesAPI.getInvoices({ limit: 200 }),
+      ]);
+      setAllQuotes(qRes.data?.data?.quotes || []);
+      setAllInvoices(iRes.data?.data?.invoices || []);
+    } catch (err) {
+      console.error('[ADMIN] Quotes/Invoices error:', err);
+    }
+    setQiLoading(false);
   };
 
   const fetchPros = async () => {
@@ -200,9 +225,20 @@ export default function AdminRevenuePage() {
             <Settings className="w-4 h-4" />
             Manage Pros & Commission
           </button>
+          <button
+            onClick={() => setActiveTab('quotes')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+              activeTab === 'quotes'
+                ? 'bg-[#2D7FE6] text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Quotes & Invoices
+          </button>
         </div>
 
-        {/* ==================== MANAGE s PROS TAB ==================== */}
+        {/* ==================== MANAGE PROS TAB ==================== */}
         {activeTab === 'pros' && (
           <div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -345,6 +381,159 @@ export default function AdminRevenuePage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ==================== QUOTES & INVOICES TAB ==================== */}
+        {activeTab === 'quotes' && (
+          <div>
+            {/* Sub tabs */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => { setQiSubTab('quotes'); setQiPage(0); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  qiSubTab === 'quotes' ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Quotes ({allQuotes.length})
+              </button>
+              <button
+                onClick={() => { setQiSubTab('invoices'); setQiPage(0); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  qiSubTab === 'invoices' ? 'bg-green-600 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Invoices ({allInvoices.length})
+              </button>
+            </div>
+
+            {qiLoading ? (
+              <div className="text-center py-16">
+                <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6] mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading...</p>
+              </div>
+            ) : qiSubTab === 'quotes' ? (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-900">All Quotes</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Platform-wide quote visibility across all pros</p>
+                </div>
+                <div className="grid grid-cols-12 gap-3 px-6 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-1">#</div>
+                  <div className="col-span-3">Title</div>
+                  <div className="col-span-2">Pro</div>
+                  <div className="col-span-2">Customer</div>
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-1 text-right">Total</div>
+                  <div className="col-span-2">Date</div>
+                </div>
+                {(() => {
+                  const totalQPages = Math.ceil(allQuotes.length / QI_PAGE_SIZE);
+                  const paged = allQuotes.slice(qiPage * QI_PAGE_SIZE, (qiPage + 1) * QI_PAGE_SIZE);
+                  return (
+                    <>
+                      {paged.length > 0 ? paged.map((q) => (
+                        <div key={q.id} className="grid grid-cols-12 gap-3 px-6 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors items-center text-sm">
+                          <div className="col-span-1 font-mono text-xs text-gray-400 truncate">{q.quote_number}</div>
+                          <div className="col-span-3 font-medium text-gray-900 truncate">{q.title}</div>
+                          <div className="col-span-2 text-gray-600 truncate">{q.pro_profiles?.business_name || q.pro_profiles?.profiles?.full_name || '—'}</div>
+                          <div className="col-span-2 text-gray-600 truncate">{q.customer?.full_name || '—'}</div>
+                          <div className="col-span-1">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                              q.status === 'accepted' ? 'bg-green-50 text-green-600' :
+                              q.status === 'sent' ? 'bg-blue-50 text-blue-600' :
+                              q.status === 'declined' ? 'bg-red-50 text-red-600' :
+                              q.status === 'converted' ? 'bg-purple-50 text-purple-600' :
+                              q.status === 'draft' ? 'bg-gray-100 text-gray-600' :
+                              'bg-yellow-50 text-yellow-600'
+                            }`}>{q.status}</span>
+                          </div>
+                          <div className="col-span-1 text-right font-semibold">${parseFloat(q.total || 0).toFixed(2)}</div>
+                          <div className="col-span-2 text-gray-500 text-xs">{q.created_at ? new Date(q.created_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</div>
+                        </div>
+                      )) : (
+                        <div className="px-6 py-12 text-center">
+                          <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-sm text-gray-500">No quotes yet</p>
+                        </div>
+                      )}
+                      {totalQPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
+                          <p className="text-xs text-gray-500">Showing {qiPage * QI_PAGE_SIZE + 1}–{Math.min((qiPage + 1) * QI_PAGE_SIZE, allQuotes.length)} of {allQuotes.length}</p>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setQiPage(Math.max(0, qiPage - 1))} disabled={qiPage === 0} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-white disabled:opacity-40 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                            <span className="text-sm text-gray-600 font-medium">{qiPage + 1} / {totalQPages}</span>
+                            <button onClick={() => setQiPage(Math.min(totalQPages - 1, qiPage + 1))} disabled={qiPage >= totalQPages - 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-white disabled:opacity-40 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-900">All Invoices</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Platform-wide invoice visibility across all pros</p>
+                </div>
+                <div className="grid grid-cols-12 gap-3 px-6 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-1">#</div>
+                  <div className="col-span-3">Title</div>
+                  <div className="col-span-2">Pro</div>
+                  <div className="col-span-2">Customer</div>
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-1 text-right">Total</div>
+                  <div className="col-span-1 text-right">Due</div>
+                  <div className="col-span-1">Due Date</div>
+                </div>
+                {(() => {
+                  const totalIPages = Math.ceil(allInvoices.length / QI_PAGE_SIZE);
+                  const paged = allInvoices.slice(qiPage * QI_PAGE_SIZE, (qiPage + 1) * QI_PAGE_SIZE);
+                  return (
+                    <>
+                      {paged.length > 0 ? paged.map((inv) => (
+                        <div key={inv.id} className="grid grid-cols-12 gap-3 px-6 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors items-center text-sm">
+                          <div className="col-span-1 font-mono text-xs text-gray-400 truncate">{inv.invoice_number}</div>
+                          <div className="col-span-3 font-medium text-gray-900 truncate">{inv.title}</div>
+                          <div className="col-span-2 text-gray-600 truncate">{inv.pro_profiles?.business_name || inv.pro_profiles?.profiles?.full_name || '—'}</div>
+                          <div className="col-span-2 text-gray-600 truncate">{inv.customer?.full_name || '—'}</div>
+                          <div className="col-span-1">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                              inv.status === 'paid' ? 'bg-green-50 text-green-600' :
+                              inv.status === 'sent' ? 'bg-blue-50 text-blue-600' :
+                              inv.status === 'overdue' ? 'bg-red-50 text-red-600' :
+                              inv.status === 'partially_paid' ? 'bg-yellow-50 text-yellow-600' :
+                              inv.status === 'cancelled' ? 'bg-gray-100 text-gray-500' :
+                              inv.status === 'draft' ? 'bg-gray-100 text-gray-600' :
+                              'bg-orange-50 text-orange-600'
+                            }`}>{inv.status?.replace('_', ' ')}</span>
+                          </div>
+                          <div className="col-span-1 text-right font-semibold">${parseFloat(inv.total || 0).toFixed(2)}</div>
+                          <div className="col-span-1 text-right text-orange-600 font-medium">{parseFloat(inv.amount_due || 0) > 0 ? `$${parseFloat(inv.amount_due).toFixed(2)}` : '—'}</div>
+                          <div className="col-span-1 text-gray-500 text-xs">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '—'}</div>
+                        </div>
+                      )) : (
+                        <div className="px-6 py-12 text-center">
+                          <Receipt className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-sm text-gray-500">No invoices yet</p>
+                        </div>
+                      )}
+                      {totalIPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
+                          <p className="text-xs text-gray-500">Showing {qiPage * QI_PAGE_SIZE + 1}–{Math.min((qiPage + 1) * QI_PAGE_SIZE, allInvoices.length)} of {allInvoices.length}</p>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setQiPage(Math.max(0, qiPage - 1))} disabled={qiPage === 0} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-white disabled:opacity-40 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                            <span className="text-sm text-gray-600 font-medium">{qiPage + 1} / {totalIPages}</span>
+                            <button onClick={() => setQiPage(Math.min(totalIPages - 1, qiPage + 1))} disabled={qiPage >= totalIPages - 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-white disabled:opacity-40 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         )}
 

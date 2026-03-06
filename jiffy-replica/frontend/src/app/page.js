@@ -31,9 +31,9 @@ export default function HomePage() {
     if (searchQuery?.length) return;
 
     const phrases = [
-      'What do you need help with?',
-      'I Need to repaint my House!',
-      "I need help mounting my TV tonight."
+      'What do you need help with today?',
+      'Repaint my house',
+      'Fix a leaky faucet in Ottawa'
     ];
 
     const typingSpeedMs = 55;
@@ -149,22 +149,22 @@ export default function HomePage() {
 
   const features = [
     {
-      icon: <Clock className="w-8 h-8 text-[#0E7480]" />,
+      icon: <Clock className="w-8 h-8 text-[#3391FF]" />,
       title: '10-Minute Response',
       description: 'Get matched with a certified pro in under 10 minutes'
     },
     {
-      icon: <Shield className="w-8 h-8 text-[#0E7480]" />,
+      icon: <Shield className="w-8 h-8 text-[#3391FF]" />,
       title: 'Protection Promise',
       description: 'All pros are background-checked and insured'
     },
     {
-      icon: <Star className="w-8 h-8 text-[#0E7480]" />,
+      icon: <Star className="w-8 h-8 text-[#3391FF]" />,
       title: 'Top-Rated Pros',
       description: 'Only the best professionals with 4.8+ ratings'
     },
     {
-      icon: <CheckCircle className="w-8 h-8 text-[#0E7480]" />,
+      icon: <CheckCircle className="w-8 h-8 text-[#3391FF]" />,
       title: 'Satisfaction Guaranteed',
       description: 'We resolve any issues or your money back'
     }
@@ -199,7 +199,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E7F6F7] via-white to-[#EEF2FF]">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
@@ -213,7 +213,7 @@ export default function HomePage() {
           />
           {/* Brand-tinted overlay (keeps original hero intact, looks more premium) */}
           <div className="absolute inset-0 bg-black/35" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(14,116,128,0.22)_0%,rgba(2,75,90,0.18)_30%,rgba(20,40,65,0.24)_60%)] mix-blend-multiply" />
+          <div className="absolute inset-0 bg-[#3391FF]/20 mix-blend-multiply" />
         </div>
 
         {/* Content */}
@@ -226,17 +226,17 @@ export default function HomePage() {
             className="mx-auto max-w-3xl rounded-3xl bg-white/10 backdrop-blur-md ring-1 ring-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.30)] px-6 sm:px-10 py-10"
           >
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-white/90 ring-1 ring-white/15 mb-5">
-              <span className="h-2 w-2 rounded-full bg-[#0E7480]" />
+              <span className="h-2 w-2 rounded-full bg-[#3391FF]" />
               Fast matching. Transparent pricing. Trusted pros.
             </div>
 
             <h1 className="font-brand text-5xl md:text-6xl font-extrabold text-white mb-6 leading-[1.05] tracking-tight drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
-              Home maintenance booked when you need it.
+              Home services booked when you need them.
             </h1>
 
             {/* Search Box */}
             <div className="max-w-2xl mx-auto mb-5">
-              <div className="bg-white/95 rounded-2xl shadow-xl flex items-center px-6 py-4 ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-[#0E7480]/40 transition">
+              <div className="bg-white/95 rounded-2xl shadow-xl flex items-center px-6 py-4 ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-[#3391FF]/40 transition">
                 <Search className="w-6 h-6 text-gray-400 mr-4" />
                 <input
                   type="text"
@@ -251,19 +251,31 @@ export default function HomePage() {
 
             {/* Help Text */}
             <p className="text-white/90 text-sm mb-6">
-              Need help finding the right service for you?{' '}
-              <a href="/chat" className="underline underline-offset-4 hover:text-white">
+              Need help finding the right service?{' '}
+              <button
+                type="button"
+                onClick={() => window.__openHelpChat?.()}
+                className="underline underline-offset-4 hover:text-white"
+              >
                 Chat with us
-              </a>
+              </button>
             </p>
 
-            {/* View All Services Button */}
-            <button
-              onClick={() => router.push('/services')}
-              className="btn-brand px-8 py-3 rounded-xl font-brand tracking-tight"
-            >
-              View all services
-            </button>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => router.push('/services')}
+                className="btn-brand px-8 py-3 rounded-xl font-brand tracking-tight"
+              >
+                View all services
+              </button>
+              <button
+                onClick={() => router.push('/services?emergency=true')}
+                className="px-8 py-3 rounded-xl font-brand tracking-tight text-white border border-white/30 hover:bg-white/10 transition-all duration-200"
+              >
+                Emergency services
+              </button>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -271,45 +283,11 @@ export default function HomePage() {
       {/* Stats and Social Proof Section */}
       <section className="py-16 bg-white/60 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4">
-          {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-12 mb-16">
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
-                500,000+
-              </div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider">
-                Jobs Completed
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
-                96%
-              </div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider">
-                Rated Their Pro Perfect
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-1">
-                4.8
-                <Star className="w-8 h-8 text-gray-900 fill-gray-900" />
-              </div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider">
-                Reviews
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                12,000+ verified customers
-              </div>
-            </div>
-          </div>
-
           {/* Description Text */}
           <div className="max-w-4xl mx-auto text-center mb-10">
             <p className="text-xl md:text-2xl text-gray-700 leading-relaxed">
               Small jobs around the house are as good as done, with no shopping around. 
-              At Bridge Work, we connect you with certified pros who's already in your area will complete your job at 
+              BridgeWork connects you with certified Ottawa pros who are already in your area and will complete your job at 
               transparent rates you can feel good about.
             </p>
           </div>
@@ -335,12 +313,12 @@ export default function HomePage() {
             viewport={{ once: true, amount: 0.5 }}
             transition={{ duration: 0.55, ease: 'easeOut' }}
             whileHover={{ y: -4 }}
-            className="relative rounded-3xl p-[2px] bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-2xl shadow-black/10"
+            className="relative rounded-3xl p-[2px] bg-[#3391FF] shadow-2xl shadow-black/10"
           >
             <div className="relative rounded-[22px] bg-black/5 overflow-hidden ring-1 ring-black/10">
               <div className="absolute top-4 left-4 z-10">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1 text-xs font-semibold text-[#142841] ring-1 ring-black/5">
-                  <span className="h-2 w-2 rounded-full bg-[#0E7480]" />
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1 text-xs font-semibold text-[#042E5C] ring-1 ring-black/5">
+                  <span className="h-2 w-2 rounded-full bg-[#3391FF]" />
                   See how it works
                 </span>
               </div>
@@ -358,7 +336,7 @@ export default function HomePage() {
       </section>
 
       {/* Section 2: Get a Confirmed Appointment */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
+      <section className="py-20 bg-blue-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left: Card Image */}
@@ -371,13 +349,8 @@ export default function HomePage() {
                 className="w-full max-w-[360px]"
               >
                 {/* Phone-style preview */}
-                <div className="relative rounded-[36px] p-[2px] bg-gradient-to-br from-[#0E7480] via-[#142841] to-[#024B5A] shadow-2xl shadow-black/10">
+                <div className="relative rounded-[36px] p-[2px] bg-[#3391FF] shadow-2xl shadow-black/10">
                   <div className="relative rounded-[34px] bg-white/90 backdrop-blur p-6 ring-1 ring-black/5 overflow-hidden">
-                    {/* Linear ambient highlight */}
-                    <div aria-hidden className="pointer-events-none absolute inset-0">
-                      <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(to_bottom,rgba(14,116,128,0.14),transparent)]" />
-                      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(20,40,65,0.08),transparent_45%,rgba(2,75,90,0.06))]" />
-                    </div>
 
                     {/* Top bar */}
                     <div className="relative flex items-center justify-between text-[11px] text-gray-500">
@@ -386,8 +359,8 @@ export default function HomePage() {
                     </div>
 
                     <div className="relative mt-5">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#0E7480] ring-1 ring-[#0E7480]/20">
-                        <span className="inline-block h-2 w-2 rounded-full bg-[#0E7480]" />
+                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#3391FF] ring-1 ring-[#3391FF]/20">
+                        <span className="inline-block h-2 w-2 rounded-full bg-[#3391FF]" />
                         MATCH CONFIRMED
                       </div>
                       <div className="mt-3 text-gray-700">Hi Jess,</div>
@@ -413,26 +386,26 @@ export default function HomePage() {
 
                           <div className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-black/5 shadow-sm">
                             <div className="flex items-center gap-3">
-                              <div className="h-12 w-12 rounded-2xl grid place-items-center bg-gradient-to-br from-[#0E7480] via-[#142841] to-[#024B5A] text-white font-extrabold shadow-sm">
+                              <div className="h-12 w-12 rounded-2xl grid place-items-center bg-[#3391FF] text-white font-extrabold shadow-sm">
                                 {samplePros[activeProIndex].name.slice(0, 1).toUpperCase()}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="font-semibold text-gray-900">{samplePros[activeProIndex].name}</div>
                                   <div className="text-sm text-gray-600 flex items-center gap-1 shrink-0">
-                                    <Star className="w-4 h-4 text-[#0E7480] fill-[#0E7480]" />
+                                    <Star className="w-4 h-4 text-[#3391FF] fill-[#3391FF]" />
                                     <span className="font-semibold">{samplePros[activeProIndex].rating.toFixed(1)}</span>
                                   </div>
                                 </div>
                                 <div className="mt-0.5 text-xs text-gray-600 flex items-center gap-1">
-                                  <Shield className="w-3.5 h-3.5 text-[#0E7480]" />
+                                  <Shield className="w-3.5 h-3.5 text-[#3391FF]" />
                                   <span className="line-clamp-1">{samplePros[activeProIndex].badge}</span>
                                 </div>
                               </div>
                             </div>
 
                             <div className="mt-4 flex items-center gap-2">
-                              <span className="text-xs font-semibold text-[#142841] bg-[#0E7480]/10 rounded-full px-2 py-1">
+                              <span className="text-xs font-semibold text-[#042E5C] bg-[#3391FF]/10 rounded-full px-2 py-1">
                                 ETA {samplePros[activeProIndex].eta}
                               </span>
                               <span className="text-xs text-gray-600 line-clamp-1">
@@ -456,7 +429,7 @@ export default function HomePage() {
                           }}
                           className={
                             "h-2 w-2 rounded-full transition-all " +
-                            (i === activeProIndex ? "bg-[#0E7480] w-6" : "bg-gray-300 hover:bg-gray-400")
+                            (i === activeProIndex ? "bg-[#3391FF] w-6" : "bg-gray-300 hover:bg-gray-400")
                           }
                         />
                       ))}
@@ -472,9 +445,9 @@ export default function HomePage() {
                 Get a confirmed appointment in minutes.
               </h2>
               <div className="flex items-start gap-3 mb-6">
-                <Clock className="w-6 h-6 text-[#0E7480] mt-1 flex-shrink-0" />
+                <Clock className="w-6 h-6 text-[#3391FF] mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-[#0E7480] font-semibold mb-2">Average 10 minute response time</p>
+                  <p className="text-[#3391FF] font-semibold mb-2">Average 10 minute response time</p>
                   <p className="text-gray-600">
                     Your request instantly goes out to our network of pros who are nearby, available, and ready to take on your job.
                   </p>
@@ -503,7 +476,7 @@ export default function HomePage() {
               <div className="flex items-start gap-3 mb-6">
                 <CheckCircle className="w-6 h-6 text-yellow-500 mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-[#0E7480] font-semibold mb-2">Homeowner Protection Promise</p>
+                  <p className="text-[#3391FF] font-semibold mb-2">Homeowner Protection Promise</p>
                   <p className="text-gray-600">
                     Professionals on BridgeWork are licensed, well-rated, and background-checked. If your experience isn't perfect, we'll make it right.
                   </p>
@@ -526,13 +499,8 @@ export default function HomePage() {
                 transition={{ duration: 0.55, ease: 'easeOut' }}
                 className="w-full max-w-[440px]"
               >
-                <div className="relative rounded-[36px] p-[2px] bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-2xl shadow-black/10">
+                <div className="relative rounded-[36px] p-[2px] bg-[#3391FF] shadow-2xl shadow-black/10">
                   <div className="relative rounded-[34px] bg-white/90 backdrop-blur p-6 ring-1 ring-black/5 overflow-hidden">
-                    {/* Linear ambient highlight */}
-                    <div aria-hidden className="pointer-events-none absolute inset-0">
-                      <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(to_bottom,rgba(14,116,128,0.12),transparent)]" />
-                      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(20,40,65,0.08),transparent_45%,rgba(2,75,90,0.06))]" />
-                    </div>
 
                     {/* Top bar */}
                     <div className="relative flex items-center justify-between text-[11px] text-gray-500">
@@ -541,9 +509,9 @@ export default function HomePage() {
                     </div>
 
                     {/* Location pill */}
-                    <div className="relative mt-4 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#0E7480] ring-1 ring-[#0E7480]/20">
+                    <div className="relative mt-4 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#3391FF] ring-1 ring-[#3391FF]/20">
                       <MapPin className="w-4 h-4" />
-                      Boston, MA
+                      Ottawa, ON
                     </div>
 
                     {/* Progress */}
@@ -562,7 +530,7 @@ export default function HomePage() {
                           initial={false}
                           animate={{ width: `${((activeTimelineStep + 1) / timelineSteps.length) * 100}%` }}
                           transition={{ duration: 0.5, ease: 'easeOut' }}
-                          className="h-full bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)]"
+                          className="h-full bg-[#3391FF]"
                         />
                       </div>
                     </div>
@@ -585,7 +553,7 @@ export default function HomePage() {
                             className={
                               "flex items-center gap-3 rounded-2xl px-4 py-3 ring-1 transition " +
                               (isActive
-                                ? "bg-white shadow-sm ring-[#0E7480]/20"
+                                ? "bg-white shadow-sm ring-[#3391FF]/20"
                                 : "bg-white/70 ring-black/5")
                             }
                           >
@@ -593,7 +561,7 @@ export default function HomePage() {
                               className={
                                 "h-10 w-10 rounded-2xl grid place-items-center shadow-sm " +
                                 (isDone || isActive
-                                  ? "bg-gradient-to-br from-[#0E7480] via-[#142841] to-[#024B5A] text-white"
+                                  ? "bg-[#3391FF] text-white"
                                   : "bg-gray-100 text-gray-600")
                               }
                             >
@@ -644,10 +612,10 @@ export default function HomePage() {
                   className="group relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 hover:shadow-xl hover:shadow-black/10 transition-shadow"
                 >
                   <div className="flex items-center justify-between mb-5">
-                    <div className="h-12 w-12 rounded-2xl grid place-items-center bg-gradient-to-br from-[#0E7480] via-[#142841] to-[#024B5A] shadow-sm">
+                    <div className="h-12 w-12 rounded-2xl grid place-items-center bg-[#3391FF] shadow-sm">
                       <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <div className="text-sm font-semibold text-[#142841]/60">
+                    <div className="text-sm font-semibold text-[#042E5C]/60">
                       0{idx + 1}
                     </div>
                   </div>
@@ -660,7 +628,7 @@ export default function HomePage() {
                   </p>
 
                   <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(14,116,128,0.10),transparent_55%)]" />
+                    <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(51,145,255,0.10),transparent_55%)]" />
                   </div>
                 </motion.div>
               );
@@ -689,7 +657,7 @@ export default function HomePage() {
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className="font-brand text-4xl md:text-5xl font-extrabold text-gray-900 text-center tracking-tight"
           >
-            What people in Boston are doing now
+            What people in Ottawa are doing now
           </motion.h2>
 
           <motion.p
@@ -706,8 +674,8 @@ export default function HomePage() {
           <div className="rounded-3xl bg-white/60 backdrop-blur-sm ring-1 ring-black/5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] p-6 sm:p-8">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#142841] ring-1 ring-black/5">
-                  <span className="h-2 w-2 rounded-full bg-[#0E7480]" />
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#042E5C] ring-1 ring-black/5">
+                  <span className="h-2 w-2 rounded-full bg-[#3391FF]" />
                   Trending in your area
                 </div>
                 <div className="font-brand text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mt-3">
@@ -746,7 +714,7 @@ export default function HomePage() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 min-w-0">
-                          <div className="h-12 w-12 rounded-2xl grid place-items-center bg-gradient-to-br from-[#0E7480] via-[#142841] to-[#024B5A] shadow-sm">
+                          <div className="h-12 w-12 rounded-2xl grid place-items-center bg-[#3391FF] shadow-sm">
                             <Icon className="w-6 h-6 text-white" />
                           </div>
                           <div className="min-w-0">
@@ -758,15 +726,15 @@ export default function HomePage() {
                             </div>
                           </div>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-[#0E7480] transition-colors mt-1" />
+                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-[#3391FF] transition-colors mt-1" />
                       </div>
 
-                      <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#0E7480]/10 px-3 py-1 text-xs font-semibold text-[#142841]">
+                      <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#3391FF]/10 px-3 py-1 text-xs font-semibold text-[#042E5C]">
                         {item.chip}
                       </div>
 
                       <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(14,116,128,0.10),transparent_55%)]" />
+                        <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(51,145,255,0.10),transparent_55%)]" />
                       </div>
                     </motion.button>
                   );

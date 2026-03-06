@@ -29,6 +29,8 @@ export default function ChatPage() {
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
+  const initialScrollDone = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
@@ -122,7 +124,29 @@ export default function ChatPage() {
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0) return;
+
+    // Initial load: scroll instantly to bottom (no animation)
+    if (!initialScrollDone.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+      initialScrollDone.current = true;
+      prevMessageCountRef.current = messages.length;
+      return;
+    }
+
+    // New message arrived: only smooth-scroll if user is near the bottom
+    if (messages.length > prevMessageCountRef.current) {
+      const container = messagesEndRef.current?.parentElement?.parentElement;
+      if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+        if (isNearBottom) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages, isTyping]);
 
   const handleImageSelect = (e) => {

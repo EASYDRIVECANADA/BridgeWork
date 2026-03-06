@@ -13,7 +13,7 @@ export default function ServicesPage() {
     { id: 'cleaning', name: 'Cleaning', icon: '🧹' },
     { id: 'indoors', name: 'Indoors', icon: '🏠' },
     { id: 'install', name: 'Install', icon: '🔧' },
-    { id: 'jiffy-shop', name: 'BridgeWork Shop', icon: '🛒' },
+    { id: 'bridgework-shop', name: 'BridgeWork Shop', icon: '🛒' },
     { id: 'outdoors', name: 'Outdoors', icon: '🌳' },
     { id: 'repair', name: 'Repair', icon: '🔨' },
     { id: 'seasonal', name: 'Seasonal', icon: '❄️' },

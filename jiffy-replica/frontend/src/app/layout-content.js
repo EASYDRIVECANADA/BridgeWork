@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import HelpWidget from '@/components/HelpWidget';
 import { ToastContainer } from 'react-toastify';
 
 export default function LayoutContent({ children }) {
@@ -24,6 +25,7 @@ export default function LayoutContent({ children }) {
       {!hideNavbar && <Navbar />}
       {children}
       {!hideFooter && <Footer />}
+      <HelpWidget />
       <ToastContainer
         position="top-right"
         autoClose={3000}

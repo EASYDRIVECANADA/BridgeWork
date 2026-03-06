@@ -116,4 +116,34 @@ export const messagesAPI = {
   },
 };
 
+export const quotesAPI = {
+  // Quotes
+  createQuote: (data) => api.post('/quotes-invoices/quotes', data),
+  getQuotes: (params) => api.get('/quotes-invoices/quotes', { params }),
+  getQuoteById: (id) => api.get(`/quotes-invoices/quotes/${id}`),
+  updateQuote: (id, data) => api.put(`/quotes-invoices/quotes/${id}`, data),
+  sendQuote: (id) => api.post(`/quotes-invoices/quotes/${id}/send`),
+  respondToQuote: (id, data) => api.post(`/quotes-invoices/quotes/${id}/respond`, data),
+  convertToInvoice: (id, data) => api.post(`/quotes-invoices/quotes/${id}/convert`, data),
+  deleteQuote: (id) => api.delete(`/quotes-invoices/quotes/${id}`),
+  // Invoices
+  createInvoice: (data) => api.post('/quotes-invoices/invoices', data),
+  getInvoices: (params) => api.get('/quotes-invoices/invoices', { params }),
+  getInvoiceById: (id) => api.get(`/quotes-invoices/invoices/${id}`),
+  sendInvoice: (id) => api.post(`/quotes-invoices/invoices/${id}/send`),
+  updateInvoiceStatus: (id, data) => api.patch(`/quotes-invoices/invoices/${id}/status`, data),
+  // Stats
+  getStats: () => api.get('/quotes-invoices/stats'),
+};
+
+export const supportChatAPI = {
+  getOrCreateConversation: () => api.get('/support-chat/conversation'),
+  getMessages: (conversationId) => api.get(`/support-chat/${conversationId}/messages`),
+  sendMessage: (conversationId, data) => api.post(`/support-chat/${conversationId}/messages`, data),
+  getUnreadCount: () => api.get('/support-chat/unread-count'),
+  // Admin
+  getAllConversations: (params) => api.get('/support-chat/admin/conversations', { params }),
+  closeConversation: (conversationId) => api.patch(`/support-chat/admin/${conversationId}/close`),
+};
+
 export default api;

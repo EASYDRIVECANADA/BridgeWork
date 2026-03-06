@@ -18,6 +18,8 @@ const prosRoutes = require('./routes/pros');
 const reviewsRoutes = require('./routes/reviews');
 const paymentsRoutes = require('./routes/payments');
 const messagesRoutes = require('./routes/messages');
+const quotesRoutes = require('./routes/quotes');
+const supportChatRoutes = require('./routes/supportChat');
 
 const app = express();
 
@@ -135,6 +137,8 @@ app.use('/api/pros', prosRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/quotes-invoices', quotesRoutes);
+app.use('/api/support-chat', supportChatRoutes);
 
 const userSockets = new Map();
 
@@ -212,6 +216,17 @@ io.on('connection', (socket) => {
             userId: socket.userId,
             bookingId
         });
+    });
+
+    // Support chat rooms
+    socket.on('join_support', (conversationId) => {
+        socket.join(`support_${conversationId}`);
+        logger.info('User joined support room', { conversationId, socketId: socket.id });
+    });
+
+    socket.on('join_admin_support', () => {
+        socket.join('admin_support_room');
+        logger.info('Admin joined support room', { socketId: socket.id });
     });
 
     socket.on('booking_update', (data) => {

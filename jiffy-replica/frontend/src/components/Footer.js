@@ -19,7 +19,7 @@ export default function Footer() {
       <div className="relative max-w-7xl mx-auto px-4 py-14">
         {/* Top Section - 4 Columns */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-          {/* Column 1: Jiffy Jobs */}
+          {/* Column 1: BridgeWork Jobs */}
           <div>
             <h4 className="font-semibold mb-4">BridgeWork Jobs</h4>
             <ul className="space-y-3 text-sm">
@@ -78,7 +78,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/jiffy-terms" className="text-white/85 hover:text-white transition-colors">
+                <Link href="/bridgework-terms" className="text-white/85 hover:text-white transition-colors">
                   BridgeWork+ Terms & Conditions
                 </Link>
               </li>

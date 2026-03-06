@@ -418,3 +418,45 @@ exports.resetPassword = async (req, res) => {
         });
     }
 };
+
+exports.searchUsers = async (req, res) => {
+    try {
+        const { q, role } = req.query;
+
+        if (!q || q.length < 2) {
+            return res.json({ success: true, data: { users: [] } });
+        }
+
+        let query = supabaseAdmin
+            .from('profiles')
+            .select('id, full_name, email, avatar_url, role')
+            .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+            .eq('is_active', true)
+            .limit(10);
+
+        if (role) {
+            query = query.eq('role', role);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            logger.error('Search users error', { error: error.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to search users'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { users: data || [] }
+        });
+    } catch (error) {
+        logger.error('Search users controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to search users'
+        });
+    }
+};
