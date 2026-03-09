@@ -10,7 +10,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 212 100% 60%;
+    --primary: 199 89% 48%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 212 100% 60%;
+    --ring: 199 89% 48%;
     --radius: 0.5rem;
   }
 }
@@ -144,9 +144,9 @@
     @apply inline-flex items-center justify-center rounded-full font-semibold text-white transition-all duration-200 ease-out;
     position: relative;
     overflow: hidden;
-    background: #3391FF;
+    background: linear-gradient(90deg, #0E7480 0%, #142841 52%, #024B5A 100%);
     border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 16px 34px rgba(51, 145, 255, 0.28), 0 8px 18px rgba(4, 46, 92, 0.18);
+    box-shadow: 0 16px 34px rgba(14, 116, 128, 0.28), 0 8px 18px rgba(20, 40, 65, 0.18);
     will-change: transform;
   }
 
@@ -163,7 +163,7 @@
   .btn-brand:hover {
     transform: translateY(-1px);
     filter: saturate(1.05) brightness(1.06);
-    box-shadow: 0 20px 44px rgba(51, 145, 255, 0.34), 0 10px 24px rgba(4, 46, 92, 0.22);
+    box-shadow: 0 20px 44px rgba(14, 116, 128, 0.34), 0 10px 24px rgba(20, 40, 65, 0.22);
   }
 
   .btn-brand:active {
@@ -174,8 +174,8 @@
     outline: none;
     box-shadow:
       0 0 0 3px rgba(255, 255, 255, 0.55),
-      0 14px 30px rgba(51, 145, 255, 0.28),
-      0 6px 16px rgba(4, 46, 92, 0.22);
+      0 14px 30px rgba(14, 116, 128, 0.28),
+      0 6px 16px rgba(20, 40, 65, 0.22);
   }
 }
 

@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
               {/* Edit Profile Link */}
               <div className="border-t border-gray-100">
-                <Link href="/profile/edit" className="flex items-center justify-center gap-2 px-5 py-4 text-[#2D7FE6] hover:text-[#1e5bb8] transition-colors">
+                <Link href="/profile/edit" className="flex items-center justify-center gap-2 px-5 py-4 text-[#0E7480] hover:text-[#1e5bb8] transition-colors">
                   <Edit className="w-4 h-4" />
                   <span className="text-sm font-medium">Edit Profile</span>
                 </Link>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
             {/* Dashboard Header */}
             <div className="mb-8">
               <div className="flex items-center gap-8 border-b border-gray-200">
-                <h1 className="text-3xl font-bold text-gray-900 pb-4 border-b-2 border-[#2D7FE6]">Dashboard</h1>
+                <h1 className="text-3xl font-bold text-gray-900 pb-4 border-b-2 border-[#0E7480]">Dashboard</h1>
                 <Link href="/profile/edit" className="text-gray-600 hover:text-gray-900 pb-4">Edit Profile</Link>
                 <Link href="/credits" className="text-gray-600 hover:text-gray-900 pb-4">Credits</Link>
               </div>
@@ -260,7 +260,7 @@ export default function DashboardPage() {
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-900">My Recent Bookings</h2>
-                  <Link href="/my-jobs" className="text-sm text-[#2D7FE6] hover:underline font-medium">
+                  <Link href="/my-jobs" className="text-sm text-[#0E7480] hover:underline font-medium">
                     View All
                   </Link>
                 </div>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                     <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                       <div className="p-4 flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Briefcase className="w-6 h-6 text-[#2D7FE6]" />
+                        <Briefcase className="w-6 h-6 text-[#0E7480]" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{booking.service_name}</p>
@@ -311,7 +311,7 @@ export default function DashboardPage() {
                       ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') ? (
                         <Link
                           href={`/checkout/${booking.id}`}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#2D7FE6] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
+                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
                         >
                           <CreditCard className="w-3 h-3" />
                           Pay Now
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                       {(booking.status === 'accepted' || booking.status === 'in_progress') && (
                         <Link
                           href={`/messages/${booking.id}`}
-                          className="text-xs text-[#2D7FE6] hover:underline font-medium flex-shrink-0"
+                          className="text-xs text-[#0E7480] hover:underline font-medium flex-shrink-0"
                         >
                           Message Pro
                         </Link>
@@ -328,7 +328,7 @@ export default function DashboardPage() {
                       {booking.status === 'completed' && !reviewedBookingIds.has(booking.id) && (
                         <button
                           onClick={() => setReviewBooking(booking)}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#2D7FE6] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1 flex-shrink-0"
+                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1 flex-shrink-0"
                         >
                           <Star className="w-3 h-3" />
                           Review
@@ -372,7 +372,7 @@ export default function DashboardPage() {
                   className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-white hover:shadow-md transition-all group"
                 >
                   <div className="text-4xl">{category.icon}</div>
-                  <span className="text-sm text-gray-700 text-center group-hover:text-[#2D7FE6] transition-colors">
+                  <span className="text-sm text-gray-700 text-center group-hover:text-[#0E7480] transition-colors">
                     {category.name}
                   </span>
                 </Link>
@@ -423,7 +423,7 @@ export default function DashboardPage() {
                           unoptimized
                         />
                       </div>
-                      <p className="text-sm text-gray-700 text-center group-hover:text-[#2D7FE6] transition-colors">
+                      <p className="text-sm text-gray-700 text-center group-hover:text-[#0E7480] transition-colors">
                         {service.name}
                       </p>
                     </Link>
@@ -435,7 +435,7 @@ export default function DashboardPage() {
             {/* How BridgeWork Works */}
             <div className="mb-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">How BridgeWork Works</h2>
-              <div className="bg-gradient-to-r from-[#1e5bb8] via-[#2D7FE6] to-[#1e5bb8] rounded-2xl p-12 flex items-center justify-center">
+              <div className="bg-gradient-to-r from-[#1e5bb8] via-[#0E7480] to-[#1e5bb8] rounded-2xl p-12 flex items-center justify-center">
                 <div className="relative w-full max-w-2xl aspect-video bg-white rounded-lg shadow-2xl overflow-hidden">
                   {/* Video Player */}
                   <iframe
@@ -645,7 +645,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex-1 px-8">
-                    <button className="bg-[#2D7FE6] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors w-full mb-4">
+                    <button className="bg-[#0E7480] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors w-full mb-4">
                       Upgrade to BridgeWork+ for $10/month
                     </button>
                     <div className="flex items-center gap-4">
@@ -654,13 +654,13 @@ export default function DashboardPage() {
                         placeholder="Enter Your Membership Code"
                         className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-white placeholder-gray-400 border border-gray-500"
                       />
-                      <button className="bg-[#2D7FE6] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors">
+                      <button className="bg-[#0E7480] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors">
                         Join
                       </button>
                     </div>
                     <p className="text-gray-400 text-xs mt-4">
                       The $25 discount applies once per job. BridgeWork+ Member continues for $10/month until cancelled.{' '}
-                      <Link href="/bridgework-terms" className="text-[#2D7FE6] hover:underline">
+                      <Link href="/bridgework-terms" className="text-[#0E7480] hover:underline">
                         See BridgeWork+ Terms & Conditions
                       </Link>
                     </p>

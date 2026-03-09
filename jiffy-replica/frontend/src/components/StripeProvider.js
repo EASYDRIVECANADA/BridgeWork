@@ -14,7 +14,7 @@ export default function StripeProvider({ children, clientSecret }) {
         appearance: {
           theme: 'stripe',
           variables: {
-            colorPrimary: '#2D7FE6',
+            colorPrimary: '#0E7480',
             colorBackground: '#ffffff',
             colorText: '#1f2937',
             colorDanger: '#ef4444',
@@ -29,8 +29,8 @@ export default function StripeProvider({ children, clientSecret }) {
               padding: '10px 12px',
             },
             '.Input:focus': {
-              border: '1px solid #2D7FE6',
-              boxShadow: '0 0 0 1px #2D7FE6',
+              border: '1px solid #0E7480',
+              boxShadow: '0 0 0 1px #0E7480',
             },
             '.Label': {
               fontWeight: '500',

@@ -91,7 +91,7 @@ function CheckoutForm({ booking, clientSecret, paymentIntentId }) {
       <button
         type="submit"
         disabled={!stripe || processing}
-        className="w-full bg-[#2D7FE6] text-white py-3 rounded-lg font-semibold hover:bg-[#2570d4] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#2570d4] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {processing ? (
           <>
@@ -193,7 +193,7 @@ export default function CheckoutClient() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2D7FE6] mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#0E7480] mx-auto mb-3" />
           <p className="text-gray-600 text-sm">Loading checkout...</p>
         </div>
       </div>
@@ -205,7 +205,7 @@ export default function CheckoutClient() {
   const stripeAppearance = {
     theme: 'stripe',
     variables: {
-      colorPrimary: '#2D7FE6',
+      colorPrimary: '#0E7480',
       colorBackground: '#ffffff',
       colorText: '#1f2937',
       colorDanger: '#ef4444',
@@ -219,8 +219,8 @@ export default function CheckoutClient() {
         padding: '10px 12px',
       },
       '.Input:focus': {
-        border: '1px solid #2D7FE6',
-        boxShadow: '0 0 0 1px #2D7FE6',
+        border: '1px solid #0E7480',
+        boxShadow: '0 0 0 1px #0E7480',
       },
       '.Label': {
         fontWeight: '500',
@@ -255,13 +255,13 @@ export default function CheckoutClient() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#2D7FE6]" />
+                <Lock className="w-4 h-4 text-[#0E7480]" />
                 Secure Payment
               </h2>
 
               {creatingIntent ? (
                 <div className="text-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6] mx-auto mb-3" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mx-auto mb-3" />
                   <p className="text-sm text-gray-600">Preparing payment...</p>
                 </div>
               ) : clientSecret ? (
@@ -290,7 +290,7 @@ export default function CheckoutClient() {
                   </p>
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 text-sm text-[#2D7FE6] hover:underline"
+                    className="inline-flex items-center gap-2 text-sm text-[#0E7480] hover:underline"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Back to Dashboard
@@ -323,7 +323,7 @@ export default function CheckoutClient() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-8">
               <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-[#2D7FE6]" />
+                <Receipt className="w-4 h-4 text-[#0E7480]" />
                 Order Summary
               </h2>
 

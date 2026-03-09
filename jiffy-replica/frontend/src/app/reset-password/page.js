@@ -124,7 +124,7 @@ function ResetPasswordForm() {
             </p>
             <Link
               href="/login"
-              className="inline-block bg-[#2D7FE6] text-white px-8 py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors"
+              className="inline-block bg-[#0E7480] text-white px-8 py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors"
             >
               Go to Login
             </Link>
@@ -160,7 +160,7 @@ function ResetPasswordForm() {
             </p>
             <Link
               href="/forgot-password"
-              className="inline-block bg-[#2D7FE6] text-white px-8 py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors"
+              className="inline-block bg-[#0E7480] text-white px-8 py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors"
             >
               Request New Link
             </Link>
@@ -177,7 +177,7 @@ function ResetPasswordForm() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-[#2D7FE6]" />
+              <Lock className="w-8 h-8 text-[#0E7480]" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Set New Password
@@ -203,7 +203,7 @@ function ResetPasswordForm() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent pr-12"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent pr-12"
                   placeholder="Minimum 8 characters"
                 />
                 <button
@@ -242,7 +242,7 @@ function ResetPasswordForm() {
                   minLength={8}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent pr-12 ${
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent pr-12 ${
                     confirmPassword && confirmPassword !== password
                       ? 'border-red-300'
                       : 'border-gray-300'
@@ -272,7 +272,7 @@ function ResetPasswordForm() {
             <button
               type="submit"
               disabled={isLoading || password.length < 8 || password !== confirmPassword}
-              className="w-full bg-[#2D7FE6] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#0E7480] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Resetting Password...' : 'Reset Password'}
             </button>

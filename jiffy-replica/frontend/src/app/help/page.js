@@ -10,7 +10,7 @@ export default function HelpCenterPage() {
   const articles = [
     {
       id: 1,
-      icon: <HelpCircle className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <HelpCircle className="w-6 h-6 text-[#0E7480]" />,
       title: 'General Information',
       description: 'About BridgeWork and our Professionals. Learn about our 100% Satisfaction guaranteed for each job and how t...',
       author: 'by Nicole',
@@ -18,7 +18,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 2,
-      icon: <Clipboard className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <Clipboard className="w-6 h-6 text-[#0E7480]" />,
       title: 'BridgeWork Service areas',
       description: 'Toronto, Calgary, Montreal, Ottawa, Vancouver, Edmonton, Chicago & Boston',
       author: 'by Nicole',
@@ -26,7 +26,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 3,
-      icon: <FileText className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <FileText className="w-6 h-6 text-[#0E7480]" />,
       title: 'Service with type of job category offered to see which one is right for your request',
       description: '',
       author: 'by Nicole',
@@ -34,7 +34,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 4,
-      icon: <Award className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <Award className="w-6 h-6 text-[#0E7480]" />,
       title: 'Memberships',
       description: 'Learn more about our BridgeWork+ and BridgeWork Spending Account (USA) Memberships.',
       author: 'by Nicole',
@@ -42,7 +42,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 5,
-      icon: <Key className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <Key className="w-6 h-6 text-[#0E7480]" />,
       title: 'Before booking',
       description: 'Signing up, how to book, prices & rates, method of payment (adding a credit card) and requesting a...',
       author: 'by Nicole',
@@ -50,7 +50,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 6,
-      icon: <Edit className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <Edit className="w-6 h-6 text-[#0E7480]" />,
       title: 'Your Profile',
       description: '',
       author: 'by Nicole',
@@ -58,7 +58,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 7,
-      icon: <FileText className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <FileText className="w-6 h-6 text-[#0E7480]" />,
       title: 'Requested Job',
       description: '',
       author: 'by Nicole',
@@ -66,7 +66,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 8,
-      icon: <Calendar className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <Calendar className="w-6 h-6 text-[#0E7480]" />,
       title: 'Accepted Jobs',
       description: '',
       author: 'by Nicole',
@@ -74,7 +74,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 9,
-      icon: <CheckCircle className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <CheckCircle className="w-6 h-6 text-[#0E7480]" />,
       title: 'Completed Job',
       description: '',
       author: 'by Nicole',
@@ -82,7 +82,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 10,
-      icon: <HelpCircle className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <HelpCircle className="w-6 h-6 text-[#0E7480]" />,
       title: 'BridgeWork Jobs',
       description: 'Satisfaction Guarantee, Terms and Conditions, Privacy Policy',
       author: 'by Nicole',
@@ -90,7 +90,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 11,
-      icon: <MessageSquare className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <MessageSquare className="w-6 h-6 text-[#0E7480]" />,
       title: 'Compliments & Complaints',
       description: 'We want to hear from your about your Job experience!',
       author: 'by Nicole',
@@ -98,7 +98,7 @@ export default function HelpCenterPage() {
     },
     {
       id: 12,
-      icon: <File className="w-6 h-6 text-[#2D7FE6]" />,
+      icon: <File className="w-6 h-6 text-[#0E7480]" />,
       title: 'FAQs',
       description: 'Quickly find the answers you need.',
       author: 'by Nicole',
@@ -115,7 +115,7 @@ export default function HelpCenterPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header Section */}
-      <div className="bg-[#2D7FE6] text-white py-12">
+      <div className="bg-[#0E7480] text-white py-12">
         <div className="max-w-4xl mx-auto px-6">
           {/* Top Bar - Title and Language */}
           <div className="flex items-center justify-between mb-12">
@@ -157,7 +157,7 @@ export default function HelpCenterPage() {
             <Link
               key={article.id}
               href={`/help/${article.id}`}
-              className="block bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg hover:border-[#2D7FE6] transition-all group"
+              className="block bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg hover:border-[#0E7480] transition-all group"
             >
               <div className="flex gap-4">
                 {/* Icon */}
@@ -169,7 +169,7 @@ export default function HelpCenterPage() {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-[#2D7FE6] transition-colors">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-[#0E7480] transition-colors">
                     {article.title}
                   </h3>
                   {article.description && (
@@ -204,7 +204,7 @@ export default function HelpCenterPage() {
           <h3 className="text-gray-400 text-sm font-medium mb-4">BridgeWork Help Center</h3>
           <p className="text-gray-500 text-sm mb-6">
             Don't see your answer?{' '}
-            <Link href="/contact" className="text-[#2D7FE6] hover:underline">
+            <Link href="/contact" className="text-[#0E7480] hover:underline">
               Click here to contact us
             </Link>
           </p>
@@ -213,7 +213,7 @@ export default function HelpCenterPage() {
               href="https://facebook.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-[#2D7FE6] transition-colors"
+              className="text-gray-400 hover:text-[#0E7480] transition-colors"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -223,7 +223,7 @@ export default function HelpCenterPage() {
               href="https://twitter.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-[#2D7FE6] transition-colors"
+              className="text-gray-400 hover:text-[#0E7480] transition-colors"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />

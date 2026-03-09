@@ -91,10 +91,18 @@ exports.createConnectAccount = async (req, res) => {
             }
         });
     } catch (error) {
-        logger.error('Create Connect account error', { error: error.message });
+        logger.error('Create Connect account error', { 
+            error: error.message, 
+            type: error.type,
+            code: error.code,
+            param: error.param,
+            statusCode: error.statusCode,
+            raw: error.raw?.message,
+        });
         res.status(500).json({
             success: false,
-            message: 'Failed to create Stripe Connect account'
+            message: 'Failed to create Stripe Connect account',
+            detail: error.message,
         });
     }
 };

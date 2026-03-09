@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export default function ServicesPage() {
-  const [selectedCategory, setSelectedCategory] = useState('Cleaning');
+  const searchParams = useSearchParams();
+  const isEmergency = searchParams.get('emergency') === 'true';
+  const [selectedCategory, setSelectedCategory] = useState(isEmergency ? 'Emergency' : 'Cleaning');
   const [searchQuery, setSearchQuery] = useState('');
 
   const categories = [
@@ -17,6 +20,7 @@ export default function ServicesPage() {
     { id: 'outdoors', name: 'Outdoors', icon: '🌳' },
     { id: 'repair', name: 'Repair', icon: '🔨' },
     { id: 'seasonal', name: 'Seasonal', icon: '❄️' },
+    { id: 'emergency', name: 'Emergency', icon: '🚨' },
   ];
 
   const services = {
@@ -75,6 +79,11 @@ export default function ServicesPage() {
       { id: 40, name: 'Spring Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
       { id: 41, name: 'Winterization', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400' },
     ],
+    Emergency: [
+      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e01', name: 'Emergency HVAC', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400' },
+      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e02', name: 'Emergency Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400' },
+      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e03', name: 'Emergency Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400' },
+    ],
   };
 
   const filteredServices = services[selectedCategory] || [];
@@ -97,7 +106,7 @@ export default function ServicesPage() {
                 placeholder=""
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-14 pr-4 py-4 text-lg border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#2D7FE6] transition-colors"
+                className="w-full pl-14 pr-4 py-4 text-lg border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#0E7480] transition-colors"
               />
             </div>
           </div>
@@ -123,7 +132,7 @@ export default function ServicesPage() {
           {/* Help Text */}
           <p className="text-sm text-gray-600">
             Need help finding the right service?{' '}
-            <Link href="/chat" className="text-[#2D7FE6] underline hover:text-[#2570d4]">
+            <Link href="/chat" className="text-[#0E7480] underline hover:text-[#2570d4]">
               Chat with us.
             </Link>
           </p>
@@ -148,7 +157,7 @@ export default function ServicesPage() {
                     className="object-cover rounded-lg"
                   />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#2D7FE6] transition-colors">
+                <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#0E7480] transition-colors">
                   {service.name}
                 </h3>
               </div>

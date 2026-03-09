@@ -250,7 +250,7 @@ export default function MessagesPage() {
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Page Title */}
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Messages</h1>
-        <div className="h-[2px] bg-gradient-to-r from-[#2D7FE6] via-[#c9a84c] to-transparent mb-6" />
+        <div className="h-[2px] bg-gradient-to-r from-[#0E7480] via-[#c9a84c] to-transparent mb-6" />
 
         {/* Split Panel Container */}
         <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 240px)', minHeight: '500px' }}>
@@ -266,7 +266,7 @@ export default function MessagesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search Chat List"
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#2D7FE6]"
+                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0E7480]"
                 />
               </div>
             </div>
@@ -275,7 +275,7 @@ export default function MessagesPage() {
             <div className="flex-1 overflow-y-auto">
               {loading.conversations ? (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-6 h-6 text-[#2D7FE6] animate-spin" />
+                  <Loader2 className="w-6 h-6 text-[#0E7480] animate-spin" />
                 </div>
               ) : filteredConversations.length > 0 ? (
                 filteredConversations.map((convo) => (
@@ -359,7 +359,7 @@ export default function MessagesPage() {
                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
                   {loading.messages ? (
                     <div className="flex items-center justify-center h-full">
-                      <Loader2 className="w-6 h-6 text-[#2D7FE6] animate-spin" />
+                      <Loader2 className="w-6 h-6 text-[#0E7480] animate-spin" />
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
@@ -424,7 +424,7 @@ export default function MessagesPage() {
                                     <div
                                       className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                                         isOwn
-                                          ? 'bg-[#2D7FE6] text-white rounded-br-md'
+                                          ? 'bg-[#0E7480] text-white rounded-br-md'
                                           : 'bg-gray-100 text-gray-800 rounded-bl-md'
                                       }`}
                                     >
@@ -436,7 +436,7 @@ export default function MessagesPage() {
                                     <div
                                       className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                                         isOwn
-                                          ? 'bg-[#2D7FE6] text-white rounded-br-md'
+                                          ? 'bg-[#0E7480] text-white rounded-br-md'
                                           : 'bg-gray-100 text-gray-800 rounded-bl-md'
                                       }`}
                                     >
@@ -448,7 +448,7 @@ export default function MessagesPage() {
                                       {formatTime(msg.created_at)}
                                     </span>
                                     {isOwn && (
-                                      <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-[#2D7FE6]' : 'text-gray-300'}`} />
+                                      <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-[#0E7480]' : 'text-gray-300'}`} />
                                     )}
                                   </div>
                                 </div>
@@ -496,7 +496,7 @@ export default function MessagesPage() {
                     <button
                       onClick={handleSendImage}
                       disabled={uploading}
-                      className="bg-[#2D7FE6] text-white px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50"
+                      className="bg-[#0E7480] text-white px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50"
                     >
                       {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Send Image'}
                     </button>
@@ -533,7 +533,7 @@ export default function MessagesPage() {
                     disabled={(!inputMessage.trim() && !pendingFile) || loading.sending || uploading}
                     className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
                       inputMessage.trim() || pendingFile
-                        ? 'bg-[#2D7FE6] text-white hover:bg-[#1e5bb8]'
+                        ? 'bg-[#0E7480] text-white hover:bg-[#1e5bb8]'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >

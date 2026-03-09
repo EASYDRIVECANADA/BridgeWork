@@ -22,7 +22,7 @@ export default function TermsAndConditionsPage() {
           <select
             value={selectedCountry}
             onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent text-sm"
+            className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm"
           >
             <option value="Canada">Canada</option>
             <option value="USA">USA</option>
@@ -32,10 +32,10 @@ export default function TermsAndConditionsPage() {
         {/* Introduction */}
         <div className="text-sm text-gray-700 leading-relaxed space-y-4 mb-8">
           <p>
-            The website operated at <Link href="https://bridgework.com" className="text-[#2D7FE6] hover:underline">https://bridgework.com</Link> and such other locations as made available from time to time (collectively, the <strong>"Website"</strong>) and the BridgeWork Mobile Applications, Application Programming Interfaces and the services offered therefrom (collectively, the <strong>"Service"</strong>) are operated by BridgeWork Inc. and its corporate affiliates (collectively, <strong>"us"</strong>, <strong>"we"</strong> or the <strong>"BridgeWork Companies"</strong>).
+            The website operated at <Link href="https://bridgework.com" className="text-[#0E7480] hover:underline">https://bridgework.com</Link> and such other locations as made available from time to time (collectively, the <strong>"Website"</strong>) and the BridgeWork Mobile Applications, Application Programming Interfaces and the services offered therefrom (collectively, the <strong>"Service"</strong>) are operated by BridgeWork Inc. and its corporate affiliates (collectively, <strong>"us"</strong>, <strong>"we"</strong> or the <strong>"BridgeWork Companies"</strong>).
           </p>
           <p>
-            These Terms and Conditions (the <strong>"Agreement"</strong>) apply to each User (as defined below). By using our App or our Service, you agree to be bound by and be in lieu of) any other terms of use posted on <Link href="https://bridgework.com" className="text-[#2D7FE6] hover:underline">https://bridgework.com</Link>, in connection with the App, and linked from our Terms and Conditions page at <Link href="https://bridgework.com/terms_and_conditions" className="text-[#2D7FE6] hover:underline">https://bridgework.com/terms_and_conditions</Link>. These terms, together constitute the entire Agreement (the <strong>"Agreement"</strong>) between us and you. By accessing or using the Service, you (together with all persons accessing or using the Service, collectively, the <strong>"Users"</strong>) signify that you have read, understand and agree to be bound by this Agreement with respect to the Website, the App, our provision of the Service, and your use of them.
+            These Terms and Conditions (the <strong>"Agreement"</strong>) apply to each User (as defined below). By using our App or our Service, you agree to be bound by and be in lieu of) any other terms of use posted on <Link href="https://bridgework.com" className="text-[#0E7480] hover:underline">https://bridgework.com</Link>, in connection with the App, and linked from our Terms and Conditions page at <Link href="https://bridgework.com/terms_and_conditions" className="text-[#0E7480] hover:underline">https://bridgework.com/terms_and_conditions</Link>. These terms, together constitute the entire Agreement (the <strong>"Agreement"</strong>) between us and you. By accessing or using the Service, you (together with all persons accessing or using the Service, collectively, the <strong>"Users"</strong>) signify that you have read, understand and agree to be bound by this Agreement with respect to the Website, the App, our provision of the Service, and your use of them.
           </p>
           <p className="uppercase font-bold">
             YOU MAY NOT USE THE SERVICES IF YOU ARE UNDER THE AGE OF MAJORITY IN THE JURISDICTION IN WHICH YOU RESIDE (I.E., IF YOU ARE A MINOR).
@@ -71,7 +71,7 @@ export default function TermsAndConditionsPage() {
 
             <h3 className="font-bold mb-2 mt-4">d. Cancelling Home Services</h3>
             <p className="mb-3">
-              A Requesting User may cancel a Request without penalty before reaching a notification that a Home Service Professional has accepted the Request. Requesting Users must follow the cancellation procedures as provided in the Guidelines (<Link href="https://intercom.help/bridgework" className="text-[#2D7FE6] hover:underline">https://intercom.help/bridgework</Link>). Any cancellations made in violation of the Guidelines will incur late fees, and or penalties, as provided herein or as we determine, in our sole discretion. All cancellation fees will be provided in the Guidelines. We reserve the right to change, modify, increase, or decrease the amount and terms of the cancellation fees in our discretion from time to time. If we choose to do so, we will notify you by posting the update to the Website.
+              A Requesting User may cancel a Request without penalty before reaching a notification that a Home Service Professional has accepted the Request. Requesting Users must follow the cancellation procedures as provided in the Guidelines (<Link href="https://intercom.help/bridgework" className="text-[#0E7480] hover:underline">https://intercom.help/bridgework</Link>). Any cancellations made in violation of the Guidelines will incur late fees, and or penalties, as provided herein or as we determine, in our sole discretion. All cancellation fees will be provided in the Guidelines. We reserve the right to change, modify, increase, or decrease the amount and terms of the cancellation fees in our discretion from time to time. If we choose to do so, we will notify you by posting the update to the Website.
             </p>
 
             <div className="ml-6 space-y-3 mt-3">
@@ -122,7 +122,7 @@ export default function TermsAndConditionsPage() {
 
             <h3 className="font-bold mb-2 mt-4">c. Minimum Charge</h3>
             <p className="mb-3">
-              You understand and agree that there is a minimum charge set for each Home Service (the <strong>"Minimum Charge"</strong>). We reserve the right, in our sole discretion, to modify or update the Minimum Charge for your Job, other than as provided herein. You understand that we may only the Minimum Charge to the Job if the Home Service Professional arrives at the Premises prior to any cancellation and within the grace period as set out in the Guidelines (<Link href="https://intercom.help/bridgework" className="text-[#2D7FE6] hover:underline">https://intercom.help/bridgework</Link>). If we choose to apply the Minimum Charge, we may consider the cost of materials for our own determination of whether to apply the Minimum Charge.
+              You understand and agree that there is a minimum charge set for each Home Service (the <strong>"Minimum Charge"</strong>). We reserve the right, in our sole discretion, to modify or update the Minimum Charge for your Job, other than as provided herein. You understand that we may only the Minimum Charge to the Job if the Home Service Professional arrives at the Premises prior to any cancellation and within the grace period as set out in the Guidelines (<Link href="https://intercom.help/bridgework" className="text-[#0E7480] hover:underline">https://intercom.help/bridgework</Link>). If we choose to apply the Minimum Charge, we may consider the cost of materials for our own determination of whether to apply the Minimum Charge.
             </p>
 
             <h3 className="font-bold mb-2 mt-4">d. Home Service Payment</h3>

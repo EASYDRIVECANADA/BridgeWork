@@ -68,7 +68,7 @@ export default function SpendingAccountTermsPage() {
           <select
             value={selectedCountry}
             onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+            className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
           >
             <option value="Canada">Canada</option>
             <option value="USA">USA</option>
@@ -79,15 +79,15 @@ export default function SpendingAccountTermsPage() {
         <div className="mb-8 text-sm text-gray-700 leading-7 space-y-4">
           <p>
             BridgeWork+ Spending Account is a subscription program available to Users (as defined in the General Terms and Conditions available at{' '}
-            <Link href="/terms" className="text-[#2D7FE6] hover:underline">
+            <Link href="/terms" className="text-[#0E7480] hover:underline">
               https://BridgeWork.com/terms_and_conditions
             </Link>
             ) with a User Account (as defined in the General Terms and Conditions) who are Homeowners (as defined in the General Terms and Conditions) in connection with the BridgeWork web platform and mobile application (collectively, the "App") for homeowners using the App ("you", "your", "User"). In addition to these Terms and Conditions (the "BridgeWork+ SA Terms"), your use of the BridgeWork+ Spending Account is governed by BridgeWork's standard Terms and Conditions available at{' '}
-            <Link href="/terms" className="text-[#2D7FE6] hover:underline">
+            <Link href="/terms" className="text-[#0E7480] hover:underline">
               https://BridgeWork.com/terms_and_conditions
             </Link>
             {' '}(the "General Terms") and the terms of the BridgeWork+ Terms and Conditions available at{' '}
-            <Link href="/bridgework-terms" className="text-[#2D7FE6] hover:underline">
+            <Link href="/bridgework-terms" className="text-[#0E7480] hover:underline">
               https://BridgeWork.com/bridgework_plus_terms_and_conditions
             </Link>
             {' '}(the "BridgeWork+ Terms"), which apply in respect of the BridgeWork+ membership.

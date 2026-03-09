@@ -143,7 +143,7 @@ export default function EditProfilePage() {
             <div className="flex items-center gap-8 ml-auto">
               <Link
                 href="/profile/edit"
-                className="text-[#2D7FE6] hover:text-[#1e5bb8] pb-4 border-b-2 border-[#2D7FE6] font-medium"
+                className="text-[#0E7480] hover:text-[#1e5bb8] pb-4 border-b-2 border-[#0E7480] font-medium"
               >
                 Edit Profile
               </Link>
@@ -180,7 +180,7 @@ export default function EditProfilePage() {
                   </div>
                   <button
                     onClick={handleAvatarClick}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#2D7FE6] rounded-full flex items-center justify-center text-white hover:bg-[#1e5bb8] transition-colors shadow-md"
+                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#0E7480] rounded-full flex items-center justify-center text-white hover:bg-[#1e5bb8] transition-colors shadow-md"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -198,26 +198,26 @@ export default function EditProfilePage() {
               <div className="flex-1 space-y-5">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-[#2D7FE6] mb-2">Name</label>
+                  <label className="block text-sm font-semibold text-[#0E7480] mb-2">Name</label>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="First Name"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 mb-3"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 mb-3"
                   />
                   <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Last Name"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900"
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-semibold text-[#2D7FE6] mb-2">Email</label>
+                  <label className="block text-sm font-semibold text-[#0E7480] mb-2">Email</label>
                   <input
                     type="email"
                     value={email}
@@ -234,7 +234,7 @@ export default function EditProfilePage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Phone Number"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900"
                   />
                 </div>
 
@@ -248,7 +248,7 @@ export default function EditProfilePage() {
                       <div
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                           language === 'English'
-                            ? 'border-[#2D7FE6] bg-[#2D7FE6]'
+                            ? 'border-[#0E7480] bg-[#0E7480]'
                             : 'border-gray-300'
                         }`}
                         onClick={() => setLanguage('English')}
@@ -265,7 +265,7 @@ export default function EditProfilePage() {
                       <div
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                           language === 'Francais'
-                            ? 'border-[#2D7FE6] bg-[#2D7FE6]'
+                            ? 'border-[#0E7480] bg-[#0E7480]'
                             : 'border-gray-300'
                         }`}
                         onClick={() => setLanguage('Francais')}
@@ -284,7 +284,7 @@ export default function EditProfilePage() {
                 {/* Action links and Save button */}
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-6">
-                    <button className="text-sm text-[#2D7FE6] hover:text-[#1e5bb8] font-medium hover:underline">
+                    <button className="text-sm text-[#0E7480] hover:text-[#1e5bb8] font-medium hover:underline">
                       Change Password
                     </button>
                     <button className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
@@ -294,7 +294,7 @@ export default function EditProfilePage() {
                   <button
                     onClick={handleSaveChanges}
                     disabled={saving}
-                    className="px-6 py-2.5 bg-[#2D7FE6] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors disabled:opacity-50"
+                    className="px-6 py-2.5 bg-[#0E7480] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -315,7 +315,7 @@ export default function EditProfilePage() {
             <button
               onClick={() => setAllowLawnSigns(!allowLawnSigns)}
               className={`relative w-12 h-6 rounded-full transition-colors ${
-                allowLawnSigns ? 'bg-[#2D7FE6]' : 'bg-gray-300'
+                allowLawnSigns ? 'bg-[#0E7480]' : 'bg-gray-300'
               }`}
             >
               <div
@@ -346,7 +346,7 @@ export default function EditProfilePage() {
                 {addresses.map((addr, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-[#2D7FE6]" />
+                      <MapPin className="w-4 h-4 text-[#0E7480]" />
                       <span className="text-sm text-gray-700">
                         {addr.address}{addr.unit ? `, ${addr.unit}` : ''}
                       </span>
@@ -368,14 +368,14 @@ export default function EditProfilePage() {
               <div className="flex gap-3">
                 <div className="flex-1 relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                    <MapPin className="w-5 h-5 text-[#2D7FE6]" />
+                    <MapPin className="w-5 h-5 text-[#0E7480]" />
                   </div>
                   <input
                     type="text"
                     value={addressInput}
                     onChange={(e) => setAddressInput(e.target.value)}
                     placeholder="ex. 90 Tycos Drive, ON, CA"
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 text-sm"
                   />
                 </div>
                 <input
@@ -383,13 +383,13 @@ export default function EditProfilePage() {
                   value={unitSuite}
                   onChange={(e) => setUnitSuite(e.target.value)}
                   placeholder="Unité / Suite"
-                  className="w-32 px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 text-sm"
+                  className="w-32 px-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 text-sm"
                 />
               </div>
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleAddAddress}
-                  className="px-6 py-2.5 bg-[#2D7FE6] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors text-sm"
+                  className="px-6 py-2.5 bg-[#0E7480] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors text-sm"
                 >
                   Add Address
                 </button>
@@ -422,7 +422,7 @@ export default function EditProfilePage() {
                   onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
                   placeholder="1234 1234 1234 1234"
                   maxLength={19}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 text-sm"
                 />
                 {/* Card brand badges */}
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -450,7 +450,7 @@ export default function EditProfilePage() {
                   onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
                   placeholder="MM / YY"
                   maxLength={7}
-                  className="w-24 pl-10 pr-2 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 text-sm"
+                  className="w-24 pl-10 pr-2 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 text-sm"
                 />
               </div>
               <div className="relative">
@@ -463,7 +463,7 @@ export default function EditProfilePage() {
                   onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="CVC"
                   maxLength={4}
-                  className="w-20 pl-10 pr-2 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#2D7FE6] text-gray-900 text-sm"
+                  className="w-20 pl-10 pr-2 py-2.5 border border-gray-300 rounded focus:outline-none focus:border-[#0E7480] text-gray-900 text-sm"
                 />
               </div>
             </div>
@@ -472,11 +472,11 @@ export default function EditProfilePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm text-[#2D7FE6] font-medium">Secure Payment Processing</span>
+                <span className="text-sm text-[#0E7480] font-medium">Secure Payment Processing</span>
               </div>
               <button
                 onClick={handleAddCard}
-                className="px-6 py-2.5 bg-[#2D7FE6] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors text-sm"
+                className="px-6 py-2.5 bg-[#0E7480] text-white rounded font-medium hover:bg-[#1e5bb8] transition-colors text-sm"
               >
                 Add Card
               </button>

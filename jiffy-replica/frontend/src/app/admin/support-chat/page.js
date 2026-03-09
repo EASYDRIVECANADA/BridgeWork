@@ -189,7 +189,7 @@ export default function AdminSupportChatPage() {
   if (!profile || profile.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#3391FF] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#0E7480] animate-spin" />
       </div>
     );
   }
@@ -213,7 +213,7 @@ export default function AdminSupportChatPage() {
                   onClick={() => setStatusFilter(s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${
                     statusFilter === s
-                      ? 'bg-[#3391FF] text-white'
+                      ? 'bg-[#0E7480] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -226,7 +226,7 @@ export default function AdminSupportChatPage() {
             <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 text-[#3391FF] animate-spin" />
+                  <Loader2 className="w-6 h-6 text-[#0E7480] animate-spin" />
                 </div>
               ) : conversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-6">
@@ -243,8 +243,8 @@ export default function AdminSupportChatPage() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#3391FF]/10 grid place-items-center shrink-0 mt-0.5">
-                        <User className="w-4 h-4 text-[#3391FF]" />
+                      <div className="w-9 h-9 rounded-full bg-[#0E7480]/10 grid place-items-center shrink-0 mt-0.5">
+                        <User className="w-4 h-4 text-[#0E7480]" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -252,7 +252,7 @@ export default function AdminSupportChatPage() {
                             {conv.user?.full_name || 'Unknown User'}
                           </span>
                           {conv.unread_count > 0 && (
-                            <span className="bg-[#3391FF] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0">
+                            <span className="bg-[#0E7480] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0">
                               {conv.unread_count}
                             </span>
                           )}
@@ -285,8 +285,8 @@ export default function AdminSupportChatPage() {
           <div className="flex-1 flex flex-col">
             {!selectedConv ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-                <div className="w-16 h-16 rounded-full bg-[#3391FF]/10 grid place-items-center mb-4">
-                  <MessageCircle className="w-8 h-8 text-[#3391FF]" />
+                <div className="w-16 h-16 rounded-full bg-[#0E7480]/10 grid place-items-center mb-4">
+                  <MessageCircle className="w-8 h-8 text-[#0E7480]" />
                 </div>
                 <p className="font-semibold text-gray-900">Select a conversation</p>
                 <p className="text-sm text-gray-500 mt-1">Choose a conversation from the sidebar to start replying</p>
@@ -302,8 +302,8 @@ export default function AdminSupportChatPage() {
                     >
                       <ArrowLeft className="w-5 h-5 text-gray-500" />
                     </button>
-                    <div className="w-9 h-9 rounded-full bg-[#3391FF]/10 grid place-items-center">
-                      <User className="w-4 h-4 text-[#3391FF]" />
+                    <div className="w-9 h-9 rounded-full bg-[#0E7480]/10 grid place-items-center">
+                      <User className="w-4 h-4 text-[#0E7480]" />
                     </div>
                     <div>
                       <div className="font-semibold text-sm text-gray-900">
@@ -329,7 +329,7 @@ export default function AdminSupportChatPage() {
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50">
                   {messagesLoading ? (
                     <div className="flex items-center justify-center h-full">
-                      <Loader2 className="w-6 h-6 text-[#3391FF] animate-spin" />
+                      <Loader2 className="w-6 h-6 text-[#0E7480] animate-spin" />
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
@@ -342,11 +342,11 @@ export default function AdminSupportChatPage() {
                         <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[70%] rounded-2xl px-3.5 py-2.5 text-sm ${
                             isAdmin
-                              ? 'bg-[#3391FF] text-white rounded-br-md'
+                              ? 'bg-[#0E7480] text-white rounded-br-md'
                               : 'bg-white text-gray-900 ring-1 ring-black/5 shadow-sm rounded-bl-md'
                           }`}>
                             {!isAdmin && msg.sender && (
-                              <div className="text-xs font-semibold text-[#3391FF] mb-1">
+                              <div className="text-xs font-semibold text-[#0E7480] mb-1">
                                 {msg.sender.full_name}
                               </div>
                             )}
@@ -373,7 +373,7 @@ export default function AdminSupportChatPage() {
                     <textarea
                       rows={1}
                       placeholder="Type a reply..."
-                      className="flex-1 resize-none text-sm text-gray-900 outline-none bg-gray-50 rounded-xl px-4 py-3 ring-1 ring-gray-200 focus:ring-[#3391FF]/40 transition placeholder:text-gray-400 max-h-[120px]"
+                      className="flex-1 resize-none text-sm text-gray-900 outline-none bg-gray-50 rounded-xl px-4 py-3 ring-1 ring-gray-200 focus:ring-[#0E7480]/40 transition placeholder:text-gray-400 max-h-[120px]"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={handleKeyPress}
@@ -381,7 +381,7 @@ export default function AdminSupportChatPage() {
                     <button
                       onClick={handleSend}
                       disabled={!message.trim() || sending}
-                      className="p-3 rounded-xl bg-[#3391FF] text-white disabled:opacity-40 hover:bg-[#0A6FE6] transition shrink-0"
+                      className="p-3 rounded-xl bg-[#0E7480] text-white disabled:opacity-40 hover:bg-[#0d9488] transition shrink-0"
                     >
                       {sending ? (
                         <Loader2 className="w-5 h-5 animate-spin" />

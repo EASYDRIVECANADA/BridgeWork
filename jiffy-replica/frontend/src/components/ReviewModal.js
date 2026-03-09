@@ -143,7 +143,7 @@ export default function ReviewModal({ booking, onClose, onReviewSubmitted }) {
             <button
               type="submit"
               disabled={isSubmitting || rating === 0}
-              className="px-5 py-2 text-sm font-semibold bg-[#2D7FE6] text-white rounded-lg hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 text-sm font-semibold bg-[#0E7480] text-white rounded-lg hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>

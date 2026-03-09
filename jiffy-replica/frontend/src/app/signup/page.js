@@ -76,7 +76,7 @@ export default function SignupPage() {
         <div className="max-w-md w-full">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Mail className="w-10 h-10 text-[#2D7FE6]" />
+              <Mail className="w-10 h-10 text-[#0E7480]" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
               Check Your Email
@@ -84,7 +84,7 @@ export default function SignupPage() {
             <p className="text-gray-600 mb-2">
               We've sent a confirmation link to:
             </p>
-            <p className="text-[#2D7FE6] font-semibold text-lg mb-6">
+            <p className="text-[#0E7480] font-semibold text-lg mb-6">
               {signupEmail}
             </p>
             <p className="text-sm text-gray-500 mb-8">
@@ -93,7 +93,7 @@ export default function SignupPage() {
             <div className="space-y-3">
               <Link
                 href="/login"
-                className="block w-full bg-[#2D7FE6] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors text-center"
+                className="block w-full bg-[#0E7480] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors text-center"
               >
                 Go to Login
               </Link>
@@ -172,7 +172,7 @@ export default function SignupPage() {
                       required
                       value={formData.firstName}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="First Name"
                     />
                   </div>
@@ -187,7 +187,7 @@ export default function SignupPage() {
                       required
                       value={formData.lastName}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="Last Name"
                     />
                   </div>
@@ -207,7 +207,7 @@ export default function SignupPage() {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="email@example.com"
                     />
                   </div>
@@ -222,7 +222,7 @@ export default function SignupPage() {
                       required
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="(123) 456-7890"
                     />
                   </div>
@@ -243,7 +243,7 @@ export default function SignupPage() {
                       minLength={8}
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="Password (min 8 characters)"
                     />
                   </div>
@@ -258,7 +258,7 @@ export default function SignupPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                       placeholder="Confirm Password"
                     />
                   </div>
@@ -275,7 +275,7 @@ export default function SignupPage() {
                     type="text"
                     value={formData.hearAbout}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                     placeholder="e.g. friend, google, facebook, etc."
                   />
                 </div>
@@ -288,7 +288,7 @@ export default function SignupPage() {
                     type="checkbox"
                     checked={formData.receiveNews}
                     onChange={handleChange}
-                    className="h-4 w-4 text-[#2D7FE6] focus:ring-[#2D7FE6] border-gray-300 rounded mt-1"
+                    className="h-4 w-4 text-[#0E7480] focus:ring-[#0E7480] border-gray-300 rounded mt-1"
                   />
                   <label htmlFor="receiveNews" className="ml-2 block text-sm text-gray-700">
                     Yes! I'd like to receive news and special offers from BridgeWork.
@@ -305,7 +305,7 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-[#2D7FE6] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-[#0E7480] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Creating account...' : 'Sign Up'}
                 </button>
@@ -313,11 +313,11 @@ export default function SignupPage() {
                 {/* Terms and Conditions */}
                 <p className="text-xs text-center text-gray-600">
                   By signing up you're agreeing to BridgeWork's{' '}
-                  <Link href="/terms" className="text-[#2D7FE6] hover:underline">
+                  <Link href="/terms" className="text-[#0E7480] hover:underline">
                     Terms
                   </Link>{' '}
                   and{' '}
-                  <Link href="/privacy" className="text-[#2D7FE6] hover:underline">
+                  <Link href="/privacy" className="text-[#0E7480] hover:underline">
                     Conditions
                   </Link>
                 </p>

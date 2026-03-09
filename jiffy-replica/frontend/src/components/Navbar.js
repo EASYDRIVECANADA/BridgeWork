@@ -52,7 +52,7 @@ export default function Navbar() {
   const navMobileButtonClass = navButtonClass + " w-full text-left";
 
   return (
-    <nav className="sticky top-0 z-50 relative overflow-hidden bg-[#3391FF] shadow-xl shadow-black/20 ring-1 ring-white/10">
+    <nav className="sticky top-0 z-50 relative overflow-hidden bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-xl shadow-black/20 ring-1 ring-white/10">
       {/* Subtle bottom border */}
       <div aria-hidden className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-white/20" />
 
@@ -126,7 +126,7 @@ export default function Navbar() {
                     <Link href="/messages" className={navLinkClass + " relative"}>
                       Messages
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#042E5C]">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#142841]">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
@@ -152,7 +152,7 @@ export default function Navbar() {
                     <Link href="/messages" className={navLinkClass + " relative"}>
                       Messages
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#042E5C]">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#142841]">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}

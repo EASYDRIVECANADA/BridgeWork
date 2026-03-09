@@ -284,7 +284,7 @@ export default function ChatPage() {
           {bookingInfo && (
             <Link
               href={profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard'}
-              className="text-xs text-[#2D7FE6] hover:underline font-medium"
+              className="text-xs text-[#0E7480] hover:underline font-medium"
             >
               View Booking
             </Link>
@@ -297,7 +297,7 @@ export default function ChatPage() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           {loading.messages ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 text-[#2D7FE6] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#0E7480] animate-spin" />
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center py-20">
@@ -349,7 +349,7 @@ export default function ChatPage() {
                           <div
                             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                               isOwn
-                                ? 'bg-[#2D7FE6] text-white rounded-br-md'
+                                ? 'bg-[#0E7480] text-white rounded-br-md'
                                 : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
                             }`}
                           >
@@ -360,7 +360,7 @@ export default function ChatPage() {
                           <div
                             className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                               isOwn
-                                ? 'bg-[#2D7FE6] text-white rounded-br-md'
+                                ? 'bg-[#0E7480] text-white rounded-br-md'
                                 : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
                             }`}
                           >
@@ -372,7 +372,7 @@ export default function ChatPage() {
                             {formatTime(msg.created_at)}
                           </span>
                           {isOwn && (
-                            <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-[#2D7FE6]' : 'text-gray-300'}`} />
+                            <CheckCheck className={`w-3 h-3 ${msg.is_read ? 'text-[#0E7480]' : 'text-gray-300'}`} />
                           )}
                         </div>
                       </div>
@@ -415,7 +415,7 @@ export default function ChatPage() {
             </button>
           </div>
           <p className="text-xs text-gray-500 flex-1 truncate">{pendingFile?.name}</p>
-          <button onClick={handleSendImage} disabled={uploading} className="bg-[#2D7FE6] text-white px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50">
+          <button onClick={handleSendImage} disabled={uploading} className="bg-[#0E7480] text-white px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50">
             {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Send Image'}
           </button>
         </div>
@@ -437,7 +437,7 @@ export default function ChatPage() {
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={`Message ${otherParty?.name || ''}...`}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
               />
             </div>
             <button
@@ -445,7 +445,7 @@ export default function ChatPage() {
               disabled={(!inputMessage.trim() && !pendingFile) || loading.sending || uploading}
               className={`p-3 rounded-xl transition-colors flex-shrink-0 ${
                 inputMessage.trim() || pendingFile
-                  ? 'bg-[#2D7FE6] text-white hover:bg-[#1e5bb8]'
+                  ? 'bg-[#0E7480] text-white hover:bg-[#1e5bb8]'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >

@@ -67,7 +67,7 @@ export default function ProProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2D7FE6]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
       </div>
     );
   }
@@ -77,7 +77,7 @@ export default function ProProfilePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 text-lg">Pro profile not found</p>
-          <Link href="/services" className="text-[#2D7FE6] text-sm mt-2 hover:underline">
+          <Link href="/services" className="text-[#0E7480] text-sm mt-2 hover:underline">
             Browse Services
           </Link>
         </div>
@@ -170,7 +170,7 @@ export default function ProProfilePage() {
                   ) : (
                     <Link
                       href="/services"
-                      className="bg-[#2D7FE6] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors text-sm"
+                      className="bg-[#0E7480] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors text-sm"
                     >
                       Request This Pro
                     </Link>
@@ -302,7 +302,7 @@ export default function ProProfilePage() {
                   {reviews.length > 3 && (
                     <button
                       onClick={() => setShowAllReviews(!showAllReviews)}
-                      className="w-full mt-4 text-[#2D7FE6] text-sm font-semibold hover:underline"
+                      className="w-full mt-4 text-[#0E7480] text-sm font-semibold hover:underline"
                     >
                       {showAllReviews ? 'Show less' : `Show all ${reviews.length} reviews`}
                     </button>
@@ -327,7 +327,7 @@ export default function ProProfilePage() {
                 {badges.map((badge) => (
                   <div key={badge.name} className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {badge.icon === 'shield' && <Shield className="w-4.5 h-4.5 text-[#2D7FE6]" />}
+                      {badge.icon === 'shield' && <Shield className="w-4.5 h-4.5 text-[#0E7480]" />}
                       {badge.icon === 'star' && <Star className="w-4.5 h-4.5 text-yellow-500 fill-yellow-500" />}
                       {badge.icon === 'award' && <Award className="w-4.5 h-4.5 text-green-600" />}
                       {badge.icon === 'clock' && <Clock className="w-4.5 h-4.5 text-purple-600" />}

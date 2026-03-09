@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Twitter, Instagram } from 'lucide-react';
+import { Facebook, Instagram } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -102,19 +102,10 @@ export default function Footer() {
 
           {/* Column 4: Contact Us */}
           <div>
-            <h4 className="font-semibold mb-4">Contact Us</h4>
-            <ul className="space-y-3 text-sm mb-6">
-              <li>
-                <a href="mailto:info@BridgeWork.com" className="text-white/85 hover:text-white transition-colors">
-                  info@BridgeWork.com
-                </a>
-              </li>
-              <li>
-                <a href="tel:647-490-1524" className="text-white/85 hover:text-white transition-colors">
-                  Text us at 647-490-1524
-                </a>
-              </li>
-            </ul>
+            <h5 className="font-semibold mb-3">Contact Us</h5>
+            <Link href="/contact" className="inline-block text-white/85 hover:text-white transition-colors text-sm mb-6">
+              Send us a message →
+            </Link>
 
             {/* Social Media */}
             <div className="mb-6">
@@ -127,14 +118,6 @@ export default function Footer() {
                   className="w-10 h-10 bg-white/95 rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-sm ring-1 ring-black/5 hover:-translate-y-0.5"
                 >
                   <Facebook className="w-5 h-5 text-[#142841]" />
-                </a>
-                <a 
-                  href="https://twitter.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="w-10 h-10 bg-white/95 rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-sm ring-1 ring-black/5 hover:-translate-y-0.5"
-                >
-                  <Twitter className="w-5 h-5 text-[#142841]" />
                 </a>
                 <a 
                   href="https://instagram.com" 

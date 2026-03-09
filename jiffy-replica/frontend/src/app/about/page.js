@@ -108,7 +108,7 @@ export default function AboutPage() {
               
               <p className="text-gray-700 leading-relaxed">
                 For home service professionals, BridgeWork sends firm jobs and takes care of payment, invoicing, and customer service. Are you an amazing pro, or know of one?{' '}
-                <Link href="/become-pro" className="text-[#2D7FE6] hover:underline">
+                <Link href="/become-pro" className="text-[#0E7480] hover:underline">
                   Apply here and we'll be in touch!
                 </Link>
               </p>
@@ -131,7 +131,7 @@ export default function AboutPage() {
       {/* Our Team Section */}
       <section className="py-20 bg-gray-100">
         <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-[#2D7FE6]">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-[#0E7480]">
             OUR TEAM
           </h2>
 
@@ -195,11 +195,11 @@ export default function AboutPage() {
                 </div>
                 
                 <div className="relative">
-                  <span className="text-[#2D7FE6] text-5xl absolute -top-4 -left-2">"</span>
+                  <span className="text-[#0E7480] text-5xl absolute -top-4 -left-2">"</span>
                   <p className="text-gray-700 text-sm leading-relaxed pl-6">
                     {press.quote}
                   </p>
-                  <span className="text-[#2D7FE6] text-5xl absolute -bottom-8 right-0">"</span>
+                  <span className="text-[#0E7480] text-5xl absolute -bottom-8 right-0">"</span>
                 </div>
               </div>
             ))}

@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
         <div className="space-y-4">
           <p className="text-sm leading-7 text-gray-700 mb-6">
             This Privacy Policy (this "Policy") describes the practices of BridgeWork Inc. and its corporate affiliates ("we", "us", "our") with respect to our collection, use, storage and disclosure of personal information provided to us from users of (a) the website operated at www.BridgeWork.com and such other locations as made available from time to time (the "Website"), (b) any "app" or other front-end software provided by us (for greater certainty, excluding third party software that may interact with the Website or the Service, as defined below) that interacts or interfaces with the Website (the "Software"), and (c) the services we provide through the Website and/or the Software (collectively, the "Service"). It also describes the choices available to you regarding our use of your personal information and how you can access and update this information. This Policy is incorporated by reference to the general Terms of Service for BridgeWork located at{' '}
-            <Link href="/terms" className="text-[#2D7FE6] hover:underline">
+            <Link href="/terms" className="text-[#0E7480] hover:underline">
               http://BridgeWork.com/terms_and_conditions
             </Link>
             , and forms an integral part of it. All capitalized terms not otherwise defined herein have the meaning provided in the Terms and Conditions for BridgeWork.
@@ -165,7 +165,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-sm leading-7 text-gray-700 mb-4 pl-4">
               If you have any questions about security on our Website, you can contact us at{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#2D7FE6] hover:underline">
+              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
                 info@BridgeWork.com
               </a>
               .
@@ -191,7 +191,7 @@ export default function PrivacyPolicyPage() {
             <h3 className="text-sm font-bold text-gray-900 mb-2 mt-4">c. Withdrawing Your Consent</h3>
             <p className="text-sm leading-7 text-gray-700 mb-4 pl-4">
               You may notify us at any time that you wish to withdraw or change your consent to our use and disclosure or your personal information. We will accommodate your request subject to legal and contractual restrictions. The most common way of indicating this withdrawal of consent is (i) by changing your privacy preferences to the extent such functionality is made available through the Service, or (ii) deleting your account with the Service and stopping use of the Service. In other situations, you may be able to opt out of the use of your personal information. For example, if you have "opted in" or subscribed to one of our mailing lists, we will always provide you the opportunity to "opt out" or unsubscribe. For example, if you receive emails from us, we will provide a link in the email which you can use to unsubscribe from that mailing list, or you may contact us at{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#2D7FE6] hover:underline">
+              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
                 info@BridgeWork.com
               </a>
               .
@@ -216,7 +216,7 @@ export default function PrivacyPolicyPage() {
               <li>Our Service is physically hosted by DigitalOcean Inc., a reputable hosting platform with industry standard security and practices.</li>
               <li>
                 We do not directly process payments through our Service. We use Stripe and their privacy terms are available here:{' '}
-                <a href="https://stripe.com/ca/privacy" className="text-[#2D7FE6] hover:underline" target="_blank" rel="noopener noreferrer">
+                <a href="https://stripe.com/ca/privacy" className="text-[#0E7480] hover:underline" target="_blank" rel="noopener noreferrer">
                   https://stripe.com/ca/privacy
                 </a>
                 . We only ourselves collect and store limited parts of that information to provide a record of your transaction and to prevent fraud (such as a part of a credit card number, or a part of your billing address).
@@ -234,7 +234,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-sm leading-7 text-gray-700">
               Email:{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#2D7FE6] hover:underline">
+              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
                 info@BridgeWork.com
               </a>
             </p>

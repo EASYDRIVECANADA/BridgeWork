@@ -165,7 +165,7 @@ export default function AdminRevenuePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#2D7FE6] mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#0E7480] mx-auto mb-3" />
           <p className="text-gray-600 text-sm">Loading revenue dashboard...</p>
         </div>
       </div>
@@ -207,7 +207,7 @@ export default function AdminRevenuePage() {
             onClick={() => setActiveTab('revenue')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
               activeTab === 'revenue'
-                ? 'bg-[#2D7FE6] text-white shadow-sm'
+                ? 'bg-[#0E7480] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -218,7 +218,7 @@ export default function AdminRevenuePage() {
             onClick={() => setActiveTab('pros')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
               activeTab === 'pros'
-                ? 'bg-[#2D7FE6] text-white shadow-sm'
+                ? 'bg-[#0E7480] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -229,7 +229,7 @@ export default function AdminRevenuePage() {
             onClick={() => setActiveTab('quotes')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
               activeTab === 'quotes'
-                ? 'bg-[#2D7FE6] text-white shadow-sm'
+                ? 'bg-[#0E7480] text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -263,7 +263,7 @@ export default function AdminRevenuePage() {
 
               {prosLoading ? (
                 <div className="px-6 py-12 text-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6] mx-auto mb-2" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Loading pros...</p>
                 </div>
               ) : pros.length > 0 ? (
@@ -309,17 +309,17 @@ export default function AdminRevenuePage() {
                             value={editRate}
                             onChange={(e) => setEditRate(e.target.value)}
                             placeholder="15"
-                            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-center focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent outline-none"
+                            className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-center focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
                           />
                           <span className="text-xs text-gray-400">%</span>
                         </div>
                       ) : (
                         <div>
-                          <span className={`text-sm font-semibold ${pro.commission_rate != null ? 'text-[#2D7FE6]' : 'text-gray-600'}`}>
+                          <span className={`text-sm font-semibold ${pro.commission_rate != null ? 'text-[#0E7480]' : 'text-gray-600'}`}>
                             {pro.commission_rate != null ? `${(pro.commission_rate * 100).toFixed(0)}%` : '15%'}
                           </span>
                           {pro.commission_rate != null ? (
-                            <p className="text-xs text-[#2D7FE6]">Custom</p>
+                            <p className="text-xs text-[#0E7480]">Custom</p>
                           ) : (
                             <p className="text-xs text-gray-400">Default</p>
                           )}
@@ -332,7 +332,7 @@ export default function AdminRevenuePage() {
                           <button
                             onClick={() => handleSaveCommission(pro.id)}
                             disabled={savingCommission}
-                            className="px-3 py-1.5 bg-[#2D7FE6] text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#0E7480] text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-1"
                           >
                             {savingCommission ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                             Save
@@ -409,7 +409,7 @@ export default function AdminRevenuePage() {
 
             {qiLoading ? (
               <div className="text-center py-16">
-                <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6] mx-auto mb-2" />
+                <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mx-auto mb-2" />
                 <p className="text-sm text-gray-500">Loading...</p>
               </div>
             ) : qiSubTab === 'quotes' ? (
@@ -555,11 +555,11 @@ export default function AdminRevenuePage() {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-[#2D7FE6]" />
+                <TrendingUp className="w-5 h-5 text-[#0E7480]" />
               </div>
               <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Platform Fees</p>
             </div>
-            <p className="text-2xl font-bold text-[#2D7FE6]">${revenue.platform_fees.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-[#0E7480]">${revenue.platform_fees.toFixed(2)}</p>
             <p className="text-xs text-gray-400 mt-1">{revenue.commission_rate * 100}% of base prices</p>
           </div>
 
@@ -665,7 +665,7 @@ export default function AdminRevenuePage() {
                     </p>
                   </div>
                   <div className="col-span-1">
-                    <p className="text-sm font-medium text-[#2D7FE6]">${platformCut}</p>
+                    <p className="text-sm font-medium text-[#0E7480]">${platformCut}</p>
                   </div>
                   <div className="col-span-1">
                     <p className="text-sm font-medium text-green-600">${proCut}</p>
@@ -772,7 +772,7 @@ export default function AdminRevenuePage() {
               <select
                 value={refundReason}
                 onChange={(e) => setRefundReason(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
               >
                 <option value="">Select a reason...</option>
                 <option value="requested_by_customer">Requested by customer</option>

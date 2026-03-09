@@ -140,6 +140,25 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/quotes-invoices', quotesRoutes);
 app.use('/api/support-chat', supportChatRoutes);
 
+// ─── Contact Form Endpoint ───────────────────────────────────────────────────
+const { sendContactFormEmail } = require('./services/emailService');
+app.post('/api/contact', async (req, res) => {
+    try {
+        const { name, email, phone, subject, message } = req.body;
+        if (!name || !email || !subject || !message) {
+            return res.status(400).json({ success: false, message: 'Name, email, subject, and message are required.' });
+        }
+        const result = await sendContactFormEmail(name, email, phone || '', subject, message);
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: 'Failed to send message. Please try again.' });
+        }
+        res.json({ success: true, message: 'Your message has been sent. We will get back to you soon!' });
+    } catch (error) {
+        logger.error('Contact form error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' });
+    }
+});
+
 const userSockets = new Map();
 
 io.on('connection', (socket) => {

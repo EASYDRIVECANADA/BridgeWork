@@ -250,7 +250,7 @@ function ScheduleModal({ service, onClose, onConfirm }) {
 
             <button
               onClick={() => setModalView('main')}
-              className="w-full bg-[#2D7FE6] text-white py-3.5 rounded-full font-semibold hover:bg-[#2570d4] transition-colors"
+              className="w-full bg-[#0E7480] text-white py-3.5 rounded-full font-semibold hover:bg-[#2570d4] transition-colors"
             >
               Save
             </button>
@@ -288,17 +288,17 @@ function ScheduleModal({ service, onClose, onConfirm }) {
                   onClick={() => setChosenAddress(savedAddress)}
                   className={`w-full flex items-start gap-3 p-4 rounded-lg border-2 transition-all mb-3 text-left ${
                     chosenAddress === savedAddress
-                      ? 'border-[#2D7FE6] bg-blue-50'
+                      ? 'border-[#0E7480] bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <Navigation className="w-5 h-5 text-[#2D7FE6] flex-shrink-0 mt-0.5 rotate-45" />
+                  <Navigation className="w-5 h-5 text-[#0E7480] flex-shrink-0 mt-0.5 rotate-45" />
                   <span className="text-sm text-gray-900">{savedAddress}</span>
                 </button>
 
                 <button
                   onClick={() => { setAddressMode('new'); setChosenAddress(''); }}
-                  className="text-[#2D7FE6] text-sm hover:underline mb-6 block"
+                  className="text-[#0E7480] text-sm hover:underline mb-6 block"
                 >
                   Enter a different address
                 </button>
@@ -306,7 +306,7 @@ function ScheduleModal({ service, onClose, onConfirm }) {
             ) : (
               <div>
                 <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 mb-3">
-                  <Navigation className="w-5 h-5 text-[#2D7FE6] flex-shrink-0 rotate-45" />
+                  <Navigation className="w-5 h-5 text-[#0E7480] flex-shrink-0 rotate-45" />
                   <input
                     type="text"
                     value={newAddress}
@@ -328,7 +328,7 @@ function ScheduleModal({ service, onClose, onConfirm }) {
 
                 <button
                   onClick={() => { setAddressMode('existing'); setNewAddress(''); setNewUnit(''); }}
-                  className="text-[#2D7FE6] text-sm hover:underline mb-6 block"
+                  className="text-[#0E7480] text-sm hover:underline mb-6 block"
                 >
                   Use an existing address
                 </button>
@@ -345,7 +345,7 @@ function ScheduleModal({ service, onClose, onConfirm }) {
                 }
                 setModalView('main');
               }}
-              className="w-full bg-[#2D7FE6] text-white py-3.5 rounded-full font-semibold hover:bg-[#2570d4] transition-colors"
+              className="w-full bg-[#0E7480] text-white py-3.5 rounded-full font-semibold hover:bg-[#2570d4] transition-colors"
             >
               Save
             </button>
@@ -425,10 +425,10 @@ export default function ScheduleSavePage() {
 
       {showTutorial && (
         <div
-          className="absolute z-50 bg-[#2D7FE6] text-white rounded-lg px-4 py-3 max-w-[220px] text-sm shadow-lg"
+          className="absolute z-50 bg-[#0E7480] text-white rounded-lg px-4 py-3 max-w-[220px] text-sm shadow-lg"
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
         >
-          <div className="absolute -top-2 left-12 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-[#2D7FE6]" />
+          <div className="absolute -top-2 left-12 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-[#0E7480]" />
           Create a new scheduled reminder for services you&apos;d like to repeat by tapping on the bell icon.
         </div>
       )}
@@ -447,7 +447,7 @@ export default function ScheduleSavePage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Schedule & Save</h1>
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-[#2D7FE6] hover:text-[#1e5bb8] transition-colors text-sm mb-8"
+          className="inline-flex items-center gap-1 text-[#0E7480] hover:text-[#1e5bb8] transition-colors text-sm mb-8"
         >
           <ChevronLeft className="w-4 h-4" />
           <span className="underline">Back to Dashboard</span>

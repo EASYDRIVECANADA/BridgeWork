@@ -180,7 +180,7 @@ export default function MyJobsPage() {
                   className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-4"
                 >
                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Briefcase className="w-6 h-6 text-[#2D7FE6]" />
+                    <Briefcase className="w-6 h-6 text-[#0E7480]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
@@ -232,7 +232,7 @@ export default function MyJobsPage() {
                   ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && booking.status !== 'disputed' ? (
                     <Link
                       href={`/checkout/${booking.id}`}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#2D7FE6] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
                     >
                       <CreditCard className="w-3 h-3" />
                       Pay Now
@@ -269,7 +269,7 @@ export default function MyJobsPage() {
                     {(booking.status === 'accepted' || booking.status === 'in_progress') && (
                       <Link
                         href={`/messages/${booking.id}`}
-                        className="text-xs text-[#2D7FE6] hover:underline font-medium flex items-center gap-1"
+                        className="text-xs text-[#0E7480] hover:underline font-medium flex items-center gap-1"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         Message
@@ -408,7 +408,7 @@ export default function MyJobsPage() {
                       ) : (
                         <button
                           onClick={() => setReviewBooking(booking)}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#2D7FE6] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
+                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
                         >
                           <Star className="w-3 h-3" />
                           Leave a Review

@@ -73,6 +73,9 @@ export default function ServiceDetailPage() {
     { id: 39, name: 'Holiday Decorating', image: 'https://images.unsplash.com/photo-1512389142860-9c449e58a543?q=80&w=400', category: 'Seasonal' },
     { id: 40, name: 'Spring Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Seasonal' },
     { id: 41, name: 'Winterization', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400', category: 'Seasonal' },
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e01', name: 'Emergency HVAC', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Emergency' },
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e02', name: 'Emergency Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Emergency' },
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e03', name: 'Emergency Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Emergency' },
   ];
 
   // Fetch real service data from API
@@ -175,9 +178,18 @@ export default function ServiceDetailPage() {
   };
 
   // Find the specific service - RECYCLING THE IMAGE
-  const service = allServices.find(s => s.id === parseInt(serviceId));
+  // Compare as strings to support both numeric IDs and UUIDs
+  const service = allServices.find(s => String(s.id) === String(serviceId));
 
-  if (!service) {
+  if (!service && loadingService) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
+      </div>
+    );
+  }
+
+  if (!service && !apiService && !loadingService) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-gray-500">Service not found</p>
@@ -185,13 +197,18 @@ export default function ServiceDetailPage() {
     );
   }
 
+  // Build display data: prefer mock for image, use apiService for real data
+  const displayName = apiService?.name || service?.name || 'Service';
+  const displayImage = service?.image || apiService?.image_url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400';
+  const displayDescription = apiService?.description || '';
+
   return (
     <div className="min-h-screen bg-gray-50">
   {/* Hero Image Section */}
   <div className="relative h-[400px] w-full">
     <Image
-      src={service.image}
-      alt={service.name}
+      src={displayImage}
+      alt={displayName}
       fill
       className="object-cover"
       priority
@@ -206,7 +223,7 @@ export default function ServiceDetailPage() {
         <div className="bg-white rounded-lg shadow-xl p-6">
                   {/* Service Title and Rating */}
                   <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                    {service.name} in Boston
+                    {displayName} in Boston
                   </h1>
                   <div className="flex items-center gap-3 text-xs mb-4">
                     <div className="flex items-center gap-1">
@@ -230,7 +247,7 @@ export default function ServiceDetailPage() {
                       Technicians are mobile or centrally arrived at trades and medics of appliances. For gas stovetops/ovens, please request in the Gas Services category.
                     </p>
                     <p className="text-xs text-gray-600">
-                      Not sure if this is the right service for you? <Link href="/chat" className="text-[#2D7FE6] hover:underline">Chat with us</Link>.
+                      Not sure if this is the right service for you? <Link href="/chat" className="text-[#0E7480] hover:underline">Chat with us</Link>.
                     </p>
                   </div>
 
@@ -278,7 +295,7 @@ export default function ServiceDetailPage() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-600 mt-3">
-                      Not sure if this is the right service for you? <Link href="/chat" className="text-[#2D7FE6] hover:underline">Chat with us</Link>.
+                      Not sure if this is the right service for you? <Link href="/chat" className="text-[#0E7480] hover:underline">Chat with us</Link>.
                     </p>
                   </div>
 
@@ -355,7 +372,7 @@ export default function ServiceDetailPage() {
                         min={new Date().toISOString().split('T')[0]}
                         value={bookingForm.scheduled_date}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_date: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                       />
                     </div>
                     <div>
@@ -366,7 +383,7 @@ export default function ServiceDetailPage() {
                       <select
                         value={bookingForm.scheduled_time}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                       >
                         <option value="08:00">8:00 AM</option>
                         <option value="09:00">9:00 AM</option>
@@ -395,7 +412,7 @@ export default function ServiceDetailPage() {
                         placeholder="e.g. 36 Treyon Street"
                         value={bookingForm.address}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, address: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -407,7 +424,7 @@ export default function ServiceDetailPage() {
                           placeholder="Toronto"
                           value={bookingForm.city}
                           onChange={(e) => setBookingForm(prev => ({ ...prev, city: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                         />
                       </div>
                       <div>
@@ -418,7 +435,7 @@ export default function ServiceDetailPage() {
                           placeholder="ON"
                           value={bookingForm.state}
                           onChange={(e) => setBookingForm(prev => ({ ...prev, state: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                         />
                       </div>
                     </div>
@@ -430,7 +447,7 @@ export default function ServiceDetailPage() {
                         placeholder="M5V 2T6"
                         value={bookingForm.zip_code}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, zip_code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                       />
                     </div>
 
@@ -442,7 +459,7 @@ export default function ServiceDetailPage() {
                         placeholder="Any details the pro should know..."
                         value={bookingForm.special_instructions}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, special_instructions: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs resize-none"
                       />
                     </div>
 
@@ -454,7 +471,7 @@ export default function ServiceDetailPage() {
                         placeholder="Enter promo code"
                         value={bookingForm.promo_code}
                         onChange={(e) => setBookingForm(prev => ({ ...prev, promo_code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#2D7FE6] text-xs"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
                       />
                     </div>
 
@@ -462,7 +479,7 @@ export default function ServiceDetailPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full bg-[#2D7FE6] text-white py-2.5 rounded font-semibold hover:bg-[#2570d4] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full bg-[#0E7480] text-white py-2.5 rounded font-semibold hover:bg-[#2570d4] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {submitting ? (
                         <>

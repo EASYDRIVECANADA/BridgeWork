@@ -281,7 +281,7 @@ export default function ProDashboardPage() {
               {/* Quick Stats */}
               <div className="grid grid-cols-2 gap-3 px-5 pb-4">
                 <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-lg font-bold text-[#2D7FE6]">${Number(totalEarnings).toFixed(2)}</p>
+                  <p className="text-lg font-bold text-[#0E7480]">${Number(totalEarnings).toFixed(2)}</p>
                   <p className="text-xs text-gray-500">Total Earned</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3 text-center">
@@ -295,12 +295,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('alerts')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'alerts' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'alerts' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Bell className={`w-5 h-5 ${activeTab === 'alerts' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'alerts' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <Bell className={`w-5 h-5 ${activeTab === 'alerts' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'alerts' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Job Alerts
                     </span>
                   </div>
@@ -314,17 +314,17 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('active')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'active' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'active' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Briefcase className={`w-5 h-5 ${activeTab === 'active' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'active' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <Briefcase className={`w-5 h-5 ${activeTab === 'active' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'active' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Active Jobs
                     </span>
                   </div>
                   {activeJobs.length > 0 && (
-                    <span className="bg-[#2D7FE6] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    <span className="bg-[#0E7480] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                       {activeJobs.length}
                     </span>
                   )}
@@ -333,12 +333,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('history')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'history' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'history' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Clock className={`w-5 h-5 ${activeTab === 'history' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'history' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <Clock className={`w-5 h-5 ${activeTab === 'history' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'history' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Job History
                     </span>
                   </div>
@@ -347,12 +347,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('reviews')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'reviews' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'reviews' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Star className={`w-5 h-5 ${activeTab === 'reviews' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'reviews' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <Star className={`w-5 h-5 ${activeTab === 'reviews' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'reviews' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Reviews
                     </span>
                   </div>
@@ -361,12 +361,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('earnings')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'earnings' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'earnings' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <DollarSign className={`w-5 h-5 ${activeTab === 'earnings' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'earnings' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <DollarSign className={`w-5 h-5 ${activeTab === 'earnings' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'earnings' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Earnings
                     </span>
                   </div>
@@ -375,12 +375,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('messages')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'messages' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'messages' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <MessageSquare className={`w-5 h-5 ${activeTab === 'messages' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'messages' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <MessageSquare className={`w-5 h-5 ${activeTab === 'messages' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'messages' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Messages
                     </span>
                   </div>
@@ -397,12 +397,12 @@ export default function ProDashboardPage() {
                 <button
                   onClick={() => setActiveTab('settings')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'settings' ? 'bg-blue-50 border-l-4 border-l-[#2D7FE6]' : ''
+                    activeTab === 'settings' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Settings className={`w-5 h-5 ${activeTab === 'settings' ? 'text-[#2D7FE6]' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${activeTab === 'settings' ? 'text-[#2D7FE6] font-semibold' : 'text-gray-700'}`}>
+                    <Settings className={`w-5 h-5 ${activeTab === 'settings' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'settings' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
                       Settings
                     </span>
                   </div>
@@ -435,7 +435,7 @@ export default function ProDashboardPage() {
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Bell className="w-5 h-5 text-[#2D7FE6]" />
+                    <Bell className="w-5 h-5 text-[#0E7480]" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{jobAlerts.length}</p>
@@ -565,7 +565,7 @@ export default function ProDashboardPage() {
                             </button>
                             <button
                               onClick={() => setExpandedAlert(expandedAlert === job.id ? null : job.id)}
-                              className="text-[#2D7FE6] text-xs hover:underline mt-1"
+                              className="text-[#0E7480] text-xs hover:underline mt-1"
                             >
                               {expandedAlert === job.id ? 'Less info' : 'More info'}
                             </button>
@@ -610,7 +610,7 @@ export default function ProDashboardPage() {
                                 <h3 className="font-bold text-gray-900">{job.service}</h3>
                                 <p className="text-sm text-gray-600 mt-0.5">{job.customer}</p>
                               </div>
-                              <span className="px-3 py-1 bg-blue-100 text-[#2D7FE6] text-xs font-semibold rounded-full">
+                              <span className="px-3 py-1 bg-blue-100 text-[#0E7480] text-xs font-semibold rounded-full">
                                 Accepted
                               </span>
                             </div>
@@ -640,14 +640,14 @@ export default function ProDashboardPage() {
                             <div className="mt-3 flex items-center gap-4">
                               <a
                                 href={`tel:${job.customerPhone}`}
-                                className="flex items-center gap-1.5 text-sm text-[#2D7FE6] hover:underline"
+                                className="flex items-center gap-1.5 text-sm text-[#0E7480] hover:underline"
                               >
                                 <Phone className="w-3.5 h-3.5" />
                                 {job.customerPhone}
                               </a>
                               <a
                                 href={`mailto:${job.customerEmail}`}
-                                className="flex items-center gap-1.5 text-sm text-[#2D7FE6] hover:underline"
+                                className="flex items-center gap-1.5 text-sm text-[#0E7480] hover:underline"
                               >
                                 <Mail className="w-3.5 h-3.5" />
                                 {job.customerEmail}
@@ -759,7 +759,7 @@ export default function ProDashboardPage() {
 
                 {reviewsLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6]" />
+                    <Loader2 className="w-6 h-6 animate-spin text-[#0E7480]" />
                   </div>
                 ) : proReviews.length === 0 ? (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
@@ -819,14 +819,14 @@ export default function ProDashboardPage() {
                                 value={responseText}
                                 onChange={(e) => setResponseText(e.target.value)}
                                 placeholder="Thank the customer, address feedback, or share additional context..."
-                                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent resize-none"
+                                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent resize-none"
                                 rows={3}
                               />
                               <div className="flex items-center gap-2 mt-2">
                                 <button
                                   onClick={() => handleRespondToReview(review.id)}
                                   disabled={respondLoading}
-                                  className="bg-[#2D7FE6] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50 flex items-center gap-2"
+                                  className="bg-[#0E7480] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1e5bb8] transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                   {respondLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                   Post Response
@@ -843,7 +843,7 @@ export default function ProDashboardPage() {
                             /* Respond button */
                             <button
                               onClick={() => { setRespondingTo(review.id); setResponseText(''); }}
-                              className="mt-2 flex items-center gap-1.5 text-[#2D7FE6] text-sm font-medium hover:underline"
+                              className="mt-2 flex items-center gap-1.5 text-[#0E7480] text-sm font-medium hover:underline"
                             >
                               <MessageSquare className="w-3.5 h-3.5" />
                               Respond to Review
@@ -917,7 +917,7 @@ export default function ProDashboardPage() {
                 {/* Earnings Summary Cards */}
                 {earningsLoading ? (
                   <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center mb-8">
-                    <Loader2 className="w-6 h-6 text-[#2D7FE6] mx-auto mb-3 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-[#0E7480] mx-auto mb-3 animate-spin" />
                     <p className="text-sm text-gray-500">Loading earnings...</p>
                   </div>
                 ) : (
@@ -955,7 +955,7 @@ export default function ProDashboardPage() {
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-5 h-5 text-[#2D7FE6]" />
+                          <TrendingUp className="w-5 h-5 text-[#0E7480]" />
                         </div>
                         <p className="text-sm text-gray-500">Your Rate</p>
                       </div>
@@ -1030,7 +1030,7 @@ export default function ProDashboardPage() {
                 {/* Payment Info */}
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-5">
                   <div className="flex items-start gap-3">
-                    <Award className="w-5 h-5 text-[#2D7FE6] flex-shrink-0 mt-0.5" />
+                    <Award className="w-5 h-5 text-[#0E7480] flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-semibold text-gray-900">How Payouts Work</p>
                       <p className="text-sm text-gray-600 mt-1">
@@ -1052,7 +1052,7 @@ export default function ProDashboardPage() {
 
                 {msgsLoading.conversations ? (
                   <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
-                    <Loader2 className="w-8 h-8 text-[#2D7FE6] mx-auto mb-3 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-[#0E7480] mx-auto mb-3 animate-spin" />
                     <p className="text-sm text-gray-500">Loading conversations...</p>
                   </div>
                 ) : (
@@ -1089,7 +1089,7 @@ export default function ProDashboardPage() {
                             </p>
                           </div>
                           {convo.unread_count > 0 && (
-                            <span className="bg-[#2D7FE6] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="bg-[#0E7480] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
                               {convo.unread_count}
                             </span>
                           )}
@@ -1122,7 +1122,7 @@ export default function ProDashboardPage() {
                         <input
                           type="text"
                           defaultValue={profile?.full_name || ''}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -1130,7 +1130,7 @@ export default function ProDashboardPage() {
                         <input
                           type="email"
                           defaultValue={user?.email || ''}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -1139,7 +1139,7 @@ export default function ProDashboardPage() {
                           type="tel"
                           defaultValue={profile?.phone || ''}
                           placeholder="(416) 555-0000"
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -1148,7 +1148,7 @@ export default function ProDashboardPage() {
                           type="text"
                           defaultValue={profile?.city || ''}
                           placeholder="Toronto"
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -1161,7 +1161,7 @@ export default function ProDashboardPage() {
                     <div className="grid grid-cols-3 gap-3">
                       {['Furnace Tune-Up', 'AC Tune-Up', 'Duct Cleaning', 'Heating & Cooling', 'Plumbing', 'Electrical', 'Handyman Services', 'Painting', 'Lawn Maintenance'].map((service) => (
                         <label key={service} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4 rounded text-[#2D7FE6] focus:ring-[#2D7FE6]" />
+                          <input type="checkbox" className="w-4 h-4 rounded text-[#0E7480] focus:ring-[#0E7480]" />
                           <span className="text-sm text-gray-700">{service}</span>
                         </label>
                       ))}
@@ -1194,7 +1194,7 @@ export default function ProDashboardPage() {
                         <span className="text-xs text-yellow-600 font-medium">Expires Mar 2026</span>
                       </div>
                     </div>
-                    <button className="mt-4 text-[#2D7FE6] text-sm font-semibold hover:underline">
+                    <button className="mt-4 text-[#0E7480] text-sm font-semibold hover:underline">
                       Upload new document
                     </button>
                   </div>
@@ -1203,7 +1203,7 @@ export default function ProDashboardPage() {
                   <div className="flex justify-end">
                     <button
                       onClick={() => toast.success('Settings saved!')}
-                      className="bg-[#2D7FE6] text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors text-sm"
+                      className="bg-[#0E7480] text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors text-sm"
                     >
                       Save Changes
                     </button>
@@ -1251,7 +1251,7 @@ export default function ProDashboardPage() {
             {/* File Upload Mode */}
             {proofMode === 'upload' && (
               <div className="mb-4">
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-[#2D7FE6] hover:bg-blue-50/50 transition-colors">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-[#0E7480] hover:bg-blue-50/50 transition-colors">
                   <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" />
                   </svg>
@@ -1321,7 +1321,7 @@ export default function ProDashboardPage() {
                 ))}
                 <button
                   onClick={() => setProofPhotos([...proofPhotos, ''])}
-                  className="text-sm text-[#2D7FE6] font-medium hover:underline"
+                  className="text-sm text-[#0E7480] font-medium hover:underline"
                 >
                   + Add photo URL
                 </button>

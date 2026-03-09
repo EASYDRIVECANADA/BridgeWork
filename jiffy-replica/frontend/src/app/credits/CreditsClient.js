@@ -52,7 +52,7 @@ export default function CreditsPage() {
               </Link>
               <Link
                 href="/credits"
-                className="text-[#2D7FE6] pb-4 border-b-2 border-[#2D7FE6] font-medium"
+                className="text-[#0E7480] pb-4 border-b-2 border-[#0E7480] font-medium"
               >
                 Credits
               </Link>
@@ -77,11 +77,11 @@ export default function CreditsPage() {
             </div>
             <div className="flex items-center justify-center gap-1 text-sm">
               {/* Coupon tag icon */}
-              <svg className="w-4 h-4 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
-              <span className="text-[#2D7FE6]">Coupons:</span>
-              <span className="text-[#2D7FE6]">0</span>
+              <span className="text-[#0E7480]">Coupons:</span>
+              <span className="text-[#0E7480]">0</span>
             </div>
           </div>
         </div>
@@ -97,12 +97,12 @@ export default function CreditsPage() {
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value)}
               placeholder="Enter Promo Code"
-              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent text-gray-700 text-sm"
+              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-gray-700 text-sm"
               onKeyPress={(e) => e.key === 'Enter' && handleAddPromo()}
             />
             <button
               onClick={handleAddPromo}
-              className="bg-[#2D7FE6] text-white px-8 py-2.5 rounded-md hover:bg-[#2570d4] transition-colors font-medium text-sm"
+              className="bg-[#0E7480] text-white px-8 py-2.5 rounded-md hover:bg-[#2570d4] transition-colors font-medium text-sm"
             >
               Add
             </button>
@@ -161,14 +161,14 @@ export default function CreditsPage() {
                 value={referralEmail}
                 onChange={(e) => setReferralEmail(e.target.value)}
                 placeholder="Enter friend's email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent text-gray-700 text-sm mb-3"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-gray-700 text-sm mb-3"
                 onKeyPress={(e) => e.key === 'Enter' && handleSendReferral()}
               />
 
               {/* Send Button */}
               <button
                 onClick={handleSendReferral}
-                className="w-full bg-[#2D7FE6] text-white py-3 rounded-md hover:bg-[#2570d4] transition-colors font-semibold text-sm"
+                className="w-full bg-[#0E7480] text-white py-3 rounded-md hover:bg-[#2570d4] transition-colors font-semibold text-sm"
               >
                 Send
               </button>

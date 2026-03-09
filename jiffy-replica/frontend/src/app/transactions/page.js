@@ -130,7 +130,7 @@ export default function TransactionsPage() {
         {/* Transaction List */}
         {loading ? (
           <div className="bg-white rounded-xl p-16 flex items-center justify-center border border-gray-100">
-            <Loader2 className="w-6 h-6 animate-spin text-[#2D7FE6] mr-3" />
+            <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mr-3" />
             <span className="text-gray-500">Loading transactions...</span>
           </div>
         ) : transactions.length === 0 ? (
@@ -140,7 +140,7 @@ export default function TransactionsPage() {
             <p className="text-sm text-gray-500 mb-6">Your payment history will appear here after your first booking.</p>
             <Link
               href="/services"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2D7FE6] text-white rounded-lg text-sm font-semibold hover:bg-[#2570d4] transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0E7480] text-white rounded-lg text-sm font-semibold hover:bg-[#2570d4] transition-colors"
             >
               Browse Services
             </Link>

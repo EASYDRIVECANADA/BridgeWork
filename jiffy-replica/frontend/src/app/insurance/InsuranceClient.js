@@ -18,7 +18,7 @@ export default function InsurancePage() {
       id: 'belairdirect',
       name: 'belairdirect.',
       logo: null,
-      textStyle: 'text-[#2D7FE6] font-bold text-lg',
+      textStyle: 'text-[#0E7480] font-bold text-lg',
     },
     {
       id: 'intact',
@@ -49,7 +49,7 @@ export default function InsurancePage() {
           <h1 className="text-3xl font-bold text-white mb-2">Insurance Perks</h1>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1 text-[#2D7FE6] hover:text-[#5a9ff0] transition-colors text-sm"
+            className="inline-flex items-center gap-1 text-[#0E7480] hover:text-[#5a9ff0] transition-colors text-sm"
           >
             <ChevronLeft className="w-4 h-4" />
             <span className="underline">Back to Dashboard</span>
@@ -86,7 +86,7 @@ export default function InsurancePage() {
                 —with help from us and your insurance provider.
               </p>
 
-              <p className="text-sm text-[#2D7FE6] text-center mb-8">
+              <p className="text-sm text-[#0E7480] text-center mb-8">
                 Link your account to unlock exclusive perks.
               </p>
 
@@ -102,7 +102,7 @@ export default function InsurancePage() {
                     onClick={() => setSelectedProvider(provider.id)}
                     className={`flex-1 py-4 px-6 rounded-lg border-2 transition-all text-center ${
                       selectedProvider === provider.id
-                        ? 'border-[#2D7FE6] bg-blue-50'
+                        ? 'border-[#0E7480] bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -114,7 +114,7 @@ export default function InsurancePage() {
               {/* Link Button */}
               <button
                 onClick={handleLinkAccount}
-                className="w-full bg-[#2D7FE6] text-white py-3 rounded-full font-semibold hover:bg-[#2570d4] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#0E7480] text-white py-3 rounded-full font-semibold hover:bg-[#2570d4] transition-colors flex items-center justify-center gap-2"
               >
                 <LinkIcon className="w-4 h-4" />
                 Link My Insurance Account

@@ -70,7 +70,7 @@ export default function PaymentSuccessClient() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#2D7FE6]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export default function PaymentSuccessClient() {
             {booking && (
               <Link
                 href="/my-jobs"
-                className="w-full bg-[#2D7FE6] text-white py-3 rounded-lg font-semibold hover:bg-[#2570d4] transition-colors text-sm flex items-center justify-center gap-2"
+                className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#2570d4] transition-colors text-sm flex items-center justify-center gap-2"
               >
                 View My Jobs
                 <ArrowRight className="w-4 h-4" />
@@ -166,7 +166,7 @@ export default function PaymentSuccessClient() {
 
         {/* Help Text */}
         <p className="text-center text-xs text-gray-500 mt-4">
-          Need help? <Link href="/help" className="text-[#2D7FE6] hover:underline">Contact Support</Link>
+          Need help? <Link href="/help" className="text-[#0E7480] hover:underline">Contact Support</Link>
         </p>
       </div>
     </div>

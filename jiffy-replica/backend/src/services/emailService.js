@@ -22,7 +22,7 @@ function wrapInLayout(content) {
                 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                     <!-- Header -->
                     <tr>
-                        <td style="background:linear-gradient(135deg,#2D7FE6 0%,#1a5fb4 100%);padding:32px 40px;text-align:center;">
+                        <td style="background:linear-gradient(135deg,#0E7480 0%,#1a5fb4 100%);padding:32px 40px;text-align:center;">
                             <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">BridgeWork</h1>
                             <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;font-weight:400;">Home Services You Can Trust</p>
                         </td>
@@ -81,7 +81,7 @@ function welcomeEmailHTML(fullName) {
         </table>
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
             <tr>
-                <td style="background-color:#2D7FE6;border-radius:8px;">
+                <td style="background-color:#0E7480;border-radius:8px;">
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/services" 
                        style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
                         Browse Services
@@ -90,7 +90,7 @@ function welcomeEmailHTML(fullName) {
             </tr>
         </table>
         <p style="margin:0;color:#6b7280;font-size:13px;">
-            If you have any questions, visit our <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/help" style="color:#2D7FE6;text-decoration:none;">Help Center</a>.
+            If you have any questions, visit our <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/help" style="color:#0E7480;text-decoration:none;">Help Center</a>.
         </p>`;
     return wrapInLayout(content);
 }
@@ -107,7 +107,7 @@ function passwordResetEmailHTML(fullName, resetLink) {
             <tr>
                 <td align="center">
                     <a href="${resetLink}" 
-                       style="display:inline-block;padding:14px 40px;background-color:#2D7FE6;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
+                       style="display:inline-block;padding:14px 40px;background-color:#0E7480;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">
                         Reset Password
                     </a>
                 </td>
@@ -124,7 +124,7 @@ function passwordResetEmailHTML(fullName, resetLink) {
         </table>
         <p style="margin:20px 0 0;color:#9ca3af;font-size:12px;line-height:1.6;">
             If the button doesn't work, copy and paste this link into your browser:<br>
-            <a href="${resetLink}" style="color:#2D7FE6;word-break:break-all;font-size:12px;">${resetLink}</a>
+            <a href="${resetLink}" style="color:#0E7480;word-break:break-all;font-size:12px;">${resetLink}</a>
         </p>`;
     return wrapInLayout(content);
 }
@@ -175,7 +175,70 @@ async function sendPasswordResetEmail(toEmail, fullName, resetLink) {
     }
 }
 
+// ─── Contact Form Email Template ─────────────────────────────────────────────
+function contactFormEmailHTML(name, email, phone, subject, message) {
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">New Contact Form Inquiry</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+            <tr>
+                <td style="padding:12px 16px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="padding:8px 0;color:#6b7280;font-size:13px;font-weight:600;width:120px;">Name</td>
+                            <td style="padding:8px 0;color:#111827;font-size:14px;">${name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px 0;color:#6b7280;font-size:13px;font-weight:600;border-top:1px solid #e5e7eb;">Email</td>
+                            <td style="padding:8px 0;color:#111827;font-size:14px;border-top:1px solid #e5e7eb;">
+                                <a href="mailto:${email}" style="color:#0E7480;text-decoration:none;">${email}</a>
+                            </td>
+                        </tr>
+                        ${phone ? `<tr>
+                            <td style="padding:8px 0;color:#6b7280;font-size:13px;font-weight:600;border-top:1px solid #e5e7eb;">Phone</td>
+                            <td style="padding:8px 0;color:#111827;font-size:14px;border-top:1px solid #e5e7eb;">${phone}</td>
+                        </tr>` : ''}
+                        <tr>
+                            <td style="padding:8px 0;color:#6b7280;font-size:13px;font-weight:600;border-top:1px solid #e5e7eb;">Subject</td>
+                            <td style="padding:8px 0;color:#111827;font-size:14px;border-top:1px solid #e5e7eb;">${subject}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <div style="margin:20px 0;padding:16px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+            <p style="margin:0 0 8px;color:#6b7280;font-size:13px;font-weight:600;">Message</p>
+            <p style="margin:0;color:#111827;font-size:14px;line-height:1.7;white-space:pre-wrap;">${message}</p>
+        </div>`;
+    return wrapInLayout(content);
+}
+
+// ─── Send Contact Form Email ─────────────────────────────────────────────────
+async function sendContactFormEmail(name, email, phone, subject, message) {
+    const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com';
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [CONTACT_EMAIL],
+            reply_to: email,
+            subject: `[BridgeWork Contact] ${subject}`,
+            html: contactFormEmailHTML(name, email, phone, subject, message),
+        });
+
+        if (error) {
+            logger.error('Failed to send contact form email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+
+        logger.info('Contact form email sent', { to: CONTACT_EMAIL, from: email, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Contact form email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
+    sendContactFormEmail,
 };

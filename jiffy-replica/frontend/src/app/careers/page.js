@@ -35,7 +35,7 @@ export default function CareersPage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="min-h-[200px] flex flex-col items-center justify-center">
             <p className="text-lg text-gray-700 mb-4">
-              We're always looking for talented people to <span className="text-[#2D7FE6] font-semibold">join our growing</span> team.
+              We're always looking for talented people to <span className="text-[#0E7480] font-semibold">join our growing</span> team.
             </p>
             <Link 
               href="mailto:info@bridgework.com" 

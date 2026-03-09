@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
             </div>
             <button
               onClick={() => { setEmailSent(false); setEmail(''); }}
-              className="text-[#2D7FE6] hover:underline text-sm font-medium mr-4"
+              className="text-[#0E7480] hover:underline text-sm font-medium mr-4"
             >
               Try a different email
             </button>
@@ -72,7 +72,7 @@ export default function ForgotPasswordPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-[#2D7FE6]" />
+              <Mail className="w-8 h-8 text-[#0E7480]" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Forgot Your Password?
@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                 placeholder="you@example.com"
               />
             </div>
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#2D7FE6] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#0E7480] text-white py-3 rounded-full font-medium hover:bg-[#2570d4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Sending...' : 'Send Reset Link'}
             </button>

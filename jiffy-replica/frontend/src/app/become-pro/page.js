@@ -84,10 +84,10 @@ export default function BecomeProPage() {
 
               {/* Right: Signup Form Card */}
               <div className="bg-white rounded-lg shadow-2xl p-8">
-                <h2 className="text-[#2D7FE6] text-xl font-semibold mb-2">
+                <h2 className="text-[#0E7480] text-xl font-semibold mb-2">
                   It's free to join the BridgeWork platform
                 </h2>
-                <p className="text-[#2D7FE6] text-sm mb-6">
+                <p className="text-[#0E7480] text-sm mb-6">
                   Become a BridgeWork Professional
                 </p>
 
@@ -102,7 +102,7 @@ export default function BecomeProPage() {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -115,7 +115,7 @@ export default function BecomeProPage() {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -131,7 +131,7 @@ export default function BecomeProPage() {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -144,7 +144,7 @@ export default function BecomeProPage() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -160,7 +160,7 @@ export default function BecomeProPage() {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -173,7 +173,7 @@ export default function BecomeProPage() {
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#2D7FE6] focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                         required
                       />
                     </div>
@@ -181,7 +181,7 @@ export default function BecomeProPage() {
 
                   <p className="text-xs text-gray-600">
                     By signing up with BridgeWork, you are agreeing to BridgeWork's{' '}
-                    <Link href="/terms" className="text-[#2D7FE6] hover:underline">
+                    <Link href="/terms" className="text-[#0E7480] hover:underline">
                       Terms and Conditions
                     </Link>
                     .
@@ -204,7 +204,7 @@ export default function BecomeProPage() {
       {/* The BridgeWork Advantage Section */}
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-[#2D7FE6] text-center mb-12">
+          <h2 className="text-3xl font-bold text-[#0E7480] text-center mb-12">
             The BridgeWork Advantage. Here's why you should sign up:
           </h2>
 
@@ -212,7 +212,7 @@ export default function BecomeProPage() {
             {/* Feature 1 */}
             <div className="text-center">
               <div className="flex justify-center mb-4">
-                <svg className="w-20 h-20 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" strokeWidth="2"/>
                   <circle cx="12" cy="12" r="3" fill="currentColor"/>
                   <line x1="12" y1="2" x2="12" y2="6" strokeWidth="2"/>
@@ -221,7 +221,7 @@ export default function BecomeProPage() {
                   <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" strokeWidth="2"/>
                 </svg>
               </div>
-              <h3 className="text-[#2D7FE6] font-bold mb-2">ACCESS OUR NETWORK</h3>
+              <h3 className="text-[#0E7480] font-bold mb-2">ACCESS OUR NETWORK</h3>
               <p className="text-sm text-gray-700">
                 With 24 job categories, BridgeWork acts as a one stop shop for all our clients' home maintenance needs. Our promise to deliver quality professionals from around the globe companies keep them coming back!
               </p>
@@ -230,12 +230,12 @@ export default function BecomeProPage() {
             {/* Feature 2 */}
             <div className="text-center">
               <div className="flex justify-center mb-4">
-                <svg className="w-20 h-20 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth="2"/>
                   <line x1="12" y1="18" x2="12" y2="18" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </div>
-              <h3 className="text-[#2D7FE6] font-bold mb-2">JOB ALERTS TO YOUR PHONE</h3>
+              <h3 className="text-[#0E7480] font-bold mb-2">JOB ALERTS TO YOUR PHONE</h3>
               <p className="text-sm text-gray-700">
                 Instead of sending leads, BridgeWork sends you or firm the clients in need of your services. Each customer already has their credit card information on file and you'll never have to compete with multiple quotes as all BridgeWork jobs follow a straightforward rate card.
               </p>
@@ -244,7 +244,7 @@ export default function BecomeProPage() {
             {/* Feature 3 */}
             <div className="text-center">
               <div className="flex justify-center mb-4">
-                <svg className="w-20 h-20 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeWidth="2"/>
                   <polyline points="14 2 14 8 20 8" strokeWidth="2"/>
                   <line x1="16" y1="13" x2="8" y2="13" strokeWidth="2"/>
@@ -252,7 +252,7 @@ export default function BecomeProPage() {
                   <polyline points="10 9 9 9 8 9" strokeWidth="2"/>
                 </svg>
               </div>
-              <h3 className="text-[#2D7FE6] font-bold mb-2">EFFORTLESS INVOICING</h3>
+              <h3 className="text-[#0E7480] font-bold mb-2">EFFORTLESS INVOICING</h3>
               <p className="text-sm text-gray-700">
                 After the job is complete, simply enter the job details in the app, and an invoice is automatically generated with their payment deposited to your account 4 days later.
               </p>
@@ -261,12 +261,12 @@ export default function BecomeProPage() {
             {/* Feature 4 */}
             <div className="text-center">
               <div className="flex justify-center mb-4">
-                <svg className="w-20 h-20 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" strokeWidth="2"/>
                   <path d="M12 6v6l4 2" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </div>
-              <h3 className="text-[#2D7FE6] font-bold mb-2">NO UPFRONT FEES</h3>
+              <h3 className="text-[#0E7480] font-bold mb-2">NO UPFRONT FEES</h3>
               <p className="text-sm text-gray-700">
                 It's absolutely free to join the platform - BridgeWork only takes a nominal percentage of each job you bill through, so you only pay for jobs you choose to take on.
               </p>
@@ -293,7 +293,7 @@ export default function BecomeProPage() {
 
             {/* Right: Steps */}
             <div>
-              <h2 className="text-3xl font-bold text-[#2D7FE6] mb-8">How it works</h2>
+              <h2 className="text-3xl font-bold text-[#0E7480] mb-8">How it works</h2>
 
               <div className="space-y-6">
                 <div>
@@ -325,7 +325,7 @@ export default function BecomeProPage() {
       {/* Application Requirements Section */}
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-[#2D7FE6] text-center mb-4">
+          <h2 className="text-3xl font-bold text-[#0E7480] text-center mb-4">
             What You&apos;ll Need to Apply
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
@@ -334,8 +334,8 @@ export default function BecomeProPage() {
 
           <div className="grid md:grid-cols-5 gap-6">
             <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-16 h-16 bg-[#2D7FE6]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-[#0E7480]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
@@ -344,8 +344,8 @@ export default function BecomeProPage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-16 h-16 bg-[#2D7FE6]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-[#0E7480]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
               </div>
@@ -354,8 +354,8 @@ export default function BecomeProPage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-16 h-16 bg-[#2D7FE6]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-[#0E7480]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
@@ -364,8 +364,8 @@ export default function BecomeProPage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-16 h-16 bg-[#2D7FE6]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-[#0E7480]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
@@ -374,8 +374,8 @@ export default function BecomeProPage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-16 h-16 bg-[#2D7FE6]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-[#2D7FE6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-[#0E7480]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-[#0E7480]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
               </div>
@@ -388,7 +388,7 @@ export default function BecomeProPage() {
             <p className="text-sm text-gray-700 text-center">
               It may take up to <span className="font-bold">2 weeks</span> for our team to review your application.
               We&apos;ll update you on openings within your category and upcoming onboarding meetings.
-              Feel free to <Link href="/help" className="text-[#2D7FE6] hover:underline">contact us</Link> if you have any questions.
+              Feel free to <Link href="/help" className="text-[#0E7480] hover:underline">contact us</Link> if you have any questions.
             </p>
           </div>
         </div>
@@ -472,7 +472,7 @@ export default function BecomeProPage() {
                 <input
                   type="text"
                   name="firstName"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -483,7 +483,7 @@ export default function BecomeProPage() {
                 <input
                   type="text"
                   name="lastName"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -497,7 +497,7 @@ export default function BecomeProPage() {
                 <input
                   type="email"
                   name="email"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -508,7 +508,7 @@ export default function BecomeProPage() {
                 <input
                   type="tel"
                   name="phone"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -522,7 +522,7 @@ export default function BecomeProPage() {
                 <input
                   type="password"
                   name="password"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -533,7 +533,7 @@ export default function BecomeProPage() {
                 <input
                   type="password"
                   name="confirmPassword"
-                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                  className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
               </div>
@@ -543,7 +543,7 @@ export default function BecomeProPage() {
               <input
                 type="text"
                 placeholder="Referral Code (Optional)"
-                className="w-full md:w-1/2 px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2D7FE6]"
+                className="w-full md:w-1/2 px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
               />
             </div>
 
@@ -576,11 +576,11 @@ export default function BecomeProPage() {
             <div>
               <h3 className="text-[#ff9800] font-bold mb-4">BECOME A BRIDGEWORK PRO</h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li><Link href="/homeowner-protection" className="hover:text-[#2D7FE6]">Homeowner Protection Promise</Link></li>
-                <li><Link href="/terms" className="hover:text-[#2D7FE6]">Terms and Conditions</Link></li>
-                <li><Link href="/privacy" className="hover:text-[#2D7FE6]">Privacy Policy</Link></li>
-                <li><Link href="/help" className="hover:text-[#2D7FE6]">Help Centre</Link></li>
-                <li><Link href="/careers" className="hover:text-[#2D7FE6]">Careers</Link></li>
+                <li><Link href="/homeowner-protection" className="hover:text-[#0E7480]">Homeowner Protection Promise</Link></li>
+                <li><Link href="/terms" className="hover:text-[#0E7480]">Terms and Conditions</Link></li>
+                <li><Link href="/privacy" className="hover:text-[#0E7480]">Privacy Policy</Link></li>
+                <li><Link href="/help" className="hover:text-[#0E7480]">Help Centre</Link></li>
+                <li><Link href="/careers" className="hover:text-[#0E7480]">Careers</Link></li>
               </ul>
             </div>
 
@@ -604,9 +604,9 @@ export default function BecomeProPage() {
           {/* Service Links */}
           <div className="mt-8 text-xs text-gray-600">
             <p className="mb-2">
-              <Link href="/services/furniture-assembly" className="hover:text-[#2D7FE6] mr-2">Furniture Assembly</Link>
-              <Link href="/services/junk-removal" className="hover:text-[#2D7FE6] mr-2">Junk Removal</Link>
-              <Link href="/services/tv-mounting" className="hover:text-[#2D7FE6] mr-2">TV Mounting</Link>
+              <Link href="/services/furniture-assembly" className="hover:text-[#0E7480] mr-2">Furniture Assembly</Link>
+              <Link href="/services/junk-removal" className="hover:text-[#0E7480] mr-2">Junk Removal</Link>
+              <Link href="/services/tv-mounting" className="hover:text-[#0E7480] mr-2">TV Mounting</Link>
               {/* Add more service links as needed */}
             </p>
           </div>
