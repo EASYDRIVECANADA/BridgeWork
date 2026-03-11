@@ -120,6 +120,9 @@ export default function Navbar() {
                     <Link href="/admin/revenue" className={navLinkClass}>
                       Admin Dashboard
                     </Link>
+                    <Link href="/admin/pro-applications" className={navLinkClass}>
+                      Pro Applications
+                    </Link>
                     <Link href="/admin/support-chat" className={navLinkClass}>
                       Support Chat
                     </Link>
@@ -199,6 +202,9 @@ export default function Navbar() {
                 <>
                   <Link href="/admin/revenue" className={navMobileLinkClass}>
                     Admin Dashboard
+                  </Link>
+                  <Link href="/admin/pro-applications" className={navMobileLinkClass}>
+                    Pro Applications
                   </Link>
                   <Link href="/help" className={navMobileLinkClass}>
                     Help Center

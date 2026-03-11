@@ -20,6 +20,7 @@ const paymentsRoutes = require('./routes/payments');
 const messagesRoutes = require('./routes/messages');
 const quotesRoutes = require('./routes/quotes');
 const supportChatRoutes = require('./routes/supportChat');
+const onboardingRoutes = require('./routes/onboarding');
 
 const app = express();
 
@@ -139,6 +140,7 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/quotes-invoices', quotesRoutes);
 app.use('/api/support-chat', supportChatRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // ─── Contact Form Endpoint ───────────────────────────────────────────────────
 const { sendContactFormEmail } = require('./services/emailService');

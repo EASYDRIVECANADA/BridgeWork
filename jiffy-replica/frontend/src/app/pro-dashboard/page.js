@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -8,12 +8,14 @@ import Link from 'next/link';
 import {
   MapPin, Star, Clock, DollarSign, Briefcase, Bell, MessageSquare,
   ChevronRight, CheckCircle, XCircle, Phone, Mail, Calendar,
-  TrendingUp, Users, Award, Settings, Edit, LogOut, FileText, Loader2
+  TrendingUp, Users, Award, Settings, Edit, LogOut, FileText, Loader2,
+  Camera, Upload, X, Plus, Image as ImageIcon
 } from 'lucide-react';
-import { signOut } from '@/store/slices/authSlice';
+import { signOut, updateProfile } from '@/store/slices/authSlice';
+import { supabase } from '@/lib/supabase';
 import { fetchProJobs, acceptJob, declineJob, fetchProStatistics, updateProProfile } from '@/store/slices/prosSlice';
 import { fetchConversations, fetchMessages, sendMessage } from '@/store/slices/messagesSlice';
-import { paymentsAPI, prosAPI, reviewsAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 // Helper: format a booking from the API into a display-friendly job object
@@ -56,6 +58,39 @@ export default function ProDashboardPage() {
   const [responseText, setResponseText] = useState('');
   const [respondLoading, setRespondLoading] = useState(false);
 
+  // Pro profile settings state
+  const avatarInputRef = useRef(null);
+  const portfolioInputRef = useRef(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [settingsBusinessName, setSettingsBusinessName] = useState('');
+  const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsCity, setSettingsCity] = useState('');
+  const [settingsBio, setSettingsBio] = useState('');
+  const [settingsHourlyRate, setSettingsHourlyRate] = useState('');
+  const [settingsServiceRadius, setSettingsServiceRadius] = useState(25);
+  const [settingsServiceCategories, setSettingsServiceCategories] = useState([]);
+  const [settingsPortfolioImages, setSettingsPortfolioImages] = useState([]);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
+
+  // Available service categories (from DB)
+  const SERVICE_CATEGORIES = [
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Handyman' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'Appliance Repair' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'Plumbing' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Electrical' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'HVAC' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'Lawn Care' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17', name: 'Painting' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18', name: 'Carpentry' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a19', name: 'Cleaning' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a20', name: 'Moving' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21', name: 'Gas Services' },
+    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'Emergency' },
+  ];
+
   // Format API data into display-friendly objects
   const jobAlerts = rawAlerts.map(formatJob);
   const activeJobs = rawActive.map(formatJob);
@@ -66,6 +101,21 @@ export default function ProDashboardPage() {
       router.push('/pro-login');
       return;
     }
+    // Check onboarding status — redirect if not completed & approved
+    const checkOnboarding = async () => {
+      try {
+        const res = await onboardingAPI.getStatus();
+        const data = res.data?.data;
+        if (!data?.onboardingCompleted || !data?.adminApproved) {
+          router.push('/pro-onboarding');
+          return;
+        }
+      } catch (err) {
+        // If the endpoint fails (e.g. no pro_profile), let them stay for now
+        console.log('[PRO-DASH] Onboarding check skipped:', err?.response?.status);
+      }
+    };
+    checkOnboarding();
     // Fetch jobs by status category
     dispatch(fetchProJobs({ status: 'pending' }));       // Job alerts (unassigned)
     dispatch(fetchProJobs({ status: 'accepted' }));      // Active jobs
@@ -110,6 +160,144 @@ export default function ProDashboardPage() {
     };
     fetchConnectData();
   }, [user, router, dispatch]);
+
+  // Fetch pro profile data when settings tab is opened
+  useEffect(() => {
+    if (activeTab !== 'settings' || settingsLoaded) return;
+    const loadProProfile = async () => {
+      try {
+        const res = await prosAPI.getMyProfile();
+        const pp = res.data?.data?.proProfile;
+        if (pp) {
+          setSettingsBusinessName(pp.business_name || profile?.full_name || '');
+          setSettingsBio(pp.bio || '');
+          setSettingsHourlyRate(pp.hourly_rate || '');
+          setSettingsServiceRadius(pp.service_radius || 25);
+          setSettingsServiceCategories(pp.service_categories || []);
+          setSettingsPortfolioImages(pp.portfolio_images || []);
+          setAvatarUrl(pp.profiles?.avatar_url || profile?.avatar_url || '');
+          setSettingsPhone(pp.profiles?.phone || profile?.phone || '');
+          setSettingsCity(pp.profiles?.city || profile?.city || '');
+        } else {
+          setSettingsBusinessName(profile?.full_name || '');
+          setSettingsPhone(profile?.phone || '');
+          setSettingsCity(profile?.city || '');
+          setAvatarUrl(profile?.avatar_url || '');
+        }
+        setSettingsLoaded(true);
+      } catch (err) {
+        console.log('[PRO-DASH] Could not load pro profile for settings:', err?.response?.status);
+        setSettingsBusinessName(profile?.full_name || '');
+        setSettingsPhone(profile?.phone || '');
+        setSettingsCity(profile?.city || '');
+        setAvatarUrl(profile?.avatar_url || '');
+        setSettingsLoaded(true);
+      }
+    };
+    loadProProfile();
+  }, [activeTab, settingsLoaded, profile]);
+
+  // Avatar upload handler
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) {
+        toast.error('Failed to upload photo');
+        setAvatarUploading(false);
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      setAvatarUrl(publicUrl);
+      // Also save immediately to profile
+      await dispatch(updateProfile({ avatar_url: publicUrl })).unwrap();
+      toast.success('Profile photo updated!');
+    } catch (err) {
+      toast.error('Failed to upload photo');
+    }
+    setAvatarUploading(false);
+  };
+
+  // Portfolio image upload handler
+  const handlePortfolioUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setPortfolioUploading(true);
+    try {
+      const newUrls = [...settingsPortfolioImages];
+      for (const file of files) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('pro-portfolio')
+          .upload(fileName, file, { upsert: true });
+        if (uploadError) {
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+        const { data: { publicUrl } } = supabase.storage
+          .from('pro-portfolio')
+          .getPublicUrl(fileName);
+        newUrls.push(publicUrl);
+      }
+      setSettingsPortfolioImages(newUrls);
+      toast.success(`${files.length} photo(s) added to portfolio`);
+    } catch (err) {
+      toast.error('Failed to upload portfolio images');
+    }
+    setPortfolioUploading(false);
+    if (portfolioInputRef.current) portfolioInputRef.current.value = '';
+  };
+
+  // Remove portfolio image
+  const handleRemovePortfolioImage = (index) => {
+    setSettingsPortfolioImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Toggle service category
+  const handleToggleServiceCategory = (catId) => {
+    setSettingsServiceCategories(prev =>
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
+  };
+
+  // Save all settings
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      // Update profiles table (name, phone, city, avatar)
+      await dispatch(updateProfile({
+        full_name: settingsBusinessName,
+        phone: settingsPhone,
+        city: settingsCity,
+        avatar_url: avatarUrl || undefined,
+      })).unwrap();
+
+      // Update pro_profiles table (bio, services, portfolio, etc.)
+      await dispatch(updateProProfile({
+        business_name: settingsBusinessName,
+        bio: settingsBio,
+        service_categories: settingsServiceCategories,
+        service_radius: parseInt(settingsServiceRadius) || 25,
+        hourly_rate: settingsHourlyRate ? parseFloat(settingsHourlyRate) : null,
+        portfolio_images: settingsPortfolioImages,
+      })).unwrap();
+
+      toast.success('Profile settings saved!');
+    } catch (err) {
+      toast.error(err || 'Failed to save settings');
+    }
+    setSettingsSaving(false);
+  };
 
   const handleAcceptJob = async (jobId) => {
     try {
@@ -1112,60 +1300,212 @@ export default function ProDashboardPage() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Pro Account Settings</h2>
 
+                {!settingsLoaded ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
+                  </div>
+                ) : (
                 <div className="space-y-6">
-                  {/* Business Information */}
+
+                  {/* Profile Photo & Basic Info */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Business Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-                        <input
-                          type="text"
-                          defaultValue={profile?.full_name || ''}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                        />
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Photo & Info</h3>
+                    <div className="flex gap-6 items-start">
+                      {/* Avatar */}
+                      <div className="flex-shrink-0">
+                        <div className="relative">
+                          <div className="w-28 h-28 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center border-4 border-gray-100 shadow-sm">
+                            {avatarUrl ? (
+                              <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                              <svg className="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                              </svg>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => avatarInputRef.current?.click()}
+                            disabled={avatarUploading}
+                            className="absolute -bottom-1 -right-1 w-9 h-9 bg-[#0E7480] rounded-full flex items-center justify-center text-white hover:bg-[#0a5f69] transition-colors shadow-md disabled:opacity-50"
+                          >
+                            {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                          </button>
+                          <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAvatarUpload}
+                            className="hidden"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 text-center mt-2">Click camera to upload</p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                          type="email"
-                          defaultValue={user?.email || ''}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input
-                          type="tel"
-                          defaultValue={profile?.phone || ''}
-                          placeholder="(416) 555-0000"
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                        <input
-                          type="text"
-                          defaultValue={profile?.city || ''}
-                          placeholder="Toronto"
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                        />
+
+                      {/* Form Fields */}
+                      <div className="flex-1 grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Business / Display Name</label>
+                          <input
+                            type="text"
+                            value={settingsBusinessName}
+                            onChange={(e) => setSettingsBusinessName(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <input
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                          <input
+                            type="tel"
+                            value={settingsPhone}
+                            onChange={(e) => setSettingsPhone(e.target.value)}
+                            placeholder="(416) 555-0000"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                          <input
+                            type="text"
+                            value={settingsCity}
+                            onChange={(e) => setSettingsCity(e.target.value)}
+                            placeholder="Ottawa"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Rate ($)</label>
+                          <input
+                            type="number"
+                            value={settingsHourlyRate}
+                            onChange={(e) => setSettingsHourlyRate(e.target.value)}
+                            placeholder="75"
+                            min="0"
+                            step="5"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Service Radius (km)</label>
+                          <input
+                            type="number"
+                            value={settingsServiceRadius}
+                            onChange={(e) => setSettingsServiceRadius(e.target.value)}
+                            placeholder="25"
+                            min="1"
+                            max="200"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Services */}
+                  {/* Bio / About Me */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Services Offered</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">About Me</h3>
+                    <p className="text-sm text-gray-500 mb-3">Tell homeowners about your experience, specialties, and why they should hire you.</p>
+                    <textarea
+                      value={settingsBio}
+                      onChange={(e) => setSettingsBio(e.target.value)}
+                      rows={4}
+                      placeholder="e.g. 15+ years of experience in residential plumbing and HVAC. Licensed, insured, and committed to quality work..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent resize-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1 text-right">{settingsBio.length}/500</p>
+                  </div>
+
+                  {/* Services Offered */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Services Offered</h3>
                     <p className="text-sm text-gray-500 mb-4">Select the services your business provides.</p>
                     <div className="grid grid-cols-3 gap-3">
-                      {['Furnace Tune-Up', 'AC Tune-Up', 'Duct Cleaning', 'Heating & Cooling', 'Plumbing', 'Electrical', 'Handyman Services', 'Painting', 'Lawn Maintenance'].map((service) => (
-                        <label key={service} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4 rounded text-[#0E7480] focus:ring-[#0E7480]" />
-                          <span className="text-sm text-gray-700">{service}</span>
+                      {SERVICE_CATEGORIES.map((cat) => (
+                        <label
+                          key={cat.id}
+                          className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
+                            settingsServiceCategories.includes(cat.id)
+                              ? 'border-[#0E7480] bg-[#0E7480]/5'
+                              : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={settingsServiceCategories.includes(cat.id)}
+                            onChange={() => handleToggleServiceCategory(cat.id)}
+                            className="w-4 h-4 rounded text-[#0E7480] focus:ring-[#0E7480]"
+                          />
+                          <span className={`text-sm ${settingsServiceCategories.includes(cat.id) ? 'text-[#0E7480] font-medium' : 'text-gray-700'}`}>
+                            {cat.name}
+                          </span>
                         </label>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Portfolio Images */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-bold text-gray-900">Portfolio</h3>
+                      <button
+                        onClick={() => portfolioInputRef.current?.click()}
+                        disabled={portfolioUploading}
+                        className="flex items-center gap-1.5 text-[#0E7480] text-sm font-semibold hover:underline disabled:opacity-50"
+                      >
+                        {portfolioUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Add Photos
+                      </button>
+                      <input
+                        ref={portfolioInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePortfolioUpload}
+                        className="hidden"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">Showcase your best work — homeowners see these when viewing your profile.</p>
+
+                    {settingsPortfolioImages.length > 0 ? (
+                      <div className="grid grid-cols-4 gap-3">
+                        {settingsPortfolioImages.map((url, idx) => (
+                          <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200">
+                            <img src={url} alt={`Portfolio ${idx + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => handleRemovePortfolioImage(idx)}
+                              className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {/* Add more button */}
+                        <button
+                          onClick={() => portfolioInputRef.current?.click()}
+                          className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-[#0E7480] hover:border-[#0E7480] transition-colors"
+                        >
+                          <Plus className="w-6 h-6" />
+                          <span className="text-xs mt-1">Add</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => portfolioInputRef.current?.click()}
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#0E7480] transition-colors"
+                      >
+                        <ImageIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Click to upload portfolio photos</p>
+                        <p className="text-xs text-gray-400 mt-1">JPG, PNG — up to 10MB each</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Documents */}
@@ -1202,13 +1542,16 @@ export default function ProDashboardPage() {
                   {/* Save Button */}
                   <div className="flex justify-end">
                     <button
-                      onClick={() => toast.success('Settings saved!')}
-                      className="bg-[#0E7480] text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors text-sm"
+                      onClick={handleSaveSettings}
+                      disabled={settingsSaving}
+                      className="bg-[#0E7480] text-white px-8 py-2.5 rounded-lg font-semibold hover:bg-[#0a5f69] transition-colors text-sm disabled:opacity-50 flex items-center gap-2"
                     >
-                      Save Changes
+                      {settingsSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {settingsSaving ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             )}
           </div>

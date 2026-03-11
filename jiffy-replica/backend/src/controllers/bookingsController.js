@@ -2,6 +2,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { findNearbyPros } = require('../services/proMatchingService');
 const { createNotification } = require('../services/notificationService');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 exports.createBooking = async (req, res) => {
     try {
@@ -366,6 +367,27 @@ exports.cancelBooking = async (req, res) => {
                 success: false,
                 message: 'Cannot cancel booking in current status'
             });
+        }
+
+        // Release Stripe payment hold if one exists
+        const { data: heldTx } = await supabaseAdmin
+            .from('transactions')
+            .select('id, status, stripe_payment_intent_id')
+            .eq('booking_id', id)
+            .eq('status', 'held')
+            .maybeSingle();
+
+        if (heldTx?.stripe_payment_intent_id) {
+            try {
+                await stripe.paymentIntents.cancel(heldTx.stripe_payment_intent_id);
+                await supabaseAdmin
+                    .from('transactions')
+                    .update({ status: 'refunded' })
+                    .eq('id', heldTx.id);
+                logger.info('Stripe hold released on cancel', { bookingId: id, piId: heldTx.stripe_payment_intent_id });
+            } catch (stripeErr) {
+                logger.error('Failed to release Stripe hold on cancel (non-fatal)', { error: stripeErr.message, bookingId: id });
+            }
         }
 
         const { data, error } = await supabaseAdmin

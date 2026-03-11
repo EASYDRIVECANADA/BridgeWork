@@ -76,6 +76,7 @@ export default function ServiceDetailPage() {
     { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e01', name: 'Emergency HVAC', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Emergency' },
     { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e02', name: 'Emergency Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Emergency' },
     { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e03', name: 'Emergency Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Emergency' },
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380f01', name: 'QA Test Service ($1)', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'QA Testing' },
   ];
 
   // Fetch real service data from API

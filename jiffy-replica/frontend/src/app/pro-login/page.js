@@ -26,7 +26,7 @@ export default function ProLoginPage() {
         return;
       }
       toast.success('Welcome back, Pro!');
-      router.push('/pro-dashboard');
+      router.push('/pro-onboarding');
     }
   }, [isAuthenticated, profile, router]);
 

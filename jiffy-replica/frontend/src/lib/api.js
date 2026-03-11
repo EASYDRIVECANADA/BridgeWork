@@ -136,6 +136,19 @@ export const quotesAPI = {
   getStats: () => api.get('/quotes-invoices/stats'),
 };
 
+export const onboardingAPI = {
+  getStatus: () => api.get('/onboarding/status'),
+  getAgreement: () => api.get('/onboarding/agreement'),
+  submitBusinessInfo: (data) => api.post('/onboarding/step/1', data),
+  acceptAgreement: (data) => api.post('/onboarding/step/2', data),
+  submitRequirements: (data) => api.post('/onboarding/step/3', data),
+  completeStripe: () => api.post('/onboarding/step/4'),
+  // Admin
+  getApplications: (params) => api.get('/onboarding/admin/applications', { params }),
+  approveApplication: (id, data) => api.post(`/onboarding/admin/approve/${id}`, data),
+  rejectApplication: (id, data) => api.post(`/onboarding/admin/reject/${id}`, data),
+};
+
 export const supportChatAPI = {
   getOrCreateConversation: () => api.get('/support-chat/conversation'),
   getMessages: (conversationId) => api.get(`/support-chat/${conversationId}/messages`),

@@ -51,6 +51,25 @@ exports.signup = async (req, res) => {
             });
         }
 
+        // Auto-create pro_profiles row for pro accounts
+        if (role === 'pro') {
+            const { error: proProfileError } = await supabaseAdmin
+                .from('pro_profiles')
+                .insert({
+                    user_id: authData.user.id,
+                    business_name: full_name,
+                    is_available: true,
+                })
+                .select()
+                .single();
+
+            if (proProfileError) {
+                logger.error('Pro profile creation error (non-fatal)', { error: proProfileError.message, userId: authData.user.id });
+            } else {
+                logger.info('Pro profile auto-created', { userId: authData.user.id });
+            }
+        }
+
         logger.info('User signed up successfully — confirmation email sent by Supabase', { userId: authData.user.id });
 
         res.status(201).json({

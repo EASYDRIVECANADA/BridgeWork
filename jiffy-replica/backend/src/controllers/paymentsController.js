@@ -44,6 +44,20 @@ exports.createPaymentIntent = async (req, res) => {
 
         let customerId = req.profile.stripe_customer_id;
 
+        // Verify existing customer is still valid on Stripe, or create a new one
+        if (customerId) {
+            try {
+                await stripe.customers.retrieve(customerId);
+            } catch (custErr) {
+                logger.warn('Stale stripe_customer_id, creating new customer', {
+                    oldCustomerId: customerId,
+                    userId: req.user.id,
+                    error: custErr.message,
+                });
+                customerId = null; // force re-creation below
+            }
+        }
+
         if (!customerId) {
             const customer = await stripe.customers.create({
                 email: req.user.email,
@@ -62,7 +76,7 @@ exports.createPaymentIntent = async (req, res) => {
         // Build payment intent params with MANUAL capture (escrow hold)
         const paymentIntentParams = {
             amount: Math.round(booking.total_price * 100),
-            currency: 'usd',
+            currency: 'cad',
             customer: customerId,
             capture_method: 'manual', // ESCROW: authorize but don't charge yet
             metadata: {
@@ -478,13 +492,71 @@ exports.capturePayment = async (req, res) => {
         // --- From here on, Stripe has captured. All DB updates are best-effort. ---
         // --- We must NOT return a 500 after Stripe capture succeeds. ---
 
+        // If the PI was created WITHOUT transfer_data (homeowner paid before pro accepted),
+        // create a separate Transfer to send the pro's share to their Connect account.
+        let transferId = null;
+        if (booking.pro_id && !paymentIntent.transfer_data) {
+            try {
+                const { data: proProfile } = await supabaseAdmin
+                    .from('pro_profiles')
+                    .select('stripe_account_id, commission_rate')
+                    .eq('id', booking.pro_id)
+                    .single();
+
+                if (proProfile?.stripe_account_id) {
+                    const commissionRate = proProfile.commission_rate != null
+                        ? parseFloat(proProfile.commission_rate)
+                        : PLATFORM_COMMISSION_RATE;
+                    const capturedAmount = paymentIntent.amount_received; // in cents
+                    const platformFee = Math.round(capturedAmount * commissionRate);
+                    const proShare = capturedAmount - platformFee;
+
+                    if (proShare > 0) {
+                        const transfer = await stripe.transfers.create({
+                            amount: proShare,
+                            currency: paymentIntent.currency,
+                            destination: proProfile.stripe_account_id,
+                            source_transaction: paymentIntent.latest_charge,
+                            metadata: {
+                                booking_id: booking.id,
+                                commission_rate: commissionRate.toString(),
+                                platform_fee_cents: platformFee.toString(),
+                            },
+                            description: `Pro payout for booking ${booking.booking_number || booking.id}`,
+                        });
+                        transferId = transfer.id;
+
+                        logger.info('Pro payout transfer created', {
+                            bookingId: booking.id,
+                            transferId: transfer.id,
+                            proShare: proShare / 100,
+                            platformFee: platformFee / 100,
+                            commissionRate,
+                            destination: proProfile.stripe_account_id,
+                        });
+                    }
+                }
+            } catch (transferErr) {
+                logger.error('capturePayment: pro transfer failed (non-fatal)', {
+                    error: transferErr.message,
+                    type: transferErr.type,
+                    code: transferErr.code,
+                    bookingId: booking.id,
+                });
+            }
+        }
+
         // Update transaction to succeeded
+        const txUpdateData = {
+            status: 'succeeded',
+            stripe_charge_id: paymentIntent.latest_charge,
+        };
+        if (transferId) {
+            txUpdateData.metadata = { ...(heldTx.metadata || {}), transfer_id: transferId };
+        }
         const { error: txUpdateErr } = await supabaseAdmin
             .from('transactions')
-            .update({
-                status: 'succeeded',
-                stripe_charge_id: paymentIntent.latest_charge
-            })
+            .update(txUpdateData)
             .eq('id', heldTx.id);
 
         if (txUpdateErr) {
@@ -508,7 +580,6 @@ exports.capturePayment = async (req, res) => {
         // Update pro stats (best-effort, don't let failures block the response)
         if (booking.pro_id) {
             try {
-                // Fetch current stats and increment manually (supabase JS has no .raw())
                 const { data: currentPro } = await supabaseAdmin
                     .from('pro_profiles')
                     .select('completed_jobs, total_jobs, user_id')
@@ -524,14 +595,16 @@ exports.capturePayment = async (req, res) => {
                         })
                         .eq('id', booking.pro_id);
 
-                    // Notify the pro
+                    const proShareDisplay = transferId
+                        ? ` Your share ($${((paymentIntent.amount_received - Math.round(paymentIntent.amount_received * PLATFORM_COMMISSION_RATE)) / 100).toFixed(2)}) has been transferred to your Stripe account.`
+                        : '';
                     await supabaseAdmin
                         .from('notifications')
                         .insert({
                             user_id: currentPro.user_id,
                             type: 'payment',
                             title: 'Payment Released',
-                            message: `The customer confirmed the job is complete. Payment of $${heldTx.amount} has been released to your account.`,
+                            message: `The customer confirmed the job is complete. Payment of $${heldTx.amount} has been captured.${proShareDisplay}`,
                             link: `/pro/bookings/${booking_id}`,
                             data: { booking_id }
                         });
@@ -543,7 +616,8 @@ exports.capturePayment = async (req, res) => {
 
         logger.info('Payment captured (escrow released)', {
             bookingId: booking_id,
-            paymentIntentId: heldTx.stripe_payment_intent_id
+            paymentIntentId: heldTx.stripe_payment_intent_id,
+            transferId: transferId || 'none (transfer_data was on PI)',
         });
 
         res.json({

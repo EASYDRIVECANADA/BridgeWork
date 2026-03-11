@@ -29,12 +29,29 @@ exports.createConnectAccount = async (req, res) => {
             });
         }
 
-        // If they already have a Stripe account, create a new onboarding link
+        // If they already have a Stripe account, check its status
         if (proProfile.stripe_account_id) {
+            const account = await stripe.accounts.retrieve(proProfile.stripe_account_id);
+
+            // If details already submitted, no need for another onboarding link
+            if (account.details_submitted) {
+                return res.json({
+                    success: true,
+                    data: {
+                        account_id: proProfile.stripe_account_id,
+                        already_exists: true,
+                        details_submitted: true,
+                        charges_enabled: account.charges_enabled,
+                        payouts_enabled: account.payouts_enabled,
+                    }
+                });
+            }
+
+            // Need to finish onboarding — create account link (requires HTTPS in live mode)
             const accountLink = await stripe.accountLinks.create({
                 account: proProfile.stripe_account_id,
-                refresh_url: `${FRONTEND_URL}/pro-dashboard?stripe=refresh`,
-                return_url: `${FRONTEND_URL}/pro-dashboard?stripe=success`,
+                refresh_url: `${FRONTEND_URL}/pro-onboarding?stripe=refresh`,
+                return_url: `${FRONTEND_URL}/pro-onboarding?stripe=success`,
                 type: 'account_onboarding',
             });
 
@@ -44,6 +61,7 @@ exports.createConnectAccount = async (req, res) => {
                     url: accountLink.url,
                     account_id: proProfile.stripe_account_id,
                     already_exists: true,
+                    details_submitted: false,
                 }
             });
         }

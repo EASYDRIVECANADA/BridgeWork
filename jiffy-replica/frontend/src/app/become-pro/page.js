@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Facebook, Twitter, Linkedin, Instagram, CheckCircle, Mail } from 'lucide-react';
 import { signUp } from '@/store/slices/authSlice';
 import { toast } from 'react-toastify';
 
@@ -13,7 +13,9 @@ export default function BecomeProPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { isLoading } = useSelector((state) => state.auth);
-  
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -49,8 +51,8 @@ export default function BecomeProPage() {
         role: 'pro',
       };
       await dispatch(signUp(signupData)).unwrap();
-      toast.success('Pro account created successfully!');
-      router.push('/pro-dashboard');
+      setSignupEmail(formData.email);
+      setSignupSuccess(true);
     } catch (err) {
       toast.error(err || 'Signup failed');
     }
@@ -84,6 +86,30 @@ export default function BecomeProPage() {
 
               {/* Right: Signup Form Card */}
               <div className="bg-white rounded-lg shadow-2xl p-8">
+                {signupSuccess ? (
+                  <div className="text-center py-4">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="w-8 h-8 text-green-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Account Created!</h2>
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Mail className="w-4 h-4 text-[#0E7480]" />
+                      <p className="text-sm text-gray-600">We sent a confirmation email to:</p>
+                    </div>
+                    <p className="text-[#0E7480] font-semibold mb-4">{signupEmail}</p>
+                    <p className="text-sm text-gray-500 mb-6">
+                      Please check your email and click the confirmation link to activate your account.
+                      Once confirmed, log in to start your onboarding.
+                    </p>
+                    <button
+                      onClick={() => router.push('/pro-login')}
+                      className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors"
+                    >
+                      Go to Pro Login
+                    </button>
+                  </div>
+                ) : (
+                <>
                 <h2 className="text-[#0E7480] text-xl font-semibold mb-2">
                   It's free to join the BridgeWork platform
                 </h2>
@@ -195,6 +221,8 @@ export default function BecomeProPage() {
                     {isLoading ? 'Creating account...' : 'Sign Me Up!'}
                   </button>
                 </form>
+                </>
+                )}
               </div>
             </div>
           </div>

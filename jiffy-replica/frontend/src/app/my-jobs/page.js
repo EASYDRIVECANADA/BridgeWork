@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star } from 'lucide-react';
-import { fetchBookings } from '@/store/slices/bookingsSlice';
+import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
 import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
 import { toast } from 'react-toastify';
@@ -44,6 +44,9 @@ export default function MyJobsPage() {
   const [actionLoading, setActionLoading] = useState(null);
   const [reviewBooking, setReviewBooking] = useState(null);
   const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
+  const [cancelModal, setCancelModal] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -76,6 +79,22 @@ export default function MyJobsPage() {
     };
     loadServices();
   }, []);
+
+  const handleCancelBooking = async () => {
+    if (!cancelModal) return;
+    setCancelLoading(true);
+    try {
+      await dispatch(cancelBooking({ id: cancelModal, reason: cancelReason || 'Cancelled by homeowner' })).unwrap();
+      toast.success('Booking cancelled. Any held funds will be released back to your card.');
+      setCancelModal(null);
+      setCancelReason('');
+      dispatch(fetchBookings());
+    } catch (err) {
+      toast.error(err || 'Failed to cancel booking.');
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const handleViewProof = async (bookingId) => {
     try {
@@ -238,6 +257,16 @@ export default function MyJobsPage() {
                       Pay Now
                     </Link>
                   ) : null}
+                  {/* Cancel button — only for pending bookings with NO payment held/succeeded */}
+                  {['pending', 'accepted'].includes(booking.status) && !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && (
+                    <button
+                      onClick={() => { setCancelModal(booking.id); setCancelReason(''); }}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Cancel
+                    </button>
+                  )}
                   {/* Actions based on status */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {booking.status === 'in_progress' && booking.proof_submitted_at && (
@@ -495,6 +524,47 @@ export default function MyJobsPage() {
               dispatch(fetchBookings());
             }}
           />
+        )}
+
+        {/* Cancel Booking Modal */}
+        {cancelModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setCancelModal(null)}>
+            <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  Cancel Booking
+                </h3>
+                <button onClick={() => setCancelModal(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                Are you sure you want to cancel this booking? If payment was already held, it will be released back to your card.
+              </p>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation (optional)..."
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none h-20 focus:ring-2 focus:ring-red-300 focus:border-red-400 outline-none"
+              />
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  onClick={() => setCancelModal(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+                >
+                  Keep Booking
+                </button>
+                <button
+                  onClick={handleCancelBooking}
+                  disabled={cancelLoading}
+                  className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {cancelLoading ? 'Cancelling...' : 'Yes, Cancel Booking'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Dispute Modal */}
