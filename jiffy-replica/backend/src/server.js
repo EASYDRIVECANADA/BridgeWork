@@ -144,6 +144,18 @@ app.get('/debug/env-check', async (req, res) => {
         nodeEnv: process.env.NODE_ENV,
         frontendUrl: process.env.FRONTEND_URL,
     };
+    // Check Stripe key
+    checks.hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
+    checks.stripeKeyPrefix = process.env.STRIPE_SECRET_KEY?.substring(0, 12) + '...';
+    try {
+        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        const bal = await stripe.balance.retrieve();
+        checks.stripeConnected = true;
+        checks.stripeCurrency = bal.available?.[0]?.currency;
+    } catch (e) {
+        checks.stripeConnected = false;
+        checks.stripeError = e.message;
+    }
     // Test supabaseAdmin can read
     try {
         const { data, error } = await supabaseAdmin.from('profiles').select('id').limit(1);
