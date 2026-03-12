@@ -359,7 +359,7 @@ exports.completeStripeStep = async (req, res) => {
         }
 
         // Verify with Stripe that the account is valid
-        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        const stripe = require('../config/stripe');
         try {
             const account = await stripe.accounts.retrieve(proProfile.stripe_account_id);
             if (!account.details_submitted) {

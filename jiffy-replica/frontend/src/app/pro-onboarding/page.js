@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   CheckCircle, Circle, ChevronRight, Building2, FileText,
@@ -13,6 +13,7 @@ import { toast } from 'react-toastify';
 
 export default function ProOnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile } = useSelector((state) => state.auth);
 
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,16 @@ export default function ProOnboardingPage() {
     loadOnboardingStatus();
     loadServices();
   }, [user, profile, router]);
+
+  // Auto-complete Stripe step when returning from Stripe onboarding
+  useEffect(() => {
+    const stripeParam = searchParams.get('stripe');
+    if (stripeParam === 'success' && !submitting) {
+      handleCompleteStripe();
+      // Clean up the URL query param
+      router.replace('/pro-onboarding', { scroll: false });
+    }
+  }, [searchParams]);
 
   const loadOnboardingStatus = async () => {
     try {
