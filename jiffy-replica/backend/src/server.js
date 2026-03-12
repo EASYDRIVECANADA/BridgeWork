@@ -32,7 +32,10 @@ const httpServer = createServer(app);
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://fluffy-melomakarona-d00b8e.netlify.app' // Production Netlify URL
+    'https://fluffy-melomakarona-d00b8e.netlify.app',
+    'https://delicate-yeot-55d47d.netlify.app',
+    'https://bridgeworkservices.com',
+    'https://www.bridgeworkservices.com'
 ];
 
 // Add production frontend URL if set (for flexibility)

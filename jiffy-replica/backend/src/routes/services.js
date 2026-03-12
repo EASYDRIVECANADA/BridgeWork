@@ -9,6 +9,7 @@ const router = express.Router();
 router.get('/', optionalAuth, servicesController.getAllServices);
 
 router.get('/search',
+    optionalAuth,
     [
         query('q').trim().isLength({ min: 2 }),
         validate
@@ -16,7 +17,7 @@ router.get('/search',
     servicesController.searchServices
 );
 
-router.get('/categories', servicesController.getCategories);
+router.get('/categories', optionalAuth, servicesController.getCategories);
 
 router.get('/categories/:id',
     [

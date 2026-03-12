@@ -43,11 +43,19 @@ exports.signup = async (req, res) => {
             .single();
 
         if (profileError) {
-            logger.error('Profile creation error', { error: profileError.message });
+            logger.error('Profile creation error', { 
+                error: profileError.message, 
+                code: profileError.code,
+                details: profileError.details,
+                hint: profileError.hint,
+                userId: authData.user?.id,
+                email 
+            });
             await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
             return res.status(500).json({
                 success: false,
-                message: 'Failed to create user profile'
+                message: 'Failed to create user profile',
+                debug: process.env.NODE_ENV !== 'production' ? profileError.message : undefined
             });
         }
 

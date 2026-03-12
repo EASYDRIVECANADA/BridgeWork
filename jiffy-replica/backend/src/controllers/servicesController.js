@@ -1,6 +1,10 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
+// QA test accounts — only these emails can see QA Testing category/services
+const QA_TEST_EMAILS = ['danafgaliver@gmail.com', 'zetthebloodedge@gmail.com', 'admin@bridgework.ca'];
+const QA_CATEGORY_SLUG = 'qa-testing';
+
 exports.getAllServices = async (req, res) => {
     try {
         const { category, search } = req.query;
@@ -45,10 +49,15 @@ exports.getAllServices = async (req, res) => {
             });
         }
 
+        // Filter out QA services for non-test users
+        const userEmail = req.profile?.email;
+        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
+        const filteredData = isQAUser ? data : data.filter(s => s.service_categories?.slug !== QA_CATEGORY_SLUG);
+
         res.json({
             success: true,
             data: {
-                services: data,
+                services: filteredData,
                 pagination: {
                     limit,
                     offset,
@@ -117,7 +126,7 @@ exports.searchServices = async (req, res) => {
 
         const { data, error } = await supabaseAdmin
             .from('services')
-            .select('id, name, slug, short_description, base_price')
+            .select('id, name, slug, short_description, base_price, service_categories(slug)')
             .or(`name.ilike.%${q}%,description.ilike.%${q}%,tags.cs.{${q}}`)
             .eq('is_active', true)
             .limit(10);
@@ -130,9 +139,14 @@ exports.searchServices = async (req, res) => {
             });
         }
 
+        // Filter out QA services for non-test users
+        const userEmail = req.profile?.email;
+        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
+        const filteredData = isQAUser ? data : data.filter(s => s.service_categories?.slug !== QA_CATEGORY_SLUG);
+
         res.json({
             success: true,
-            data: { results: data }
+            data: { results: filteredData }
         });
     } catch (error) {
         logger.error('Search services controller error', { error: error.message });
@@ -159,9 +173,14 @@ exports.getCategories = async (req, res) => {
             });
         }
 
+        // Filter out QA Testing category for non-test users
+        const userEmail = req.profile?.email;
+        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
+        const filteredData = isQAUser ? data : data.filter(c => c.slug !== QA_CATEGORY_SLUG);
+
         res.json({
             success: true,
-            data: { categories: data }
+            data: { categories: filteredData }
         });
     } catch (error) {
         logger.error('Get categories controller error', { error: error.message });
