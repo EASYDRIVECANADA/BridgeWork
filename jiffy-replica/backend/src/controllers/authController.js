@@ -26,6 +26,16 @@ exports.signup = async (req, res) => {
             });
         }
 
+        // Supabase returns a fake user (with empty identities) when the email already exists
+        // This is their email enumeration protection — the user object looks real but has no actual auth.users row
+        if (!authData.user || !authData.user.identities || authData.user.identities.length === 0) {
+            logger.warn('Signup attempted with existing email (fake user returned)', { email });
+            return res.status(400).json({
+                success: false,
+                message: 'An account with this email already exists. Please log in or use a different email.'
+            });
+        }
+
         const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .insert({
