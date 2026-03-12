@@ -156,6 +156,31 @@ app.get('/debug/env-check', async (req, res) => {
         checks.stripeConnected = false;
         checks.stripeError = e.message;
     }
+    // Raw HTTPS test to Stripe (bypass SDK)
+    try {
+        const result = await new Promise((resolve, reject) => {
+            const https = require('https');
+            const opts = {
+                hostname: 'api.stripe.com',
+                path: '/v1/balance',
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + process.env.STRIPE_SECRET_KEY },
+                timeout: 10000,
+            };
+            const req = https.request(opts, res => {
+                let b = ''; res.on('data', c => b += c);
+                res.on('end', () => resolve({ status: res.statusCode, body: b.substring(0, 200) }));
+            });
+            req.on('error', e => reject(e));
+            req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+            req.end();
+        });
+        checks.stripeRawTest = result.status;
+        checks.stripeRawOk = result.status === 200;
+    } catch (e) {
+        checks.stripeRawTest = 'failed';
+        checks.stripeRawError = e.message;
+    }
     // Test supabaseAdmin can read
     try {
         const { data, error } = await supabaseAdmin.from('profiles').select('id').limit(1);
