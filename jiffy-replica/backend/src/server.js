@@ -134,6 +134,43 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Temporary diagnostic endpoint — REMOVE after debugging
+app.get('/debug/env-check', async (req, res) => {
+    const checks = {
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+        serviceKeyPrefix: process.env.SUPABASE_SERVICE_KEY?.substring(0, 10) + '...',
+        nodeEnv: process.env.NODE_ENV,
+        frontendUrl: process.env.FRONTEND_URL,
+    };
+    // Test supabaseAdmin can read
+    try {
+        const { data, error } = await supabaseAdmin.from('profiles').select('id').limit(1);
+        checks.adminCanRead = !error;
+        checks.adminReadError = error?.message || null;
+    } catch (e) {
+        checks.adminCanRead = false;
+        checks.adminReadError = e.message;
+    }
+    // Test supabaseAdmin can write (insert + delete)
+    try {
+        const testId = '00000000-0000-0000-0000-000000000001';
+        const { error: insertErr } = await supabaseAdmin.from('profiles').upsert({
+            id: testId, email: 'diag_test@test.com', full_name: 'Diag', role: 'user'
+        });
+        checks.adminCanWrite = !insertErr;
+        checks.adminWriteError = insertErr?.message || null;
+        if (!insertErr) {
+            await supabaseAdmin.from('profiles').delete().eq('id', testId);
+        }
+    } catch (e) {
+        checks.adminCanWrite = false;
+        checks.adminWriteError = e.message;
+    }
+    res.json(checks);
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/bookings', bookingsRoutes);

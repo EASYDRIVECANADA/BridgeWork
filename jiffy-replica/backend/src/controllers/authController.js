@@ -55,7 +55,8 @@ exports.signup = async (req, res) => {
             return res.status(500).json({
                 success: false,
                 message: 'Failed to create user profile',
-                debug: process.env.NODE_ENV !== 'production' ? profileError.message : undefined
+                debug: profileError.message,
+                debugCode: profileError.code
             });
         }
 
