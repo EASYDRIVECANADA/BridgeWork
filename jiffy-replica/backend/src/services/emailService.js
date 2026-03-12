@@ -82,7 +82,7 @@ function welcomeEmailHTML(fullName) {
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
             <tr>
                 <td style="background-color:#0E7480;border-radius:8px;">
-                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/services" 
+                    <a href="${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '')}/services" 
                        style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
                         Browse Services
                     </a>
@@ -90,7 +90,7 @@ function welcomeEmailHTML(fullName) {
             </tr>
         </table>
         <p style="margin:0;color:#6b7280;font-size:13px;">
-            If you have any questions, visit our <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/help" style="color:#0E7480;text-decoration:none;">Help Center</a>.
+            If you have any questions, visit our <a href="${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '')}/help" style="color:#0E7480;text-decoration:none;">Help Center</a>.
         </p>`;
     return wrapInLayout(content);
 }

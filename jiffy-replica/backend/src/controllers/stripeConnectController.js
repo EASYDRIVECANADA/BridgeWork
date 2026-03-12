@@ -1,8 +1,8 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('../config/stripe');
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 // Platform commission rate (15%)
 const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15');
@@ -89,8 +89,8 @@ exports.createConnectAccount = async (req, res) => {
         // Create an onboarding link
         const accountLink = await stripe.accountLinks.create({
             account: account.id,
-            refresh_url: `${FRONTEND_URL}/pro-dashboard?stripe=refresh`,
-            return_url: `${FRONTEND_URL}/pro-dashboard?stripe=success`,
+            refresh_url: `${FRONTEND_URL}/pro-onboarding?stripe=refresh`,
+            return_url: `${FRONTEND_URL}/pro-onboarding?stripe=success`,
             type: 'account_onboarding',
         });
 

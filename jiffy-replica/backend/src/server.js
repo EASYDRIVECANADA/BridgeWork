@@ -148,7 +148,7 @@ app.get('/debug/env-check', async (req, res) => {
     checks.hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
     checks.stripeKeyPrefix = process.env.STRIPE_SECRET_KEY?.substring(0, 12) + '...';
     try {
-        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        const stripe = require('./config/stripe');
         const bal = await stripe.balance.retrieve();
         checks.stripeConnected = true;
         checks.stripeCurrency = bal.available?.[0]?.currency;
