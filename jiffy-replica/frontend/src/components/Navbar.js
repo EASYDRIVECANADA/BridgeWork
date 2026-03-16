@@ -10,6 +10,7 @@ import { signOut } from '@/store/slices/authSlice';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showServiceTypeModal, setShowServiceTypeModal] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -25,6 +26,15 @@ export default function Navbar() {
   const handleSignOut = async () => {
     await dispatch(signOut());
     router.push('/');
+  };
+
+  const handleServiceTypeSelect = (type) => {
+    setShowServiceTypeModal(false);
+    if (type === 'residential') {
+      router.push('/services?type=residential');
+    } else {
+      router.push('/services?type=commercial');
+    }
   };
 
   // Hover/animation styles (keeps layout identical; only visual + motion)
@@ -83,28 +93,17 @@ export default function Navbar() {
                     <Link href="/pro-dashboard/quotes" className={navLinkClass}>
                       Quotes
                     </Link>
-                    <Link href="/help" className={navLinkClass}>
-                      Help Center
-                    </Link>
                   </>
                 ) : (
                   <>
-                    <Link href="/services" className={navLinkClass}>
+                    <button onClick={() => setShowServiceTypeModal(true)} className={navLinkClass}>
                       Explore Services
-                    </Link>
-                    {isAuthenticated && (
-                      <Link href="/my-jobs" className={navLinkClass}>
-                        My Jobs
-                      </Link>
-                    )}
+                    </button>
                     {isAuthenticated && (
                       <Link href="/dashboard/quotes" className={navLinkClass}>
                         Quotes
                       </Link>
                     )}
-                    <Link href="/help" className={navLinkClass}>
-                      Help Center
-                    </Link>
                   </>
                 )}
               </div>
@@ -118,21 +117,22 @@ export default function Navbar() {
                 isAdmin ? (
                   <>
                     <Link href="/admin/revenue" className={navLinkClass}>
-                      Admin Dashboard
+                      Dashboard
+                    </Link>
+                    <Link href="/admin/services" className={navLinkClass}>
+                      Services
+                    </Link>
+                    <Link href="/admin/categories" className={navLinkClass}>
+                      Categories
                     </Link>
                     <Link href="/admin/pro-applications" className={navLinkClass}>
                       Pro Applications
                     </Link>
-                    <Link href="/admin/support-chat" className={navLinkClass}>
-                      Support Chat
+                    <Link href="/admin/quote-requests" className={navLinkClass}>
+                      Quotes
                     </Link>
-                    <Link href="/messages" className={navLinkClass + " relative"}>
-                      Messages
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ring-2 ring-[#142841]">
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
-                      )}
+                    <Link href="/admin/invitations" className={navLinkClass}>
+                      Admins
                     </Link>
                     <Link href="/dashboard" className={navLinkClass}>
                       {profile?.full_name || 'Admin'}
@@ -201,21 +201,25 @@ export default function Navbar() {
               {isAuthenticated && isAdmin ? (
                 <>
                   <Link href="/admin/revenue" className={navMobileLinkClass}>
-                    Admin Dashboard
+                    Dashboard
+                  </Link>
+                  <Link href="/admin/services" className={navMobileLinkClass}>
+                    Services
+                  </Link>
+                  <Link href="/admin/categories" className={navMobileLinkClass}>
+                    Categories
+                  </Link>
+                  <Link href="/admin/invitations" className={navMobileLinkClass}>
+                    Admins
                   </Link>
                   <Link href="/admin/pro-applications" className={navMobileLinkClass}>
                     Pro Applications
                   </Link>
-                  <Link href="/help" className={navMobileLinkClass}>
-                    Help Center
+                  <Link href="/admin/quote-requests" className={navMobileLinkClass}>
+                    Quote Requests
                   </Link>
-                  <Link href="/messages" className={navMobileLinkClass + " flex items-center gap-2"}>
-                    Messages
-                    {unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
+                  <Link href="/admin/support-chat" className={navMobileLinkClass}>
+                    Support Chat
                   </Link>
                   <Link href="/dashboard" className={navMobileLinkClass}>
                     {profile?.full_name || 'Admin'}
@@ -235,9 +239,6 @@ export default function Navbar() {
                   <Link href="/pro-dashboard/quotes" className={navMobileLinkClass}>
                     Quotes & Invoices
                   </Link>
-                  <Link href="/help" className={navMobileLinkClass}>
-                    Help Center
-                  </Link>
                   <Link href="/pro-dashboard" className={navMobileLinkClass}>
                     {profile?.full_name || 'Pro'}
                   </Link>
@@ -250,22 +251,14 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link href="/services" className={navMobileLinkClass}>
+                  <button onClick={() => setShowServiceTypeModal(true)} className={navMobileLinkClass}>
                     Explore Services
-                  </Link>
-                  {isAuthenticated && (
-                    <Link href="/my-jobs" className={navMobileLinkClass}>
-                      My Jobs
-                    </Link>
-                  )}
+                  </button>
                   {isAuthenticated && (
                     <Link href="/dashboard/quotes" className={navMobileLinkClass}>
                       Quotes & Invoices
                     </Link>
                   )}
-                  <Link href="/help" className={navMobileLinkClass}>
-                    Help Center
-                  </Link>
                   {isAuthenticated ? (
                     <>
                       <Link href="/messages" className={navMobileLinkClass + " flex items-center gap-2"}>
@@ -305,6 +298,39 @@ export default function Navbar() {
           </div>
         )}
       </div>
+
+      {/* Service Type Selection Modal */}
+      {showServiceTypeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowServiceTypeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Choose Service Type</h2>
+            <p className="text-gray-600 text-center mb-6">Select the type of service you need</p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => handleServiceTypeSelect('residential')}
+                className="w-full bg-[#0E7480] hover:bg-[#0d6670] text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+              >
+                🏠 Residential Services
+              </button>
+              
+              <button
+                onClick={() => handleServiceTypeSelect('commercial')}
+                className="w-full bg-white hover:bg-gray-50 text-gray-900 font-semibold py-4 px-6 rounded-xl border-2 border-gray-300 hover:border-[#0E7480] transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+              >
+                🏢 Commercial Services
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowServiceTypeModal(false)}
+              className="w-full mt-4 text-gray-500 hover:text-gray-700 text-sm font-medium py-2 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

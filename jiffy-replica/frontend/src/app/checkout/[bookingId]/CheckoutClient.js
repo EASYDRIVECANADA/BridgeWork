@@ -127,7 +127,7 @@ export default function CheckoutClient() {
   const [creatingIntent, setCreatingIntent] = useState(false);
   const fetchedRef = useRef(false);
 
-  // Fetch booking details — only once
+  // Fetch booking details — only once, with retry logic for database replication lag
   useEffect(() => {
     if (!authInitialized) return;
 
@@ -139,7 +139,7 @@ export default function CheckoutClient() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
-    const fetchBooking = async () => {
+    const fetchBooking = async (retries = 3, delay = 800) => {
       try {
         const res = await bookingsAPI.getById(bookingId);
         const bookingData = res.data.data.booking;
@@ -178,12 +178,22 @@ export default function CheckoutClient() {
           }
         }
         setCreatingIntent(false);
+        setLoading(false);
       } catch (err) {
         console.error('[CHECKOUT] Fetch booking error:', err);
-        toast.error('Booking not found.');
+        
+        // Retry logic for 404 errors (database replication lag) or network errors
+        if (retries > 0 && (err.response?.status === 404 || !err.response)) {
+          console.log(`[CHECKOUT] Booking not found, retrying in ${delay}ms... (${retries} retries left)`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchBooking(retries - 1, Math.min(delay * 1.5, 3000));
+        }
+        
+        // After all retries failed
+        toast.error('Booking not found. Please check your bookings in the dashboard.');
         router.push('/dashboard');
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchBooking();

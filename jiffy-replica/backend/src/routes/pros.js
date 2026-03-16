@@ -100,6 +100,22 @@ router.patch('/profile', authenticate, authorize('pro'),
     prosController.updateProProfile
 );
 
+// Avatar upload - uses multer memory storage, route through backend to bypass Supabase storage RLS
+const avatarUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
+    }
+});
+
+router.post('/avatar', authenticate, avatarUpload.single('avatar'), prosController.uploadAvatar);
+
 router.get('/statistics/me', authenticate, authorize('pro'), prosController.getProStatistics);
 
 router.patch('/:id/commission', authenticate, authorize('admin'),

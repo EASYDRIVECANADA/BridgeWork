@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -42,6 +42,7 @@ function formatJob(booking) {
 
 export default function ProDashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const { user, profile } = useSelector((state) => state.auth);
   const { jobAlerts: rawAlerts, activeJobs: rawActive, jobHistory: rawHistory, statistics, loading: prosLoading } = useSelector((state) => state.pros);
@@ -74,6 +75,7 @@ export default function ProDashboardPage() {
   const [settingsServiceCategories, setSettingsServiceCategories] = useState([]);
   const [settingsPortfolioImages, setSettingsPortfolioImages] = useState([]);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
+  const [proDocuments, setProDocuments] = useState({});
 
   // Available service categories (from DB)
   const SERVICE_CATEGORIES = [
@@ -129,7 +131,12 @@ export default function ProDashboardPage() {
         setReviewsLoading(true);
         // Get pro profile to get pro_id
         const proRes = await prosAPI.getMyProfile();
-        const proId = proRes.data?.data?.proProfile?.id || proRes.data?.data?.id;
+        const pp = proRes.data?.data?.proProfile;
+        const proId = pp?.id || proRes.data?.data?.id;
+        // Set avatar from pro profile data for sidebar display
+        if (pp?.profiles?.avatar_url) {
+          setAvatarUrl(pp.profiles.avatar_url);
+        }
         if (proId) {
           const revRes = await reviewsAPI.getByProId(proId);
           setProReviews(revRes.data?.data?.reviews || []);
@@ -161,6 +168,30 @@ export default function ProDashboardPage() {
     fetchConnectData();
   }, [user, router, dispatch]);
 
+  // Handle return from Stripe onboarding (?stripe=success)
+  useEffect(() => {
+    const stripeParam = searchParams.get('stripe');
+    if (stripeParam === 'success') {
+      // Complete the Stripe step in onboarding, then refresh connect data
+      const completeStripe = async () => {
+        try {
+          await onboardingAPI.completeStripe();
+          toast.success('Stripe account connected! Your payouts are now set up.');
+        } catch (err) {
+          console.log('[PRO-DASH] Stripe step completion:', err?.response?.status);
+        }
+        // Refresh connect status
+        try {
+          const statusRes = await paymentsAPI.connectStatus();
+          setConnectStatus(statusRes.data?.data || null);
+        } catch {}
+        setActiveTab('earnings');
+      };
+      completeStripe();
+      router.replace('/pro-dashboard', { scroll: false });
+    }
+  }, [searchParams]);
+
   // Fetch pro profile data when settings tab is opened
   useEffect(() => {
     if (activeTab !== 'settings' || settingsLoaded) return;
@@ -178,6 +209,14 @@ export default function ProDashboardPage() {
           setAvatarUrl(pp.profiles?.avatar_url || profile?.avatar_url || '');
           setSettingsPhone(pp.profiles?.phone || profile?.phone || '');
           setSettingsCity(pp.profiles?.city || profile?.city || '');
+          setProDocuments({
+            insurance_provider: pp.insurance_provider,
+            insurance_policy_number: pp.insurance_policy_number,
+            insurance_expiry: pp.insurance_expiry,
+            insurance_document_url: pp.insurance_document_url,
+            certifications: pp.certifications,
+            is_verified: pp.is_verified,
+          });
         } else {
           setSettingsBusinessName(profile?.full_name || '');
           setSettingsPhone(profile?.phone || '');
@@ -203,24 +242,14 @@ export default function ProDashboardPage() {
     if (!file) return;
     setAvatarUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-      if (uploadError) {
+      const res = await prosAPI.uploadAvatar(file);
+      const publicUrl = res.data?.data?.avatar_url;
+      if (publicUrl) {
+        setAvatarUrl(publicUrl);
+        toast.success('Profile photo updated!');
+      } else {
         toast.error('Failed to upload photo');
-        setAvatarUploading(false);
-        return;
       }
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-      setAvatarUrl(publicUrl);
-      // Also save immediately to profile
-      await dispatch(updateProfile({ avatar_url: publicUrl })).unwrap();
-      toast.success('Profile photo updated!');
     } catch (err) {
       toast.error('Failed to upload photo');
     }
@@ -399,7 +428,7 @@ export default function ProDashboardPage() {
   const handleStripeOnboard = async () => {
     setConnectLoading(true);
     try {
-      const res = await paymentsAPI.connectOnboard();
+      const res = await paymentsAPI.connectOnboard({ return_path: '/pro-dashboard' });
       const url = res.data?.data?.url;
       if (url) {
         window.location.href = url;
@@ -446,11 +475,24 @@ export default function ProDashboardPage() {
             <div className="bg-white rounded-lg shadow-sm sticky top-28">
               {/* Profile Section */}
               <div className="text-center pt-6 pb-4 px-6">
-                <div className="w-20 h-20 bg-[#1a4d5c] rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-white text-2xl font-bold">
-                    {(profile?.full_name || 'P').charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                {(avatarUrl || profile?.avatar_url) ? (
+                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3">
+                    <Image
+                      src={avatarUrl || profile?.avatar_url}
+                      alt={profile?.full_name || 'Pro'}
+                      width={80}
+                      height={80}
+                      className="object-cover w-full h-full"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 bg-[#1a4d5c] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-white text-2xl font-bold">
+                      {(profile?.full_name || 'P').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <h2 className="text-lg font-bold text-gray-900">{profile?.full_name || 'Pro User'}</h2>
                 <div className="flex items-center justify-center gap-1 text-gray-500 text-sm mt-1">
                   <MapPin className="w-3.5 h-3.5" />
@@ -1050,8 +1092,8 @@ export default function ProDashboardPage() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Earnings & Payouts</h2>
 
-                {/* Stripe Connect Onboarding Banner */}
-                {connectStatus && !connectStatus.charges_enabled && (
+                {/* Stripe Connect Onboarding Banner — shows when payouts not enabled */}
+                {(!connectStatus || !connectStatus.charges_enabled) && (
                   <div className="mb-6 bg-gradient-to-r from-[#635bff] to-[#7c3aed] rounded-xl p-6 text-white">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -1059,12 +1101,17 @@ export default function ProDashboardPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-bold mb-1">Set Up Your Payouts</h3>
-                        <p className="text-sm text-white/80 mb-4">
+                        <p className="text-sm text-white/80 mb-3">
                           Connect your bank account through Stripe to receive automatic payouts when customers pay for your services.
                           {earnings?.commission_rate && (
                             <span> You earn {((1 - earnings.commission_rate) * 100).toFixed(0)}% of each job&apos;s base price.</span>
                           )}
                         </p>
+                        <div className="bg-white/10 rounded-lg p-3 mb-4">
+                          <p className="text-xs text-white/90">
+                            💡 <strong>Your earnings will still accumulate</strong> from completed jobs. However, you won&apos;t be able to withdraw until your bank account is verified through Stripe.
+                          </p>
+                        </div>
                         <button
                           onClick={handleStripeOnboard}
                           disabled={connectLoading}
@@ -1512,31 +1559,86 @@ export default function ProDashboardPage() {
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Documents & Credentials</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      {/* Liability Insurance */}
+                      <div className={`flex items-center justify-between p-3 rounded-lg ${
+                        proDocuments.insurance_provider
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
+                      }`}>
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm text-gray-700">Liability Insurance</span>
+                          {proDocuments.insurance_provider ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-gray-400" />
+                          )}
+                          <div>
+                            <span className="text-sm text-gray-700">Liability Insurance</span>
+                            {proDocuments.insurance_provider && (
+                              <p className="text-xs text-gray-500">{proDocuments.insurance_provider}</p>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-xs text-green-600 font-medium">Verified</span>
+                        {proDocuments.insurance_provider ? (
+                          proDocuments.insurance_expiry && new Date(proDocuments.insurance_expiry) < new Date() ? (
+                            <span className="text-xs text-red-600 font-medium">Expired</span>
+                          ) : proDocuments.insurance_expiry ? (
+                            <span className="text-xs text-green-600 font-medium">
+                              Expires {new Date(proDocuments.insurance_expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-green-600 font-medium">Provided</span>
+                          )
+                        ) : (
+                          <span className="text-xs text-gray-400 font-medium">Not provided</span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+
+                      {/* Stripe Connect */}
+                      <div className={`flex items-center justify-between p-3 rounded-lg ${
+                        connectStatus?.charges_enabled
+                          ? 'bg-green-50 border border-green-200'
+                          : connectStatus?.connected
+                            ? 'bg-yellow-50 border border-yellow-200'
+                            : 'bg-gray-50 border border-gray-200'
+                      }`}>
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm text-gray-700">Business License</span>
+                          {connectStatus?.charges_enabled ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : connectStatus?.connected ? (
+                            <Clock className="w-4 h-4 text-yellow-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-gray-400" />
+                          )}
+                          <span className="text-sm text-gray-700">Stripe Payments</span>
                         </div>
-                        <span className="text-xs text-green-600 font-medium">Verified</span>
+                        {connectStatus?.charges_enabled ? (
+                          <span className="text-xs text-green-600 font-medium">Active</span>
+                        ) : connectStatus?.connected ? (
+                          <span className="text-xs text-yellow-600 font-medium">Pending verification</span>
+                        ) : (
+                          <span className="text-xs text-gray-400 font-medium">Not connected</span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+
+                      {/* Admin Verification */}
+                      <div className={`flex items-center justify-between p-3 rounded-lg ${
+                        proDocuments.is_verified
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-yellow-50 border border-yellow-200'
+                      }`}>
                         <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-yellow-600" />
-                          <span className="text-sm text-gray-700">WSIB Certificate</span>
+                          {proDocuments.is_verified ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-yellow-600" />
+                          )}
+                          <span className="text-sm text-gray-700">BridgeWork Verified</span>
                         </div>
-                        <span className="text-xs text-yellow-600 font-medium">Expires Mar 2026</span>
+                        <span className={`text-xs font-medium ${proDocuments.is_verified ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {proDocuments.is_verified ? 'Verified' : 'Pending'}
+                        </span>
                       </div>
                     </div>
-                    <button className="mt-4 text-[#0E7480] text-sm font-semibold hover:underline">
-                      Upload new document
-                    </button>
                   </div>
 
                   {/* Save Button */}

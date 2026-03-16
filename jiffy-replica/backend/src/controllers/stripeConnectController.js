@@ -3,6 +3,8 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+// Stripe live mode requires HTTPS for redirect URLs — use a separate env var if set
+const STRIPE_REDIRECT_URL = (process.env.STRIPE_REDIRECT_URL || FRONTEND_URL).replace(/\/+$/, '');
 
 // Platform commission rate (15%)
 const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15');
@@ -14,6 +16,10 @@ const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE
 exports.createConnectAccount = async (req, res) => {
     try {
         const userId = req.user.id;
+        // Allow callers to specify where Stripe should redirect after setup
+        const returnPath = req.query.return_path || '/pro-onboarding';
+        const returnUrl = `${STRIPE_REDIRECT_URL}${returnPath}?stripe=success`;
+        const refreshUrl = `${STRIPE_REDIRECT_URL}${returnPath}?stripe=refresh`;
 
         // Get pro profile
         const { data: proProfile, error: proError } = await supabaseAdmin
@@ -50,8 +56,8 @@ exports.createConnectAccount = async (req, res) => {
             // Need to finish onboarding — create account link (requires HTTPS in live mode)
             const accountLink = await stripe.accountLinks.create({
                 account: proProfile.stripe_account_id,
-                refresh_url: `${FRONTEND_URL}/pro-onboarding?stripe=refresh`,
-                return_url: `${FRONTEND_URL}/pro-onboarding?stripe=success`,
+                refresh_url: refreshUrl,
+                return_url: returnUrl,
                 type: 'account_onboarding',
             });
 
@@ -89,8 +95,8 @@ exports.createConnectAccount = async (req, res) => {
         // Create an onboarding link
         const accountLink = await stripe.accountLinks.create({
             account: account.id,
-            refresh_url: `${FRONTEND_URL}/pro-onboarding?stripe=refresh`,
-            return_url: `${FRONTEND_URL}/pro-onboarding?stripe=success`,
+            refresh_url: refreshUrl,
+            return_url: returnUrl,
             type: 'account_onboarding',
         });
 

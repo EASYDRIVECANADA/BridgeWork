@@ -21,6 +21,9 @@ const messagesRoutes = require('./routes/messages');
 const quotesRoutes = require('./routes/quotes');
 const supportChatRoutes = require('./routes/supportChat');
 const onboardingRoutes = require('./routes/onboarding');
+const adminInvitationsRoutes = require('./routes/adminInvitations');
+const adminInvitationsPublicRoutes = require('./routes/adminInvitationsPublic');
+const adminServicesRoutes = require('./routes/adminServices');
 
 const app = express();
 
@@ -218,6 +221,12 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/quotes-invoices', quotesRoutes);
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/admin/invitations', adminInvitationsRoutes);
+app.use('/api/admin-invitations', adminInvitationsPublicRoutes);
+app.use('/api/admin/manage', adminServicesRoutes);
+
+// Serve uploaded images
+app.use('/uploads', express.static('uploads'));
 
 // ─── Contact Form Endpoint ───────────────────────────────────────────────────
 const { sendContactFormEmail } = require('./services/emailService');

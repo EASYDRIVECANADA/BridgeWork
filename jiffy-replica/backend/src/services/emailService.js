@@ -1,9 +1,13 @@
 const { Resend } = require('resend');
 const logger = require('../utils/logger');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'BridgeWork <onboarding@resend.dev>';
+
+if (!resend) {
+    logger.warn('RESEND_API_KEY not configured - email functionality will be disabled');
+}
 
 // ─── Branded HTML wrapper ───────────────────────────────────────────────────
 function wrapInLayout(content) {
@@ -131,6 +135,11 @@ function passwordResetEmailHTML(fullName, resetLink) {
 
 // ─── Send Welcome Email ─────────────────────────────────────────────────────
 async function sendWelcomeEmail(toEmail, fullName) {
+    if (!resend) {
+        logger.warn('Email service not configured - skipping welcome email', { to: toEmail });
+        return { success: false, error: 'Email service not configured' };
+    }
+    
     try {
         const { data, error } = await resend.emails.send({
             from: FROM_EMAIL,
@@ -154,6 +163,11 @@ async function sendWelcomeEmail(toEmail, fullName) {
 
 // ─── Send Password Reset Email ──────────────────────────────────────────────
 async function sendPasswordResetEmail(toEmail, fullName, resetLink) {
+    if (!resend) {
+        logger.warn('Email service not configured - skipping password reset email', { to: toEmail });
+        return { success: false, error: 'Email service not configured' };
+    }
+    
     try {
         const { data, error } = await resend.emails.send({
             from: FROM_EMAIL,
@@ -214,6 +228,11 @@ function contactFormEmailHTML(name, email, phone, subject, message) {
 
 // ─── Send Contact Form Email ─────────────────────────────────────────────────
 async function sendContactFormEmail(name, email, phone, subject, message) {
+    if (!resend) {
+        logger.warn('Email service not configured - skipping contact form email', { from: email });
+        return { success: false, error: 'Email service not configured' };
+    }
+    
     const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com';
     try {
         const { data, error } = await resend.emails.send({
@@ -237,8 +256,77 @@ async function sendContactFormEmail(name, email, phone, subject, message) {
     }
 }
 
+// ─── Admin Invitation Email HTML ────────────────────────────────────────────
+function adminInvitationEmailHTML(fullName, invitedBy, invitationUrl, expiresAt) {
+    const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+    
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:24px;font-weight:700;">You've Been Invited to Join BridgeWork as an Admin</h2>
+        <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+            Hi ${fullName},
+        </p>
+        <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+            <strong>${invitedBy}</strong> has invited you to join the BridgeWork admin team. As an admin, you'll have full access to manage the platform, including services, categories, pro applications, and more.
+        </p>
+        <div style="margin:0 0 24px;text-align:center;">
+            <a href="${invitationUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#0E7480 0%,#1a5fb4 100%);color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;box-shadow:0 2px 8px rgba(14,116,128,0.25);">
+                Accept Invitation & Create Account
+            </a>
+        </div>
+        <div style="margin:0 0 24px;padding:16px;background-color:#fef3c7;border-left:4px solid #f59e0b;border-radius:6px;">
+            <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
+                <strong>⏰ This invitation expires on ${expiryDate}</strong><br>
+                Please complete your registration before this date.
+            </p>
+        </div>
+        <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
+            If the button doesn't work, copy and paste this link into your browser:
+        </p>
+        <p style="margin:0 0 24px;color:#0E7480;font-size:13px;word-break:break-all;">
+            ${invitationUrl}
+        </p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;">
+        <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
+            If you didn't expect this invitation or have any questions, please contact the BridgeWork team.
+        </p>`;
+    return wrapInLayout(content);
+}
+
+// ─── Send Admin Invitation Email ────────────────────────────────────────────
+async function sendAdminInvitation({ to, full_name, invitedBy, invitationUrl, expiresAt }) {
+    if (!resend) {
+        logger.warn('Email service not configured - skipping admin invitation email', { to });
+        return { success: false, error: 'Email service not configured' };
+    }
+    
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [to],
+            subject: 'You\'re Invited to Join BridgeWork as an Admin',
+            html: adminInvitationEmailHTML(full_name, invitedBy, invitationUrl, expiresAt),
+        });
+
+        if (error) {
+            logger.error('Failed to send admin invitation email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+
+        logger.info('Admin invitation email sent', { to, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Admin invitation email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
     sendContactFormEmail,
+    sendAdminInvitation,
 };

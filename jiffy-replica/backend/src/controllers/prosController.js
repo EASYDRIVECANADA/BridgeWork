@@ -69,7 +69,7 @@ exports.getProById = async (req, res) => {
 
         const selectQuery = `
                 *,
-                profiles (
+                profiles!pro_profiles_user_id_fkey (
                     id,
                     full_name,
                     email,
@@ -692,11 +692,57 @@ exports.updateProProfile = async (req, res) => {
     }
 };
 
+exports.uploadAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file provided' });
+        }
+
+        const file = req.file;
+        const fileExt = file.originalname.split('.').pop();
+        const fileName = `${req.user.id}-${Date.now()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('avatars')
+            .upload(filePath, file.buffer, {
+                contentType: file.mimetype,
+                upsert: true
+            });
+
+        if (uploadError) {
+            logger.error('Avatar upload error', { error: uploadError.message });
+            return res.status(500).json({ success: false, message: 'Failed to upload photo' });
+        }
+
+        const { data: { publicUrl } } = supabaseAdmin.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+        // Update the profile with the new avatar URL
+        await supabaseAdmin
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', req.user.id);
+
+        logger.info('Avatar uploaded', { userId: req.user.id, url: publicUrl });
+
+        res.json({
+            success: true,
+            message: 'Photo uploaded successfully',
+            data: { avatar_url: publicUrl }
+        });
+    } catch (error) {
+        logger.error('Avatar upload controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to upload photo' });
+    }
+};
+
 exports.getMyProProfile = async (req, res) => {
     try {
         const { data: proProfile, error } = await supabaseAdmin
             .from('pro_profiles')
-            .select('*, profiles (full_name, email, phone, avatar_url, city)')
+            .select('*, profiles!pro_profiles_user_id_fkey (full_name, email, phone, avatar_url, city)')
             .eq('user_id', req.user.id)
             .single();
 
@@ -882,7 +928,7 @@ exports.getProsList = async (req, res) => {
                 is_available,
                 is_verified,
                 created_at,
-                profiles (
+                profiles!pro_profiles_user_id_fkey (
                     full_name,
                     email,
                     phone,

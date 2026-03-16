@@ -41,6 +41,7 @@ exports.getOnboardingStatus = async (req, res) => {
                 description: 'Fill in your business info',
                 estimatedTime: '2 min',
                 completed: proProfile.onboarding_step >= 1,
+                required: true,
                 fields: ['business_name', 'business_address', 'gst_number']
             },
             {
@@ -49,6 +50,7 @@ exports.getOnboardingStatus = async (req, res) => {
                 description: 'Review and accept the service agreement',
                 estimatedTime: '5 min',
                 completed: proProfile.onboarding_step >= 2,
+                required: true,
                 fields: ['service_agreement_accepted']
             },
             {
@@ -57,21 +59,24 @@ exports.getOnboardingStatus = async (req, res) => {
                 description: 'Select services, insurance, and references',
                 estimatedTime: '10 min',
                 completed: proProfile.onboarding_step >= 3,
+                required: true,
                 fields: ['service_categories', 'insurance_policy_number', 'reference_1_name', 'reference_2_name']
             },
             {
                 step: 4,
                 title: 'Set up direct payment',
-                description: "You'll be redirected to Stripe to set up payouts",
+                description: 'Optional — connect Stripe to withdraw earnings',
                 estimatedTime: '10 min',
                 completed: proProfile.onboarding_step >= 4,
+                required: false,
                 fields: ['stripe_account_id']
             }
         ];
 
-        const totalSteps = steps.length;
-        const completedSteps = steps.filter(s => s.completed).length;
-        const progressPercent = Math.round((completedSteps / totalSteps) * 100);
+        // Progress is based on required steps only (1-3). Step 4 (Stripe) is optional.
+        const requiredSteps = steps.filter(s => s.required);
+        const completedRequired = requiredSteps.filter(s => s.completed).length;
+        const progressPercent = Math.round((completedRequired / requiredSteps.length) * 100);
 
         res.json({
             success: true,
@@ -313,6 +318,11 @@ exports.submitRequirements = async (req, res) => {
             updateData.onboarding_step = 3;
         }
 
+        // Mark onboarding as complete after Step 3.
+        // Step 4 (Stripe Connect) is now optional — pros can set it up later
+        // from their Pro Dashboard when they want to withdraw earnings.
+        updateData.onboarding_completed = true;
+
         const { data, error } = await supabaseAdmin
             .from('pro_profiles')
             .update(updateData)
@@ -325,11 +335,11 @@ exports.submitRequirements = async (req, res) => {
             return res.status(500).json({ success: false, message: 'Failed to save requirements' });
         }
 
-        logger.info('Professional requirements submitted', { userId: req.user.id });
+        logger.info('Professional requirements submitted — onboarding complete, pending admin approval', { userId: req.user.id });
         res.json({
             success: true,
-            message: 'Professional requirements saved',
-            data: { onboarding_step: data.onboarding_step }
+            message: 'Onboarding complete! Your application is now pending admin review.',
+            data: { onboarding_step: data.onboarding_step, onboarding_completed: true }
         });
     } catch (error) {
         logger.error('Submit requirements controller error', { error: error.message });
@@ -639,5 +649,164 @@ exports.rejectApplication = async (req, res) => {
     } catch (error) {
         logger.error('Reject application controller error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to reject application' });
+    }
+};
+
+/**
+ * POST /api/onboarding/admin/create-pro
+ * Admin: Create a new pro account (user + profile + pro_profile), fully onboarded & approved
+ */
+exports.adminCreatePro = async (req, res) => {
+    try {
+        const {
+            email,
+            password,
+            full_name,
+            phone,
+            address,
+            city,
+            state,
+            zip_code,
+            // Pro profile fields
+            business_name,
+            business_address,
+            business_unit,
+            gst_number,
+            website,
+            service_categories,
+            insurance_policy_number,
+            insurance_provider,
+            insurance_expiry,
+            reference_1_name,
+            reference_1_phone,
+            reference_1_email,
+            reference_1_relationship,
+            reference_2_name,
+            reference_2_phone,
+            reference_2_email,
+            reference_2_relationship,
+            commission_rate,
+            bio,
+            hourly_rate,
+            service_radius,
+        } = req.body;
+
+        if (!email || !password || !full_name) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, password, and full name are required'
+            });
+        }
+
+        // 1. Create Supabase auth user (auto-confirmed, no email verification needed)
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name, role: 'pro' }
+        });
+
+        if (authError) {
+            logger.error('Admin create pro - auth error', { error: authError.message, email });
+            return res.status(400).json({
+                success: false,
+                message: authError.message
+            });
+        }
+
+        const userId = authData.user.id;
+
+        // 2. Create profile row
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .insert({
+                id: userId,
+                email,
+                full_name,
+                role: 'pro',
+                phone: phone || null,
+                address: address || null,
+                city: city || null,
+                state: state || null,
+                zip_code: zip_code || null,
+            })
+            .select()
+            .single();
+
+        if (profileError) {
+            logger.error('Admin create pro - profile error', { error: profileError.message, userId });
+            // Clean up auth user
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create user profile: ' + profileError.message
+            });
+        }
+
+        // 3. Create pro_profile row — fully onboarded & admin-approved
+        const proProfileData = {
+            user_id: userId,
+            business_name: business_name || full_name,
+            business_address: business_address || address || null,
+            business_unit: business_unit || null,
+            gst_number: gst_number || null,
+            website: website || null,
+            service_categories: service_categories || [],
+            insurance_policy_number: insurance_policy_number || null,
+            insurance_provider: insurance_provider || null,
+            insurance_expiry: insurance_expiry || null,
+            reference_1_name: reference_1_name || null,
+            reference_1_phone: reference_1_phone || null,
+            reference_1_email: reference_1_email || null,
+            reference_1_relationship: reference_1_relationship || null,
+            reference_2_name: reference_2_name || null,
+            reference_2_phone: reference_2_phone || null,
+            reference_2_email: reference_2_email || null,
+            reference_2_relationship: reference_2_relationship || null,
+            commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15'),
+            bio: bio || null,
+            hourly_rate: hourly_rate || null,
+            service_radius: service_radius || 25,
+            is_available: true,
+            is_verified: true,
+            // Mark onboarding as fully complete
+            onboarding_step: 3,
+            onboarding_completed: true,
+            service_agreement_accepted: true,
+            service_agreement_version: CURRENT_AGREEMENT_VERSION,
+            service_agreement_accepted_at: new Date().toISOString(),
+            // Mark as admin-approved
+            admin_approved: true,
+            admin_approved_by: req.user.id,
+            admin_approved_at: new Date().toISOString(),
+        };
+
+        const { data: proProfile, error: proError } = await supabaseAdmin
+            .from('pro_profiles')
+            .insert(proProfileData)
+            .select()
+            .single();
+
+        if (proError) {
+            logger.error('Admin create pro - pro_profile error', { error: proError.message, userId });
+            // Clean up
+            await supabaseAdmin.from('profiles').delete().eq('id', userId);
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create pro profile: ' + proError.message
+            });
+        }
+
+        logger.info('Admin created pro account', { userId, proProfileId: proProfile.id, adminId: req.user.id, email });
+
+        res.status(201).json({
+            success: true,
+            message: `Pro account created for ${full_name} (${email}). They can log in immediately.`,
+            data: { userId, proProfile }
+        });
+    } catch (error) {
+        logger.error('Admin create pro controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to create pro account' });
     }
 };

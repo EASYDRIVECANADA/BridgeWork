@@ -1,20 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Calendar, Clock, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle, Calendar, Clock, Loader2 } from 'lucide-react';
 import { servicesAPI, bookingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ServiceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const { user, profile } = useSelector((state) => state.auth);
   const serviceId = params.id;
+  const serviceType = searchParams.get('type') || 'rate'; // 'rate' or 'emergency'
 
   const [apiService, setApiService] = useState(null);
   const [loadingService, setLoadingService] = useState(true);
@@ -30,52 +32,125 @@ export default function ServiceDetailPage() {
     promo_code: '',
   });
 
-  // All services data - SAME as ServicesPage to recycle images
+  // Pricing data for each service
+  const servicePricing = {
+    'Mulch Area': { model: 'per project', range: '$150 – $500' },
+    'Electrical': { model: 'hourly', range: '$100 – $150 / hr' },
+    'Decks & Fences': { model: 'project', range: '$500 – $3,500' },
+    'Junk Removal': { model: 'volume', range: '$150 – $700' },
+    'Seasonal Lawn Maintenance': { model: 'seasonal package', range: '$200 – $600' },
+    'Plumbing': { model: 'hourly', range: '$100 – $160 / hr' },
+    'Tile & Grout Cleaning': { model: 'per room', range: '$120 – $300' },
+    'Appliance Repair': { model: 'diagnostic + labor', range: '$120 – $350' },
+    'Carpet & Upholstery Cleaning': { model: 'per room/item', range: '$80 – $250' },
+    'Window & Eaves Cleaning': { model: 'per house', range: '$120 – $350' },
+    'Dryer Vent Cleaning': { model: 'per vent', range: '$90 – $180' },
+    'Handyman Services': { model: 'hourly', range: '$80 – $120 / hr' },
+    'Dishwasher Installation': { model: 'per install', range: '$120 – $250' },
+    'Pest Control': { model: 'per treatment', range: '$150 – $400' },
+    'Sod Installation': { model: 'per sq ft', range: '$1,000 – $3,500' },
+    'Heating & Cooling': { model: 'hourly', range: '$120 – $180 / hr' },
+    'Sprinkler Winterization': { model: 'per system', range: '$90 – $180' },
+    'Water & Sewage Damage': { model: 'project', range: '$1,500 – $5,000' },
+    'Stone and Interlock': { model: 'per project', range: '$2,000 – $8,000' },
+    'Duct Cleaning': { model: 'per home', range: '$300 – $600' },
+    'Exterior Caulking': { model: 'project', range: '$200 – $600' },
+    'Painting': { model: 'per room', range: '$250 – $800' },
+    'Flooring': { model: 'per sq ft', range: '$1,500 – $6,000' },
+    'Roofing': { model: 'project', range: '$2,500 – $12,000' },
+    'Garage Door Repair': { model: 'per repair', range: '$150 – $400' },
+    'Deep Cleaning': { model: 'per house', range: '$200 – $500' },
+    'Locksmith': { model: 'per service', range: '$120 – $300' },
+    'Moving & Delivery': { model: 'hourly', range: '$120 – $180 / hr' },
+    'Drywall Repair': { model: 'per repair', range: '$150 – $500' },
+    'Gas Services': { model: 'hourly', range: '$120 – $180 / hr' },
+    'TV Mounting': { model: 'per TV', range: '$100 – $250' },
+    'Wasp Treatment': { model: 'per nest', range: '$120 – $250' },
+    'Organizing, Decluttering & Packing': { model: 'hourly', range: '$70 – $120 / hr' },
+    'Furniture Assembly': { model: 'per item', range: '$80 – $200' },
+    'BBQ Cleaning & Repair': { model: 'per BBQ', range: '$120 – $250' },
+    'Smart Home Install': { model: 'per device', range: '$80 – $200' },
+    'Yard Clean Up': { model: 'project', range: '$120 – $400' },
+    'Appliance Install': { model: 'per appliance', range: '$120 – $300' },
+    'Artificial Turf': { model: 'per project', range: '$2,000 – $6,000' },
+    'Tree Services': { model: 'per job', range: '$250 – $1,200' },
+    'Eavestrough Repair': { model: 'repair', range: '$150 – $450' },
+    'Powerwash, Stain & Seal': { model: 'project', range: '$200 – $800' },
+    'Furnace Tune-Up': { model: 'service', range: '$120 – $220' },
+    'Pest Control Annual Check-Up': { model: 'yearly', range: '$200 – $400' },
+    'Gas Fireplace Tune-Up': { model: 'service', range: '$120 – $200' },
+    'AC Tune-Up': { model: 'service', range: '$120 – $220' },
+    'Lawn Maintenance': { model: 'per visit', range: '$40 – $120' },
+    'Bathtub & Shower Caulking': { model: 'per job', range: '$120 – $250' },
+  };
+
+  // All services data - includes rate property for residential services
+  // Rate: 'yes' = shows price range, 'quote' = shows Free Quote
   const allServices = [
-    { id: 1, name: 'BBQ Cleaning & Repair', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=400', category: 'Cleaning' },
-    { id: 2, name: 'Carpet & Upholstery Cleaning', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400', category: 'Cleaning' },
-    { id: 3, name: 'Dryer Vent Cleaning', image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?q=80&w=400', category: 'Cleaning' },
-    { id: 4, name: 'Duct Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Cleaning' },
-    { id: 5, name: 'Junk Removal', image: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?q=80&w=400', category: 'Cleaning' },
-    { id: 6, name: 'Mold Remediation', image: 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?q=80&w=400', category: 'Cleaning' },
-    { id: 7, name: 'Powerwash, Stain & Seal', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Cleaning' },
-    { id: 8, name: 'Tile & Grout Cleaning', image: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?q=80&w=400', category: 'Cleaning' },
-    { id: 9, name: 'Appliance Repair', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Indoors' },
-    { id: 10, name: 'Drywall Repair', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Indoors' },
-    { id: 11, name: 'Flooring', image: 'https://images.unsplash.com/photo-1615875474908-f403116f5287?q=80&w=400', category: 'Indoors' },
-    { id: 12, name: 'Interior Painting', image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=400', category: 'Indoors' },
-    { id: 13, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Indoors' },
-    { id: 14, name: 'Tile Installation', image: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?q=80&w=400', category: 'Indoors' },
-    { id: 15, name: 'Appliance Install', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Install' },
-    { id: 16, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Install' },
-    { id: 17, name: 'Flooring', image: 'https://images.unsplash.com/photo-1615875474908-f403116f5287?q=80&w=400', category: 'Install' },
-    { id: 18, name: 'Furniture Assembly', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400', category: 'Install' },
-    { id: 19, name: 'Gas Services', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400', category: 'Install' },
-    { id: 20, name: 'Handyman Services', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Install' },
-    { id: 21, name: 'Heating & Cooling', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Install' },
-    { id: 22, name: 'Locksmith', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400', category: 'Install' },
-    { id: 23, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Install' },
-    { id: 24, name: 'Home Essentials', image: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?q=80&w=400', category: 'BridgeWork Shop' },
-    { id: 25, name: 'Tools & Equipment', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400', category: 'BridgeWork Shop' },
-    { id: 26, name: 'Smart Home Devices', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400', category: 'BridgeWork Shop' },
-    { id: 27, name: 'Deck & Fence Repair', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Outdoors' },
-    { id: 28, name: 'Exterior Painting', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Outdoors' },
-    { id: 29, name: 'Gutter Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Outdoors' },
-    { id: 30, name: 'Landscaping', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors' },
-    { id: 31, name: 'Lawn Mowing', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors' },
-    { id: 32, name: 'Pressure Washing', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Outdoors' },
-    { id: 33, name: 'Appliance Repair', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Repair' },
-    { id: 34, name: 'Drywall Repair', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Repair' },
-    { id: 35, name: 'Electrical Repair', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Repair' },
-    { id: 36, name: 'Plumbing Repair', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Repair' },
-    { id: 37, name: 'Roof Repair', image: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?q=80&w=400', category: 'Repair' },
-    { id: 38, name: 'Snow Removal', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400', category: 'Seasonal' },
-    { id: 39, name: 'Holiday Decorating', image: 'https://images.unsplash.com/photo-1512389142860-9c449e58a543?q=80&w=400', category: 'Seasonal' },
-    { id: 40, name: 'Spring Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Seasonal' },
-    { id: 41, name: 'Winterization', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400', category: 'Seasonal' },
-    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e01', name: 'Emergency HVAC', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Emergency' },
-    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e02', name: 'Emergency Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Emergency' },
-    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e03', name: 'Emergency Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Emergency' },
+    // Residential General Services (IDs 1-11 from services page)
+    { id: 1, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'General Services', pricing: servicePricing['Electrical'], rate: 'yes' },
+    { id: 2, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'General Services', pricing: servicePricing['Plumbing'], rate: 'yes' },
+    { id: 3, name: 'Painting', image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=400', category: 'General Services', pricing: servicePricing['Painting'], rate: 'quote' },
+    { id: 4, name: 'Drywall & Mudding', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'General Services', pricing: servicePricing['Drywall Repair'], rate: 'quote' },
+    { id: 5, name: 'HVAC (Heating & Cooling)', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'General Services', pricing: servicePricing['Heating & Cooling'], rate: 'yes' },
+    { id: 6, name: 'Roofing', image: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?q=80&w=400', category: 'General Services', pricing: servicePricing['Roofing'], rate: 'yes' },
+    { id: 7, name: 'Eavestroughs', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'General Services', pricing: servicePricing['Eavestrough Repair'], rate: 'quote' },
+    { id: 8, name: 'Windows & Doors', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'General Services', pricing: servicePricing['Window & Eaves Cleaning'], rate: 'quote' },
+    { id: 9, name: 'Decks & Fences', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'General Services', pricing: servicePricing['Decks & Fences'], rate: 'quote' },
+    { id: 10, name: 'Windows', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'General Services', pricing: servicePricing['Window & Eaves Cleaning'], rate: 'quote' },
+    { id: 11, name: 'Landscaping', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'General Services', pricing: servicePricing['Lawn Maintenance'], rate: 'quote' },
+    // Residential Repairs & Service (IDs 12-16 from services page)
+    { id: 12, name: 'Appliance Repair & Install', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Repairs & Service', pricing: servicePricing['Appliance Repair'], rate: 'yes', emergency: 'no' },
+    { id: 13, name: 'Handyman', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Repairs & Service', pricing: servicePricing['Handyman Services'], rate: 'yes', emergency: 'yes' },
+    { id: 14, name: 'Locksmith', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400', category: 'Repairs & Service', pricing: servicePricing['Locksmith'], rate: 'yes', emergency: 'yes' },
+    { id: 15, name: 'Smart Home Install', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400', category: 'Repairs & Service', pricing: servicePricing['Smart Home Install'], rate: 'quote', emergency: 'no' },
+    { id: 16, name: 'House Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Repairs & Service', pricing: servicePricing['Deep Cleaning'], rate: 'yes', emergency: 'no' },
+    // Commercial Services (IDs 101-109)
+    { id: 101, name: 'Concrete', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Drywall Repair'], rate: 'quote', emergency: 'no' },
+    { id: 102, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Electrical'], rate: 'quote', emergency: 'no' },
+    { id: 103, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Plumbing'], rate: 'quote', emergency: 'no' },
+    { id: 104, name: 'Painting', image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Painting'], rate: 'quote', emergency: 'no' },
+    { id: 105, name: 'Drywall & Mudding', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Drywall Repair'], rate: 'quote', emergency: 'no' },
+    { id: 106, name: 'HVAC (Heating & Cooling)', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Heating & Cooling'], rate: 'quote', emergency: 'no' },
+    { id: 107, name: 'Roofing', image: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Roofing'], rate: 'quote', emergency: 'no' },
+    { id: 108, name: 'Windows & Doors', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Window & Eaves Cleaning'], rate: 'quote', emergency: 'no' },
+    { id: 109, name: 'Landscaping', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Commercial Services', pricing: servicePricing['Lawn Maintenance'], rate: 'quote', emergency: 'no' },
+    // Legacy services for backward compatibility
+    { id: 17, name: 'Appliance Install', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Install', pricing: servicePricing['Appliance Install'] },
+    { id: 18, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Install', pricing: servicePricing['Electrical'] },
+    { id: 19, name: 'Furniture Assembly', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400', category: 'Install', pricing: servicePricing['Furniture Assembly'] },
+    { id: 20, name: 'Gas Services', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400', category: 'Install', pricing: servicePricing['Gas Services'] },
+    { id: 21, name: 'Handyman Services', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Install', pricing: servicePricing['Handyman Services'] },
+    { id: 22, name: 'Heating & Cooling', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Install', pricing: servicePricing['Heating & Cooling'] },
+    { id: 23, name: 'Locksmith', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400', category: 'Install', pricing: servicePricing['Locksmith'] },
+    { id: 24, name: 'Dishwasher Installation', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Install', pricing: servicePricing['Dishwasher Installation'] },
+    { id: 25, name: 'TV Mounting', image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?q=80&w=400', category: 'Install', pricing: servicePricing['TV Mounting'] },
+    { id: 26, name: 'Smart Home Install', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400', category: 'Install', pricing: servicePricing['Smart Home Install'] },
+    { id: 27, name: 'Decks & Fences', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Decks & Fences'] },
+    { id: 28, name: 'Lawn Maintenance', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Lawn Maintenance'] },
+    { id: 29, name: 'Seasonal Lawn Maintenance', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Seasonal Lawn Maintenance'] },
+    { id: 30, name: 'Sod Installation', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Sod Installation'] },
+    { id: 31, name: 'Mulch Area', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Mulch Area'] },
+    { id: 32, name: 'Yard Clean Up', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Yard Clean Up'] },
+    { id: 33, name: 'Tree Services', image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Tree Services'] },
+    { id: 34, name: 'Stone and Interlock', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Stone and Interlock'] },
+    { id: 35, name: 'Artificial Turf', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Artificial Turf'] },
+    { id: 36, name: 'Exterior Caulking', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Outdoors', pricing: servicePricing['Exterior Caulking'] },
+    { id: 37, name: 'Appliance Repair', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400', category: 'Repair', pricing: servicePricing['Appliance Repair'] },
+    { id: 38, name: 'Drywall Repair', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400', category: 'Repair', pricing: servicePricing['Drywall Repair'] },
+    { id: 39, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400', category: 'Repair', pricing: servicePricing['Electrical'] },
+    { id: 40, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400', category: 'Repair', pricing: servicePricing['Plumbing'] },
+    { id: 41, name: 'Roofing', image: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?q=80&w=400', category: 'Repair', pricing: servicePricing['Roofing'] },
+    { id: 42, name: 'Garage Door Repair', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400', category: 'Repair', pricing: servicePricing['Garage Door Repair'] },
+    { id: 43, name: 'Eavestrough Repair', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Repair', pricing: servicePricing['Eavestrough Repair'] },
+    { id: 44, name: 'Sprinkler Winterization', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400', category: 'Seasonal', pricing: servicePricing['Sprinkler Winterization'] },
+    { id: 45, name: 'Furnace Tune-Up', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Seasonal', pricing: servicePricing['Furnace Tune-Up'] },
+    { id: 46, name: 'AC Tune-Up', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400', category: 'Seasonal', pricing: servicePricing['AC Tune-Up'] },
+    { id: 47, name: 'Gas Fireplace Tune-Up', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400', category: 'Seasonal', pricing: servicePricing['Gas Fireplace Tune-Up'] },
+    { id: 48, name: 'Pest Control Annual Check-Up', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Seasonal', pricing: servicePricing['Pest Control Annual Check-Up'] },
+    { id: 49, name: 'Water & Sewage Damage', image: 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?q=80&w=400', category: 'Emergency', pricing: servicePricing['Water & Sewage Damage'] },
+    { id: 50, name: 'Pest Control', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Emergency', pricing: servicePricing['Pest Control'] },
+    { id: 51, name: 'Wasp Treatment', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'Emergency', pricing: servicePricing['Wasp Treatment'] },
     { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380f01', name: 'QA Test Service ($1)', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400', category: 'QA Testing' },
   ];
 
@@ -169,8 +244,21 @@ export default function ServiceDetailPage() {
       const res = await bookingsAPI.create(payload);
       console.log('[BOOKING] Success:', res.data);
       const newBooking = res.data.data.booking;
-      toast.success('Booking created! Proceed to payment.');
-      router.push(`/checkout/${newBooking.id}`);
+      
+      // Check if this is a Free Quote booking (status will be 'quote_pending')
+      const isFreeQuote = newBooking.status === 'quote_pending' || newBooking.is_free_quote;
+      
+      if (isFreeQuote) {
+        // Free Quote: redirect to dashboard with success message
+        toast.success('Quote request submitted! Our team will review and provide a quote shortly.');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        router.push('/dashboard');
+      } else {
+        // Regular booking: redirect to checkout for payment
+        toast.success('Booking created! Proceed to payment.');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        router.push(`/checkout/${newBooking.id}`);
+      }
     } catch (err) {
       console.error('[BOOKING] Error:', err.response?.status, err.response?.data || err.message);
       toast.error(err.response?.data?.message || 'Failed to create booking. Please try again.');
@@ -198,10 +286,14 @@ export default function ServiceDetailPage() {
     );
   }
 
-  // Build display data: prefer mock for image, use apiService for real data
-  const displayName = apiService?.name || service?.name || 'Service';
+  // Build display data: prefer mock service name for display, use apiService for booking
+  // Use mock service name to avoid database names that might include "Emergency" prefix
+  const baseServiceName = service?.name || apiService?.name || 'Service';
+  // Remove any existing "Emergency" prefix from the name to avoid duplication
+  const displayName = baseServiceName.replace(/^Emergency\s+/i, '');
   const displayImage = service?.image || apiService?.image_url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400';
   const displayDescription = apiService?.description || '';
+  const displayPricing = service?.pricing || null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -221,84 +313,80 @@ export default function ServiceDetailPage() {
     <div className="grid lg:grid-cols-3 gap-6 w-full">
       {/* Left Box - Service Details */}
       <div className="lg:col-span-2">
-        <div className="bg-white rounded-lg shadow-xl p-6">
-                  {/* Service Title and Rating */}
-                  <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                    {displayName} in Boston
-                  </h1>
-                  <div className="flex items-center gap-3 text-xs mb-4">
-                    <div className="flex items-center gap-1">
-                      <div className="flex">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <span className="text-gray-600 ml-1">4.9 (2,854 reviews)</span>
+        <div className={`bg-white rounded-lg shadow-xl p-6 ${serviceType === 'emergency' ? 'border-2 border-red-500' : ''}`}>
+                  {/* Emergency Banner */}
+                  {serviceType === 'emergency' && (
+                    <div className="bg-red-100 text-red-700 text-sm font-semibold px-4 py-2 rounded-lg text-center mb-4">
+                      🚨 EMERGENCY SERVICE REQUEST
                     </div>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-600">837 jobs booked this week</span>
-                  </div>
+                  )}
+                  
+                  {/* Service Title and Rating */}
+                  <h1 className={`text-2xl font-bold mb-3 ${serviceType === 'emergency' ? 'text-red-600' : 'text-gray-900'}`}>
+                    {serviceType === 'emergency' ? `Emergency ${displayName}` : displayName} in Boston
+                  </h1>
+
+                  {/* Service Description */}
+                  {displayDescription && (
+                    <div className="mb-4">
+                      <h3 className="text-base font-bold text-gray-900 mb-2">About this service</h3>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{displayDescription}</p>
+                    </div>
+                  )}
 
                   {/* Get a confirmed job section */}
                   <div className="mb-4">
-                    <h2 className="text-base font-bold text-gray-900 mb-2">
-                      Get a confirmed job in minutes
-                    </h2>
-                    <p className="text-xs text-gray-700 mb-2 leading-relaxed">
-                      Technicians are mobile or centrally arrived at trades and medics of appliances. For gas stovetops/ovens, please request in the Gas Services category.
-                    </p>
+                    {serviceType === 'emergency' ? (
+                      <>
+                        <h2 className="text-base font-bold text-red-600 mb-2">
+                          🚨 Urgent {displayName} Assistance
+                        </h2>
+                        <p className="text-xs text-gray-700 mb-2 leading-relaxed">
+                          Our emergency {displayName?.toLowerCase()} team is available 24/7 for urgent issues. We prioritize emergency calls and dispatch certified professionals immediately to address your critical {displayName?.toLowerCase()} needs.
+                        </p>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
+                          <p className="text-xs text-red-700 font-medium">⚡ What to expect:</p>
+                          <ul className="text-xs text-red-600 mt-1 list-disc list-inside">
+                            <li>Priority dispatch within 30-60 minutes</li>
+                            <li>After-hours and weekend availability</li>
+                            <li>Emergency rates apply</li>
+                          </ul>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className="text-base font-bold text-gray-900 mb-2">
+                          Get a confirmed job in minutes
+                        </h2>
+                        <p className="text-xs text-gray-700 mb-2 leading-relaxed">
+                          Our certified {displayName?.toLowerCase()} professionals are ready to help with all your {displayName?.toLowerCase()} needs. Book now and get matched with a qualified pro in your area.
+                        </p>
+                      </>
+                    )}
                     <p className="text-xs text-gray-600">
                       Not sure if this is the right service for you? <Link href="/chat" className="text-[#0E7480] hover:underline">Chat with us</Link>.
                     </p>
                   </div>
 
                   {/* Customers use this service for */}
-                  <div className="mb-6">
-                    <h3 className="text-base font-bold text-gray-900 mb-3">
-                      Customers use this service for
-                    </h3>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Dishwasher Install</span>
+                  {(apiService?.use_cases && apiService.use_cases.length > 0) && (
+                    <div className="mb-6">
+                      <h3 className="text-base font-bold text-gray-900 mb-3">
+                        Customers use this service for
+                      </h3>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        {apiService.use_cases.map((useCase, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="text-green-600 text-sm">✓</span>
+                            <span className="text-sm text-gray-700">{useCase}</span>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Washer Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Dryer Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Range Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Garbage Disposal Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Fridge Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Hood Fan Install</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">Appliance Uninstallation</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 text-sm">✓</span>
-                        <span className="text-sm text-gray-700">And much more!</span>
-                      </div>
+                      <p className="text-xs text-gray-600 mt-3">
+                        Not sure if this is the right service for you? <Link href="/chat" className="text-[#0E7480] hover:underline">Chat with us</Link>.
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-600 mt-3">
-                      Not sure if this is the right service for you? <Link href="/chat" className="text-[#0E7480] hover:underline">Chat with us</Link>.
-                    </p>
-                  </div>
+                  )}
 
                   {/* How it works */}
                   <div className="mb-6 bg-gray-50 rounded-lg p-4">
@@ -345,18 +433,61 @@ export default function ServiceDetailPage() {
 
               {/* Right Box - Booking Card */}
       <div className="lg:col-span-1">
-        <div className="bg-white rounded-lg shadow-xl p-6 sticky top-28">
-                  <h3 className="text-base font-bold text-gray-900 mb-3 text-center">Book Job</h3>
+        <div className={`bg-white rounded-lg shadow-xl p-6 sticky top-28 ${serviceType === 'emergency' ? 'border-2 border-red-500' : ''}`}>
+                  {serviceType === 'emergency' ? (
+                    <>
+                      <div className="bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full text-center mb-3">
+                        🚨 EMERGENCY SERVICE
+                      </div>
+                      <h3 className="text-base font-bold text-red-600 mb-3 text-center">Emergency {displayName}</h3>
+                      
+                      <div className="text-center mb-3">
+                        <p className="text-xs text-gray-600 mb-1">Emergency Rate</p>
+                        <div className="text-3xl font-bold text-red-600">
+                          {displayPricing?.range ? displayPricing.range.replace('$', '$').split('–')[1]?.trim() || displayPricing.range : `$${apiService?.base_price || '250'}+`}
+                        </div>
+                        <div className="text-xs text-red-500 mt-1">
+                          Priority response • After-hours available
+                        </div>
+                      </div>
+                      
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-red-700 font-medium">⚡ Fast Response Guaranteed</p>
+                        <p className="text-xs text-red-600 mt-1">Our emergency team is available 24/7 for urgent {displayName?.toLowerCase()} issues.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-base font-bold text-gray-900 mb-3 text-center">Book {displayName}</h3>
+                      
+                      <div className="text-center mb-3">
+                        {(apiService?.rate === 'quote' || apiService?.pricing_type === 'custom') ? (
+                          <>
+                            <p className="text-xs text-gray-600 mb-1">Book Job</p>
+                            <div className="text-3xl font-bold text-green-600">
+                              Free Quote
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-600 mb-1">Estimated Rate</p>
+                            <div className="text-3xl font-bold text-gray-900">
+                              {displayPricing?.range || `$${apiService?.base_price || '180'}`}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {apiService?.pricing_type === 'hourly' ? 'per hour' : (displayPricing?.model || 'per job')}
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3">
+                              <p className="text-xs text-amber-700">
+                                <span className="font-semibold">Note:</span> Additional charges may apply if the job exceeds the estimated time.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                   
-                  <div className="text-center mb-3">
-                    <p className="text-xs text-gray-600 mb-1">Starting from</p>
-                    <div className="text-3xl font-bold text-gray-900">
-                      ${apiService?.base_price || '180'}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {apiService?.pricing_type === 'hourly' ? 'per hour' : 'flat fee'}
-                    </div>
-                  </div>
 
                   <div className="border-t border-gray-200 my-3"></div>
 

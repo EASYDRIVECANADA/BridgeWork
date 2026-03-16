@@ -67,4 +67,14 @@ router.post('/admin/reject/:proProfileId', authenticate, authorize('admin'),
     onboardingController.rejectApplication
 );
 
+router.post('/admin/create-pro', authenticate, authorize('admin'),
+    [
+        body('email').isEmail().withMessage('Valid email is required'),
+        body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+        body('full_name').trim().notEmpty().withMessage('Full name is required'),
+        validate
+    ],
+    onboardingController.adminCreatePro
+);
+
 module.exports = router;

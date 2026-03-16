@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Instagram } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -107,28 +106,6 @@ export default function Footer() {
               Send us a message →
             </Link>
 
-            {/* Social Media */}
-            <div className="mb-6">
-              <h5 className="font-semibold mb-3">Follow BridgeWork</h5>
-              <div className="flex gap-4">
-                <a 
-                  href="https://facebook.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="w-10 h-10 bg-white/95 rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-sm ring-1 ring-black/5 hover:-translate-y-0.5"
-                >
-                  <Facebook className="w-5 h-5 text-[#142841]" />
-                </a>
-                <a 
-                  href="https://instagram.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="w-10 h-10 bg-white/95 rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-sm ring-1 ring-black/5 hover:-translate-y-0.5"
-                >
-                  <Instagram className="w-5 h-5 text-[#142841]" />
-                </a>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -149,40 +126,6 @@ export default function Footer() {
             <p className="mt-3 text-sm text-white/80">© {currentYear} BridgeWork Inc.</p>
           </div>
 
-          {/* Right: App Download Buttons */}
-          <div>
-            <p className="text-sm font-semibold mb-3 text-center md:text-right">Download the app</p>
-            <div className="flex gap-3">
-              <a 
-                href="https://apps.apple.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Image
-                  src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
-                  alt="Download on App Store"
-                  width={135}
-                  height={40}
-                  className="h-10 w-auto"
-                />
-              </a>
-              <a 
-                href="https://play.google.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
-                  alt="Get it on Google Play"
-                  width={135}
-                  height={40}
-                  className="h-10 w-auto"
-                />
-              </a>
-            </div>
-          </div>
         </div>
       </div>
     </footer>

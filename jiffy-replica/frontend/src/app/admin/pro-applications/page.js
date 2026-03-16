@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import {
   CheckCircle, XCircle, Clock, User, Building2, Shield, Mail, Phone,
   MapPin, FileText, Star, Loader2, ChevronDown, ChevronUp, AlertTriangle,
-  DollarSign, Calendar, ExternalLink
+  DollarSign, Calendar, ExternalLink, Plus, X, Eye, EyeOff
 } from 'lucide-react';
-import { onboardingAPI } from '@/lib/api';
+import { onboardingAPI, servicesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function AdminProApplicationsPage() {
@@ -25,13 +25,38 @@ export default function AdminProApplicationsPage() {
   const [customCommission, setCustomCommission] = useState('');
   const [useCustomRate, setUseCustomRate] = useState(false);
 
+  // Add Pro modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [addForm, setAddForm] = useState({
+    email: '', password: '', full_name: '', phone: '',
+    address: '', city: '', state: '', zip_code: '',
+    business_name: '', business_address: '', business_unit: '',
+    gst_number: '', website: '',
+    service_categories: [],
+    insurance_policy_number: '', insurance_provider: '', insurance_expiry: '',
+    reference_1_name: '', reference_1_phone: '', reference_1_email: '', reference_1_relationship: '',
+    reference_2_name: '', reference_2_phone: '', reference_2_email: '', reference_2_relationship: '',
+    commission_rate: '0.15', bio: '', hourly_rate: '', service_radius: '25',
+  });
+
   useEffect(() => {
     if (!user || profile?.role !== 'admin') {
       router.push('/login');
       return;
     }
     loadApplications();
+    loadCategories();
   }, [user, profile, router, filter]);
+
+  const loadCategories = async () => {
+    try {
+      const res = await servicesAPI.getCategories();
+      setCategories(res.data?.data?.categories || []);
+    } catch {}
+  };
 
   const loadApplications = async () => {
     setLoading(true);
@@ -43,6 +68,63 @@ export default function AdminProApplicationsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetAddForm = () => {
+    setAddForm({
+      email: '', password: '', full_name: '', phone: '',
+      address: '', city: '', state: '', zip_code: '',
+      business_name: '', business_address: '', business_unit: '',
+      gst_number: '', website: '',
+      service_categories: [],
+      insurance_policy_number: '', insurance_provider: '', insurance_expiry: '',
+      reference_1_name: '', reference_1_phone: '', reference_1_email: '', reference_1_relationship: '',
+      reference_2_name: '', reference_2_phone: '', reference_2_email: '', reference_2_relationship: '',
+      commission_rate: '0.15', bio: '', hourly_rate: '', service_radius: '25',
+    });
+    setShowPassword(false);
+  };
+
+  const handleAddPro = async () => {
+    if (!addForm.email || !addForm.password || !addForm.full_name) {
+      toast.error('Email, password, and full name are required');
+      return;
+    }
+    if (addForm.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const payload = {
+        ...addForm,
+        commission_rate: parseFloat(addForm.commission_rate),
+        hourly_rate: addForm.hourly_rate ? parseFloat(addForm.hourly_rate) : undefined,
+        service_radius: addForm.service_radius ? parseInt(addForm.service_radius) : 25,
+      };
+      // Remove empty strings
+      Object.keys(payload).forEach(k => {
+        if (payload[k] === '') payload[k] = undefined;
+      });
+      const res = await onboardingAPI.adminCreatePro(payload);
+      toast.success(res.data?.message || 'Pro account created!');
+      setShowAddModal(false);
+      resetAddForm();
+      loadApplications();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to create pro account');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const toggleServiceCategory = (catId) => {
+    setAddForm(prev => ({
+      ...prev,
+      service_categories: prev.service_categories.includes(catId)
+        ? prev.service_categories.filter(id => id !== catId)
+        : [...prev.service_categories, catId]
+    }));
   };
 
   const handleApprove = async (proProfileId) => {
@@ -84,8 +166,18 @@ export default function AdminProApplicationsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-6 py-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Pro Applications</h1>
-        <p className="text-gray-500 text-sm mb-6">Review and manage pro onboarding applications</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Pro Applications</h1>
+            <p className="text-gray-500 text-sm">Review and manage pro onboarding applications</p>
+          </div>
+          <button
+            onClick={() => { resetAddForm(); setShowAddModal(true); }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#0E7480] text-white rounded-lg font-semibold text-sm hover:bg-[#0c6670] transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Pro
+          </button>
+        </div>
 
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-6">
@@ -326,6 +418,208 @@ export default function AdminProApplicationsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Add Pro Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-[#0E7480]" />
+                  Add New Pro
+                </h3>
+                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto px-6 py-5 space-y-6 flex-1">
+                {/* Account Info */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><Mail className="w-4 h-4" /> Account Info <span className="text-red-500">*</span></h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="text-xs text-gray-500 mb-1 block">Full Name *</label>
+                      <input type="text" value={addForm.full_name} onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder="John Smith" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="text-xs text-gray-500 mb-1 block">Email *</label>
+                      <input type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder="pro@email.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="text-xs text-gray-500 mb-1 block">Password *</label>
+                      <div className="relative">
+                        <input type={showPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none pr-10" />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                      <input type="text" value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} placeholder="(416) 555-0100" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4" /> Location</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-xs text-gray-500 mb-1 block">Address</label>
+                      <input type="text" value={addForm.address} onChange={e => setAddForm(p => ({ ...p, address: e.target.value }))} placeholder="123 Main St" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">City</label>
+                      <input type="text" value={addForm.city} onChange={e => setAddForm(p => ({ ...p, city: e.target.value }))} placeholder="Toronto" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Province / State</label>
+                      <input type="text" value={addForm.state} onChange={e => setAddForm(p => ({ ...p, state: e.target.value }))} placeholder="Ontario" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Business Info */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><Building2 className="w-4 h-4" /> Business Info</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Business Name</label>
+                      <input type="text" value={addForm.business_name} onChange={e => setAddForm(p => ({ ...p, business_name: e.target.value }))} placeholder="Smith Plumbing" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Business Address</label>
+                      <input type="text" value={addForm.business_address} onChange={e => setAddForm(p => ({ ...p, business_address: e.target.value }))} placeholder="456 Business Ave" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">GST/HST Number</label>
+                      <input type="text" value={addForm.gst_number} onChange={e => setAddForm(p => ({ ...p, gst_number: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Website</label>
+                      <input type="text" value={addForm.website} onChange={e => setAddForm(p => ({ ...p, website: e.target.value }))} placeholder="https://..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Categories */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><FileText className="w-4 h-4" /> Service Categories</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleServiceCategory(cat.id)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                          addForm.service_categories.includes(cat.id)
+                            ? 'bg-[#0E7480] text-white border-[#0E7480]'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#0E7480]'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                    {categories.length === 0 && <p className="text-xs text-gray-400">No categories loaded</p>}
+                  </div>
+                </div>
+
+                {/* Insurance */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><Shield className="w-4 h-4" /> Insurance</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Provider</label>
+                      <input type="text" value={addForm.insurance_provider} onChange={e => setAddForm(p => ({ ...p, insurance_provider: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Policy #</label>
+                      <input type="text" value={addForm.insurance_policy_number} onChange={e => setAddForm(p => ({ ...p, insurance_policy_number: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Expiry</label>
+                      <input type="date" value={addForm.insurance_expiry} onChange={e => setAddForm(p => ({ ...p, insurance_expiry: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* References */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><User className="w-4 h-4" /> Professional References</h4>
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Reference 1</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" value={addForm.reference_1_name} onChange={e => setAddForm(p => ({ ...p, reference_1_name: e.target.value }))} placeholder="Name" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="text" value={addForm.reference_1_phone} onChange={e => setAddForm(p => ({ ...p, reference_1_phone: e.target.value }))} placeholder="Phone" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="email" value={addForm.reference_1_email} onChange={e => setAddForm(p => ({ ...p, reference_1_email: e.target.value }))} placeholder="Email" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="text" value={addForm.reference_1_relationship} onChange={e => setAddForm(p => ({ ...p, reference_1_relationship: e.target.value }))} placeholder="Relationship" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Reference 2</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" value={addForm.reference_2_name} onChange={e => setAddForm(p => ({ ...p, reference_2_name: e.target.value }))} placeholder="Name" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="text" value={addForm.reference_2_phone} onChange={e => setAddForm(p => ({ ...p, reference_2_phone: e.target.value }))} placeholder="Phone" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="email" value={addForm.reference_2_email} onChange={e => setAddForm(p => ({ ...p, reference_2_email: e.target.value }))} placeholder="Email" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                        <input type="text" value={addForm.reference_2_relationship} onChange={e => setAddForm(p => ({ ...p, reference_2_relationship: e.target.value }))} placeholder="Relationship" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Settings */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Pro Settings</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Commission Rate</label>
+                      <select value={addForm.commission_rate} onChange={e => setAddForm(p => ({ ...p, commission_rate: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none">
+                        <option value="0.10">10%</option>
+                        <option value="0.12">12%</option>
+                        <option value="0.15">15% (default)</option>
+                        <option value="0.18">18%</option>
+                        <option value="0.20">20%</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Hourly Rate ($)</label>
+                      <input type="number" value={addForm.hourly_rate} onChange={e => setAddForm(p => ({ ...p, hourly_rate: e.target.value }))} placeholder="50" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Service Radius (mi)</label>
+                      <input type="number" value={addForm.service_radius} onChange={e => setAddForm(p => ({ ...p, service_radius: e.target.value }))} placeholder="25" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none" />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="text-xs text-gray-500 mb-1 block">Bio</label>
+                    <textarea value={addForm.bio} onChange={e => setAddForm(p => ({ ...p, bio: e.target.value }))} placeholder="Brief description of the pro's experience..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none resize-none h-20" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 flex-shrink-0 bg-gray-50 rounded-b-xl">
+                <p className="text-xs text-gray-400">Account will be auto-confirmed & admin-approved</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddPro}
+                    disabled={addLoading || !addForm.email || !addForm.password || !addForm.full_name}
+                    className="px-6 py-2 text-sm font-semibold bg-[#0E7480] text-white rounded-lg hover:bg-[#0c6670] disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {addLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : <><Plus className="w-4 h-4" /> Create Pro Account</>}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

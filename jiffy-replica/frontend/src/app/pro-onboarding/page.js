@@ -230,9 +230,9 @@ export default function ProOnboardingPage() {
         reference_2_email: ref2Email.trim() || undefined,
         reference_2_relationship: ref2Relationship.trim() || undefined,
       });
-      toast.success('Requirements saved!');
+      toast.success('Onboarding complete! Your application is now pending admin review.');
       await loadOnboardingStatus();
-      goToStep(4);
+      setCurrentStep(0);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to save requirements');
     } finally {
@@ -303,7 +303,7 @@ export default function ProOnboardingPage() {
     { num: 1, title: 'Start with the basics', desc: 'Fill in your business info', icon: Building2, time: '2 min' },
     { num: 2, title: 'Digital Service Agreement', desc: 'Review and accept the agreement', icon: FileText, time: '5 min' },
     { num: 3, title: 'Professional requirements', desc: 'Services, insurance, references', icon: Shield, time: '10 min' },
-    { num: 4, title: 'Set up direct payment', desc: 'Connect your Stripe account', icon: CreditCard, time: '10 min' },
+    { num: 4, title: 'Set up direct payment', desc: 'Optional — connect Stripe to withdraw earnings', icon: CreditCard, time: '10 min', optional: true },
   ];
 
   return (
@@ -378,7 +378,7 @@ export default function ProOnboardingPage() {
                   </ul>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-700 mb-1">Setup Direct Payment</p>
+                  <p className="text-sm font-bold text-gray-700 mb-1">Setup Direct Payment <span className="text-xs font-normal text-gray-400">(optional — can be done later)</span></p>
                   <ul className="text-xs text-gray-500 list-disc ml-4 space-y-0.5">
                     <li>Bank Routing & Account Number</li>
                     <li>Government ID for verification</li>
@@ -395,29 +395,39 @@ export default function ProOnboardingPage() {
           </div>
         )}
 
-        {/* Steps Overview (always visible when not on overview) */}
-        {(currentStep === 0 && !isCompleted) && (
+        {/* Steps Overview */}
+        {currentStep === 0 && (
           <div className="space-y-4">
             {stepConfig.map((step) => {
               const completed = savedStep >= step.num;
-              const active = savedStep + 1 === step.num || (savedStep === 0 && step.num === 1);
+              const active = !isCompleted && (savedStep + 1 === step.num || (savedStep === 0 && step.num === 1));
+              const isOptionalPending = step.optional && isCompleted && !completed;
               return (
                 <div
                   key={step.num}
                   className={`bg-white rounded-xl shadow-sm border p-5 cursor-pointer transition-all ${
-                    active ? 'border-[#0E7480] ring-1 ring-[#0E7480]/20' : 'border-gray-100'
+                    active ? 'border-[#0E7480] ring-1 ring-[#0E7480]/20' : isOptionalPending ? 'border-amber-200' : 'border-gray-100'
                   } ${completed ? 'opacity-75' : ''}`}
-                  onClick={() => goToStep(step.num)}
+                  onClick={() => {
+                    if (step.optional && isCompleted && !completed) {
+                      goToStep(step.num);
+                    } else if (!isCompleted) {
+                      goToStep(step.num);
+                    }
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
-                        completed ? 'bg-green-100 text-green-600' : active ? 'bg-[#0E7480] text-white' : 'bg-gray-100 text-gray-400'
+                        completed ? 'bg-green-100 text-green-600' : active ? 'bg-[#0E7480] text-white' : isOptionalPending ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'
                       }`}>
                         {completed ? <CheckCircle className="w-5 h-5" /> : step.num}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900 text-sm">{step.title}</p>
+                        <p className="font-semibold text-gray-900 text-sm">
+                          {step.title}
+                          {step.optional && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Optional</span>}
+                        </p>
                         <p className="text-xs text-gray-500">{step.desc}</p>
                       </div>
                     </div>
@@ -426,6 +436,11 @@ export default function ProOnboardingPage() {
                       {active && !completed && (
                         <button className="bg-[#0E7480] text-white text-xs px-4 py-1.5 rounded-lg font-semibold hover:bg-[#0c6670]">
                           Start
+                        </button>
+                      )}
+                      {isOptionalPending && (
+                        <button className="bg-amber-500 text-white text-xs px-4 py-1.5 rounded-lg font-semibold hover:bg-amber-600">
+                          Set up now
                         </button>
                       )}
                       {completed && (

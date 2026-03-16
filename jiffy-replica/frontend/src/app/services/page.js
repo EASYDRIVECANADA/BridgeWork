@@ -1,96 +1,115 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import api from '@/lib/api';
 
-export default function ServicesPage() {
+function ServicesPageContent() {
   const searchParams = useSearchParams();
-  const isEmergency = searchParams.get('emergency') === 'true';
-  const [selectedCategory, setSelectedCategory] = useState(isEmergency ? 'Emergency' : 'Cleaning');
+  const serviceType = searchParams.get('type') || 'residential';
+  const [categories, setCategories] = useState([]);
+  const [services, setServices] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const categories = [
-    { id: 'cleaning', name: 'Cleaning', icon: '🧹' },
-    { id: 'indoors', name: 'Indoors', icon: '🏠' },
-    { id: 'install', name: 'Install', icon: '🔧' },
-    { id: 'bridgework-shop', name: 'BridgeWork Shop', icon: '🛒' },
-    { id: 'outdoors', name: 'Outdoors', icon: '🌳' },
-    { id: 'repair', name: 'Repair', icon: '🔨' },
-    { id: 'seasonal', name: 'Seasonal', icon: '❄️' },
-    { id: 'emergency', name: 'Emergency', icon: '🚨' },
-    { id: 'qa-testing', name: 'QA Testing', icon: '🧪' },
-  ];
+  // Fetch categories and services from DB when channel changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        if (serviceType === 'residential') {
+          // Residential: fetch categories + all residential services
+          const [catRes, svcRes] = await Promise.all([
+            api.get('/services/categories?sales_channel=residential'),
+            api.get('/services?sales_channel=residential')
+          ]);
+          const cats = catRes.data?.data?.categories || [];
+          setCategories(cats);
+          setServices(svcRes.data?.data?.services || []);
+          // Auto-select first category
+          if (cats.length > 0 && !selectedCategoryId) {
+            setSelectedCategoryId(cats[0].id);
+          }
+        } else {
+          // Commercial: no categories, flat service list
+          setCategories([]);
+          const svcRes = await api.get('/services?sales_channel=commercial');
+          setServices(svcRes.data?.data?.services || []);
+          setSelectedCategoryId(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch services:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [serviceType]);
 
-  const services = {
-    Cleaning: [
-      { id: 1, name: 'BBQ Cleaning & Repair', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=400' },
-      { id: 2, name: 'Carpet & Upholstery Cleaning', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400' },
-      { id: 3, name: 'Dryer Vent Cleaning', image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?q=80&w=400' },
-      { id: 4, name: 'Duct Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
-      { id: 5, name: 'Junk Removal', image: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?q=80&w=400' },
-      { id: 6, name: 'Mold Remediation', image: 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?q=80&w=400' },
-      { id: 7, name: 'Powerwash, Stain & Seal', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400' },
-      { id: 8, name: 'Tile & Grout Cleaning', image: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?q=80&w=400' },
-    ],
-    Indoors: [
-      { id: 9, name: 'Appliance Repair', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400' },
-      { id: 10, name: 'Drywall Repair', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400' },
-      { id: 11, name: 'Flooring', image: 'https://images.unsplash.com/photo-1615875474908-f403116f5287?q=80&w=400' },
-      { id: 12, name: 'Interior Painting', image: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?q=80&w=400' },
-      { id: 13, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400' },
-      { id: 14, name: 'Tile Installation', image: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?q=80&w=400' },
-    ],
-    Install: [
-      { id: 15, name: 'Appliance Install', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400' },
-      { id: 16, name: 'Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400' },
-      { id: 17, name: 'Flooring', image: 'https://images.unsplash.com/photo-1615875474908-f403116f5287?q=80&w=400' },
-      { id: 18, name: 'Furniture Assembly', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400' },
-      { id: 19, name: 'Gas Services', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400' },
-      { id: 20, name: 'Handyman Services', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
-      { id: 21, name: 'Heating & Cooling', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400' },
-      { id: 22, name: 'Locksmith', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=400' },
-      { id: 23, name: 'Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400' },
-    ],
-    'BridgeWork Shop': [
-      { id: 24, name: 'Home Essentials', image: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?q=80&w=400' },
-      { id: 25, name: 'Tools & Equipment', image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=400' },
-      { id: 26, name: 'Smart Home Devices', image: 'https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=400' },
-    ],
-    Outdoors: [
-      { id: 27, name: 'Deck & Fence Repair', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400' },
-      { id: 28, name: 'Exterior Painting', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400' },
-      { id: 29, name: 'Gutter Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
-      { id: 30, name: 'Landscaping', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400' },
-      { id: 31, name: 'Lawn Mowing', image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?q=80&w=400' },
-      { id: 32, name: 'Pressure Washing', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400' },
-    ],
-    Repair: [
-      { id: 33, name: 'Appliance Repair', image: 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?q=80&w=400' },
-      { id: 34, name: 'Drywall Repair', image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=400' },
-      { id: 35, name: 'Electrical Repair', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400' },
-      { id: 36, name: 'Plumbing Repair', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400' },
-      { id: 37, name: 'Roof Repair', image: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?q=80&w=400' },
-    ],
-    Seasonal: [
-      { id: 38, name: 'Snow Removal', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400' },
-      { id: 39, name: 'Holiday Decorating', image: 'https://images.unsplash.com/photo-1512389142860-9c449e58a543?q=80&w=400' },
-      { id: 40, name: 'Spring Cleaning', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
-      { id: 41, name: 'Winterization', image: 'https://images.unsplash.com/photo-1483664852095-d6cc6870702d?q=80&w=400' },
-    ],
-    Emergency: [
-      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e01', name: 'Emergency HVAC', image: 'https://images.unsplash.com/photo-1635274531661-1c5a5e9b0d3d?q=80&w=400' },
-      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e02', name: 'Emergency Plumbing', image: 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?q=80&w=400' },
-      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380e03', name: 'Emergency Electrical', image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?q=80&w=400' },
-    ],
-    'QA Testing': [
-      { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380f01', name: 'QA Test Service ($1)', image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400' },
-    ],
+  // Filter services by selected category (residential) or show all (commercial)
+  const filteredServices = (() => {
+    let list = services;
+
+    // Residential: filter by selected category
+    if (serviceType === 'residential' && selectedCategoryId) {
+      list = list.filter(s => s.category_id === selectedCategoryId);
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        s.description?.toLowerCase().includes(q) ||
+        s.short_description?.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  })();
+
+  const handleServiceClick = (e, service) => {
+    e.preventDefault();
+    
+    // If emergency is 'yes' (regardless of rate), show modal for user to choose
+    if (service.emergency === 'yes') {
+      setSelectedService(service);
+      setShowServiceModal(true);
+    } 
+    // If rate is 'yes' and emergency is 'no', navigate directly to rate-based page
+    else if (service.rate === 'yes' && service.emergency === 'no') {
+      window.location.href = `/services/${service.id}?type=rate`;
+    }
+    // If rate is 'quote' and emergency is 'no', navigate directly (free quote page)
+    else {
+      window.location.href = `/services/${service.id}`;
+    }
   };
 
-  const filteredServices = services[selectedCategory] || [];
+  const handleModalSelection = (type) => {
+    setShowServiceModal(false);
+    if (selectedService) {
+      if (type === 'rate' || type === 'quote') {
+        // For rate-based or quote services (non-emergency)
+        if (selectedService.rate === 'quote') {
+          window.location.href = `/services/${selectedService.id}`;
+        } else {
+          window.location.href = `/services/${selectedService.id}?type=rate`;
+        }
+      } else if (type === 'emergency') {
+        window.location.href = `/services/${selectedService.id}?type=emergency`;
+      }
+    }
+  };
+
+  // Default placeholder image for services without an image
+  const fallbackImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -98,7 +117,9 @@ export default function ServicesPage() {
       <div className="bg-gradient-to-b from-blue-50 to-blue-100 py-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8">
-            BridgeWork keeps your home in great shape, inside and out.
+            {serviceType === 'commercial'
+              ? 'Professional commercial services for your business.'
+              : 'BridgeWork keeps your home in great shape, inside and out.'}
           </h1>
 
           {/* Search Bar */}
@@ -115,23 +136,25 @@ export default function ServicesPage() {
             </div>
           </div>
 
-          {/* Category Pills */}
-          <div className="flex flex-wrap justify-center gap-3 mb-6">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.name)}
-                className={`px-6 py-3 rounded-full font-medium transition-all ${
-                  selectedCategory === category.name
-                    ? 'bg-black text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-                }`}
-              >
-                <span className="mr-2">{category.icon}</span>
-                {category.name}
-              </button>
-            ))}
-          </div>
+          {/* Category Pills (Residential only) */}
+          {serviceType === 'residential' && categories.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-3 mb-6">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategoryId(category.id)}
+                  className={`px-6 py-3 rounded-full font-medium transition-all ${
+                    selectedCategoryId === category.id
+                      ? 'bg-black text-white shadow-lg'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
+                  }`}
+                >
+                  <span className="mr-2">{category.icon_url || '📁'}</span>
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Help Text */}
           <p className="text-sm text-gray-600">
@@ -145,36 +168,202 @@ export default function ServicesPage() {
 
       {/* Services Grid */}
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-3 gap-6">
-          {filteredServices.map((service) => (
-            <Link
-              key={service.id}
-              href={`/services/${service.id}`}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden group cursor-pointer"
-            >
-              <div className="flex items-center gap-4 p-4">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <Image
-                    src={service.image}
-                    alt={service.name}
-                    fill
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#0E7480] transition-colors">
-                  {service.name}
-                </h3>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {filteredServices.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No services found in this category.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0E7480] mx-auto"></div>
+              <p className="mt-4 text-gray-500">Loading services...</p>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="grid md:grid-cols-3 gap-6">
+              {filteredServices.map((service) => (
+                <div
+                  key={service.id}
+                  onClick={(e) => handleServiceClick(e, service)}
+                  className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden group cursor-pointer"
+                >
+                  <div className="flex items-center gap-4 p-4">
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      <Image
+                        src={service.image_url || fallbackImage}
+                        alt={service.name}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#0E7480] transition-colors">
+                      {service.name}
+                    </h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredServices.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No services found{searchQuery ? ' matching your search' : ' in this category'}.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* Rate/Emergency Selection Modal */}
+      {showServiceModal && selectedService && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowServiceModal(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Choose Service Type</h2>
+            <p className="text-gray-600 text-center mb-6">for {selectedService.name}</p>
+            
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              {/* Rate Based Service OR Free Quote Card */}
+              <button
+                onClick={() => handleModalSelection(selectedService.rate === 'quote' ? 'quote' : 'rate')}
+                className="group relative bg-gradient-to-br from-[#0E7480] to-[#0d6670] hover:from-[#0d6670] hover:to-[#0c5a63] text-white rounded-2xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] text-left overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">{selectedService.rate === 'quote' ? '�' : '�💰'}</span>
+                    <h3 className="text-xl font-bold">{selectedService.rate === 'quote' ? 'Free Quote' : 'Rate Based Service'}</h3>
+                  </div>
+                  
+                  {selectedService.rate === 'quote' ? (
+                    <>
+                      <div className="mb-4">
+                        <div className="text-sm opacity-90 mb-1">Get a Quote</div>
+                        <div className="text-3xl font-bold">
+                          Free
+                        </div>
+                        <div className="text-sm opacity-90 mt-1">
+                          No upfront cost
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm opacity-90">
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>Custom pricing for your project</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>Detailed cost breakdown</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>No obligation to book</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t border-white/20">
+                        <div className="text-xs opacity-75">Get a personalized quote based on your specific needs</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <div className="text-sm opacity-90 mb-1">Estimated Rate</div>
+                        <div className="text-3xl font-bold">
+                          {selectedService.base_price ? `$${selectedService.base_price}` : '$100 - $150'}
+                        </div>
+                        <div className="text-sm opacity-90 mt-1">
+                          {selectedService.pricing_type === 'hourly' ? 'per hour' : 'per job'}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm opacity-90">
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>Standard scheduling</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>Flexible appointment times</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-300 mt-0.5">✓</span>
+                          <span>Best for planned projects</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t border-white/20">
+                        <div className="text-xs opacity-75">Additional charges may apply if job exceeds estimated time</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </button>
+
+              {/* Emergency Service Card */}
+              <button
+                onClick={() => handleModalSelection('emergency')}
+                className="group relative bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-2xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] text-left overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">🚨</span>
+                    <h3 className="text-xl font-bold">Emergency Service</h3>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="text-sm opacity-90 mb-1">Emergency Rate</div>
+                    <div className="text-3xl font-bold">
+                      {selectedService.emergency_rate ? `$${selectedService.emergency_rate}` : '$150 - $200'}
+                    </div>
+                    <div className="text-sm opacity-90 mt-1">
+                      {selectedService.pricing_type === 'hourly' ? 'per hour' : 'per job'}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm opacity-90">
+                    <div className="flex items-start gap-2">
+                      <span className="text-yellow-300 mt-0.5">⚡</span>
+                      <span>24/7 availability</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-yellow-300 mt-0.5">⚡</span>
+                      <span>Priority response time</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-yellow-300 mt-0.5">⚡</span>
+                      <span>Immediate assistance</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-white/20">
+                    <div className="text-xs opacity-75">Premium pricing for urgent service needs</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowServiceModal(false)}
+              className="w-full text-gray-500 hover:text-gray-700 text-sm font-medium py-3 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0E7480] mx-auto"></div>
+          <p className="mt-4 text-gray-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ServicesPageContent />
+    </Suspense>
   );
 }

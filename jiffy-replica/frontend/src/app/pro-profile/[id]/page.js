@@ -27,12 +27,26 @@ function RatingStars({ rating, size = 'sm' }) {
   );
 }
 
+// Service categories mapping (same as pro-dashboard)
+const SERVICE_CATEGORIES = [
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Handyman' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'Appliance Repair' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'Plumbing' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Electrical' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'HVAC' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'Lawn Care' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17', name: 'Painting' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18', name: 'Carpentry' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a19', name: 'Cleaning' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a20', name: 'Moving' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21', name: 'Gas Services' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'Emergency' },
+];
+
 export default function ProProfilePage() {
   const params = useParams();
   const { user, profile } = useSelector((state) => state.auth);
-  const [showAllReviews, setShowAllReviews] = useState(false);
   const [pro, setPro] = useState(null);
-  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Check if the logged-in user is viewing their own pro profile
@@ -47,15 +61,7 @@ export default function ProProfilePage() {
         const proData = proRes.data?.data?.proProfile || proRes.data?.data?.pro || proRes.data?.data;
         setPro(proData);
 
-        // Fetch reviews for this pro
-        if (proData?.id) {
-          try {
-            const revRes = await reviewsAPI.getByProId(proData.id);
-            setReviews(revRes.data?.data?.reviews || []);
-          } catch (e) {
-            console.log('[PRO-PROFILE] Could not fetch reviews:', e.message);
-          }
-        }
+        // Reviews temporarily disabled
       } catch (err) {
         console.error('[PRO-PROFILE] Error fetching pro:', err);
       }
@@ -92,11 +98,18 @@ export default function ProProfilePage() {
   const proCover = 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=1200';
   const proLocation = pro.service_area || pro.profiles?.city || 'Toronto, ON';
   const proRating = pro.rating || 0;
-  const proTotalReviews = pro.total_reviews || reviews.length;
+  const proTotalReviews = pro.total_reviews || 0;
   const proTotalJobs = pro.total_jobs || 0;
   const proMemberSince = pro.created_at ? new Date(pro.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
   const proBio = pro.bio || pro.description || '';
-  const proServices = pro.services_offered || [];
+  // Map service_categories UUIDs to display names
+  const proServices = (pro.service_categories || pro.services_offered || []).map((cat) => {
+    if (typeof cat === 'string') {
+      const found = SERVICE_CATEGORIES.find((s) => s.id === cat);
+      return found ? found.name : cat;
+    }
+    return cat?.name || cat;
+  });
   const proHourlyRate = pro.hourly_rate;
 
   // Build badges dynamically
@@ -107,13 +120,6 @@ export default function ProProfilePage() {
   if (proTotalJobs >= 10) badges.push({ name: 'Experienced', icon: 'award' });
   if (badges.length === 0) badges.push({ name: 'New Pro', icon: 'clock' });
 
-  const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 3);
-
-  const ratingDistribution = [5, 4, 3, 2, 1].map((stars) => ({
-    stars,
-    count: reviews.filter((r) => r.rating === stars).length,
-    percentage: reviews.length > 0 ? (reviews.filter((r) => r.rating === stars).length / reviews.length) * 100 : 0,
-  }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -179,11 +185,6 @@ export default function ProProfilePage() {
 
                 {/* Stats Row */}
                 <div className="flex items-center gap-6 mt-4 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <RatingStars rating={proRating} size="md" />
-                    <span className="font-bold text-gray-900">{proRating > 0 ? proRating.toFixed(1) : 'New'}</span>
-                    <span className="text-sm text-gray-500">({proTotalReviews} reviews)</span>
-                  </div>
                   {proTotalJobs > 0 && (
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <CheckCircle className="w-4 h-4 text-green-500" />
@@ -217,105 +218,6 @@ export default function ProProfilePage() {
                 <p className="text-sm text-gray-700 leading-relaxed">{proBio}</p>
               </div>
             )}
-
-            {/* Reviews */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Reviews
-                  <span className="ml-2 text-sm font-normal text-gray-500">({reviews.length})</span>
-                </h2>
-              </div>
-
-              {reviews.length > 0 ? (
-                <>
-                  {/* Rating Distribution */}
-                  <div className="mb-6 pb-6 border-b border-gray-100">
-                    <div className="flex items-start gap-8">
-                      <div className="text-center">
-                        <p className="text-4xl font-bold text-gray-900">{proRating > 0 ? proRating.toFixed(1) : '—'}</p>
-                        <RatingStars rating={proRating} />
-                        <p className="text-xs text-gray-500 mt-1">{proTotalReviews} reviews</p>
-                      </div>
-                      <div className="flex-1 space-y-1.5">
-                        {ratingDistribution.map((item) => (
-                          <div key={item.stars} className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 w-3">{item.stars}</span>
-                            <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-yellow-400 rounded-full"
-                                style={{ width: `${item.percentage}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-500 w-6">{item.count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Review List */}
-                  <div className="space-y-5">
-                    {displayedReviews.map((review) => {
-                      const reviewerName = review.profiles?.full_name || review.user_name || 'Customer';
-                      const reviewDate = review.created_at
-                        ? new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : '';
-                      const serviceName = review.bookings?.service_name || review.service_name || '';
-
-                      return (
-                        <div key={review.id} className="pb-5 border-b border-gray-100 last:border-0 last:pb-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-bold text-gray-600">
-                                    {reviewerName.charAt(0)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">{reviewerName}</p>
-                                  {serviceName && <p className="text-xs text-gray-500">{serviceName}</p>}
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-xs text-gray-400">{reviewDate}</span>
-                          </div>
-                          <div className="ml-10">
-                            <RatingStars rating={review.rating} />
-                            {review.comment && (
-                              <p className="text-sm text-gray-700 mt-2 leading-relaxed">{review.comment}</p>
-                            )}
-                            {review.response && (
-                              <div className="mt-3 ml-4 pl-4 border-l-2 border-blue-200 bg-blue-50/50 rounded-r-lg p-3">
-                                <p className="text-xs font-semibold text-gray-700 mb-1">Pro Response:</p>
-                                <p className="text-sm text-gray-600">{review.response}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {reviews.length > 3 && (
-                    <button
-                      onClick={() => setShowAllReviews(!showAllReviews)}
-                      className="w-full mt-4 text-[#0E7480] text-sm font-semibold hover:underline"
-                    >
-                      {showAllReviews ? 'Show less' : `Show all ${reviews.length} reviews`}
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <Star className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No reviews yet</p>
-                  <p className="text-gray-400 text-xs mt-1">Be the first to review this pro!</p>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* ==================== RIGHT SIDEBAR ==================== */}

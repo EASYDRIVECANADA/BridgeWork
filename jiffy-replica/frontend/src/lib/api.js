@@ -51,6 +51,10 @@ export const bookingsAPI = {
   getById: (id) => api.get(`/bookings/${id}`),
   updateStatus: (id, data) => api.patch(`/bookings/${id}/status`, data),
   cancel: (id, data) => api.post(`/bookings/${id}/cancel`, data),
+  // Admin: Quote Requests (Free Quote bookings awaiting pricing)
+  getQuoteRequests: (params) => api.get('/bookings/admin/quote-requests', { params }),
+  setQuotePrice: (id, data) => api.put(`/bookings/admin/quote-requests/${id}/set-price`, data),
+  cancelQuoteRequest: (id, data) => api.delete(`/bookings/admin/quote-requests/${id}`, { data }),
 };
 
 export const prosAPI = {
@@ -69,6 +73,13 @@ export const prosAPI = {
     });
   },
   getJobProof: (id) => api.get(`/pros/jobs/${id}/proof`),
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return api.post('/pros/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   updateProfile: (data) => api.patch('/pros/profile', data),
   getStatistics: () => api.get('/pros/statistics/me'),
   getMyProfile: () => api.get('/pros/profile/me'),
@@ -91,7 +102,7 @@ export const paymentsAPI = {
   disputeBooking: (data) => api.post('/payments/dispute', data),
   getTransactions: (params) => api.get('/payments/transactions', { params }),
   // Stripe Connect (pro payouts)
-  connectOnboard: () => api.post('/payments/connect/onboard'),
+  connectOnboard: (params) => api.post('/payments/connect/onboard', {}, { params }),
   connectStatus: () => api.get('/payments/connect/status'),
   connectDashboard: () => api.get('/payments/connect/dashboard'),
   connectEarnings: () => api.get('/payments/connect/earnings'),
@@ -147,6 +158,7 @@ export const onboardingAPI = {
   getApplications: (params) => api.get('/onboarding/admin/applications', { params }),
   approveApplication: (id, data) => api.post(`/onboarding/admin/approve/${id}`, data),
   rejectApplication: (id, data) => api.post(`/onboarding/admin/reject/${id}`, data),
+  adminCreatePro: (data) => api.post('/onboarding/admin/create-pro', data),
 };
 
 export const supportChatAPI = {

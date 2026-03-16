@@ -264,16 +264,16 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={() => router.push('/services')}
+                onClick={() => router.push('/services?type=residential')}
                 className="btn-brand px-8 py-3 rounded-xl font-brand tracking-tight"
               >
-                View all services
+                Residential
               </button>
               <button
-                onClick={() => router.push('/services?emergency=true')}
+                onClick={() => router.push('/services?type=commercial')}
                 className="px-8 py-3 rounded-xl font-brand tracking-tight text-white border border-white/30 hover:bg-white/10 transition-all duration-200"
               >
-                Emergency services
+                Commercial
               </button>
             </div>
           </motion.div>

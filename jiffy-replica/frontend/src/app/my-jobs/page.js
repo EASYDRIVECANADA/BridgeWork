@@ -202,9 +202,16 @@ export default function MyJobsPage() {
                     <Briefcase className="w-6 h-6 text-[#0E7480]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {booking.service_name}
-                    </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {booking.service_name}
+                      </p>
+                      {booking.total_price > 0 && (
+                        <span className="text-sm font-bold text-[#0E7480]">
+                          ${parseFloat(booking.total_price).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       {(booking.pro_profiles?.business_name || booking.pro_profiles?.profiles?.full_name) && (
                         <span className="text-xs text-gray-600 font-medium">
@@ -396,9 +403,16 @@ export default function MyJobsPage() {
                         <Briefcase className="w-6 h-6 text-green-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {booking.service_name}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {booking.service_name}
+                          </p>
+                          {booking.total_price > 0 && (
+                            <span className="text-sm font-bold text-green-600">
+                              ${parseFloat(booking.total_price).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                           {proName && (
                             <span className="text-xs text-gray-600 font-medium">

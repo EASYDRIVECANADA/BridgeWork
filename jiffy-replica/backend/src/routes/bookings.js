@@ -1,10 +1,46 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const bookingsController = require('../controllers/bookingsController');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 const router = express.Router();
+
+// ==================== ADMIN: QUOTE REQUESTS ====================
+
+// Get all quote_pending bookings (Free Quote requests awaiting pricing)
+router.get('/admin/quote-requests', 
+    authenticate, 
+    authorize('admin'),
+    bookingsController.getQuoteRequests
+);
+
+// Set price for a quote request and release to pros
+router.put('/admin/quote-requests/:id/set-price',
+    authenticate,
+    authorize('admin'),
+    [
+        param('id').isUUID(),
+        body('total_price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
+        body('admin_notes').optional().trim(),
+        validate
+    ],
+    bookingsController.setQuotePrice
+);
+
+// Cancel/reject a quote request
+router.delete('/admin/quote-requests/:id',
+    authenticate,
+    authorize('admin'),
+    [
+        param('id').isUUID(),
+        body('reason').optional().trim(),
+        validate
+    ],
+    bookingsController.cancelQuoteRequest
+);
+
+// ==================== USER BOOKINGS ====================
 
 router.post('/', authenticate,
     [

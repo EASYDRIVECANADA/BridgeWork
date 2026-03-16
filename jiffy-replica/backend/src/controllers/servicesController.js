@@ -1,17 +1,14 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
-// QA test accounts — only these emails can see QA Testing category/services
-const QA_TEST_EMAILS = ['danafgaliver@gmail.com', 'zetthebloodedge@gmail.com', 'admin@bridgework.ca'];
-const QA_CATEGORY_SLUG = 'qa-testing';
 
 exports.getAllServices = async (req, res) => {
     try {
-        const { category, search } = req.query;
+        const { category, search, sales_channel } = req.query;
         const limit = parseInt(req.query.limit) || 50;
         const offset = parseInt(req.query.offset) || 0;
 
-        logger.info('[SERVICES] getAllServices called', { category, search, limit, offset });
+        logger.info('[SERVICES] getAllServices called', { category, search, sales_channel, limit, offset });
 
         let query = supabaseAdmin
             .from('services')
@@ -24,6 +21,10 @@ exports.getAllServices = async (req, res) => {
                 )
             `)
             .eq('is_active', true);
+
+        if (sales_channel) {
+            query = query.eq('sales_channel', sales_channel);
+        }
 
         if (category) {
             query = query.eq('category_id', category);
@@ -49,15 +50,10 @@ exports.getAllServices = async (req, res) => {
             });
         }
 
-        // Filter out QA services for non-test users
-        const userEmail = req.profile?.email;
-        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
-        const filteredData = isQAUser ? data : data.filter(s => s.service_categories?.slug !== QA_CATEGORY_SLUG);
-
         res.json({
             success: true,
             data: {
-                services: filteredData,
+                services: data,
                 pagination: {
                     limit,
                     offset,
@@ -139,14 +135,9 @@ exports.searchServices = async (req, res) => {
             });
         }
 
-        // Filter out QA services for non-test users
-        const userEmail = req.profile?.email;
-        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
-        const filteredData = isQAUser ? data : data.filter(s => s.service_categories?.slug !== QA_CATEGORY_SLUG);
-
         res.json({
             success: true,
-            data: { results: filteredData }
+            data: { results: data }
         });
     } catch (error) {
         logger.error('Search services controller error', { error: error.message });
@@ -159,11 +150,20 @@ exports.searchServices = async (req, res) => {
 
 exports.getCategories = async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin
+        const { sales_channel } = req.query;
+
+        let query = supabaseAdmin
             .from('service_categories')
             .select('*')
-            .eq('is_active', true)
-            .order('display_order');
+            .eq('is_active', true);
+
+        if (sales_channel) {
+            query = query.eq('sales_channel', sales_channel);
+        }
+
+        query = query.order('display_order');
+
+        const { data, error } = await query;
 
         if (error) {
             logger.error('Get categories error', { error: error.message });
@@ -173,14 +173,9 @@ exports.getCategories = async (req, res) => {
             });
         }
 
-        // Filter out QA Testing category for non-test users
-        const userEmail = req.profile?.email;
-        const isQAUser = userEmail && QA_TEST_EMAILS.includes(userEmail);
-        const filteredData = isQAUser ? data : data.filter(c => c.slug !== QA_CATEGORY_SLUG);
-
         res.json({
             success: true,
-            data: { categories: filteredData }
+            data: { categories: data }
         });
     } catch (error) {
         logger.error('Get categories controller error', { error: error.message });
