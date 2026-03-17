@@ -196,7 +196,7 @@ exports.updateCategory = async (req, res) => {
     }
 };
 
-// Delete category (soft delete)
+// Delete category (hard delete — only if zero services)
 exports.deleteCategory = async (req, res) => {
     try {
         if (req.profile.role !== 'admin') {
@@ -208,23 +208,22 @@ exports.deleteCategory = async (req, res) => {
 
         const { id } = req.params;
 
-        // Check if category has active services
+        // Check if category has ANY services (active or inactive)
         const { data: services } = await supabaseAdmin
             .from('services')
             .select('id')
-            .eq('category_id', id)
-            .eq('is_active', true);
+            .eq('category_id', id);
 
         if (services && services.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: `Cannot delete category with ${services.length} active service(s). Please deactivate or reassign services first.`
+                message: `Cannot delete category with ${services.length} service(s). Remove or reassign all services first.`
             });
         }
 
         const { error } = await supabaseAdmin
             .from('service_categories')
-            .update({ is_active: false })
+            .delete()
             .eq('id', id);
 
         if (error) {
@@ -235,7 +234,7 @@ exports.deleteCategory = async (req, res) => {
             });
         }
 
-        logger.info('Category deleted', { categoryId: id });
+        logger.info('Category permanently deleted', { categoryId: id });
 
         res.json({
             success: true,
@@ -327,11 +326,14 @@ exports.createService = async (req, res) => {
             base_price,
             pricing_type,
             estimated_duration,
+            additional_hourly_rate,
             image_url,
             tags,
             sales_channel,
             rate,
             emergency,
+            emergency_base_price,
+            emergency_pricing_type,
             use_cases
         } = req.body;
 
@@ -360,12 +362,15 @@ exports.createService = async (req, res) => {
                 base_price: base_price ? parseFloat(base_price) : 0,
                 pricing_type: pricing_type || 'custom',
                 estimated_duration: estimated_duration ? parseInt(estimated_duration) : null,
+                additional_hourly_rate: additional_hourly_rate ? parseFloat(additional_hourly_rate) : null,
                 image_url,
                 tags: tags || [],
                 is_active: true,
                 sales_channel: sales_channel || 'residential',
                 rate: rate || 'quote',
                 emergency: emergency || 'no',
+                emergency_base_price: emergency_base_price ? parseFloat(emergency_base_price) : null,
+                emergency_pricing_type: emergency_pricing_type || 'hourly',
                 use_cases: use_cases || []
             })
             .select()
@@ -417,6 +422,14 @@ exports.updateService = async (req, res) => {
             updates.estimated_duration = updates.estimated_duration !== '' && updates.estimated_duration != null
                 ? parseInt(updates.estimated_duration) : null;
         }
+        if ('additional_hourly_rate' in updates) {
+            updates.additional_hourly_rate = updates.additional_hourly_rate !== '' && updates.additional_hourly_rate != null
+                ? parseFloat(updates.additional_hourly_rate) : null;
+        }
+        if ('emergency_base_price' in updates) {
+            updates.emergency_base_price = updates.emergency_base_price !== '' && updates.emergency_base_price != null
+                ? parseFloat(updates.emergency_base_price) : null;
+        }
 
         // If slug is being updated, check for conflicts
         if (updates.slug) {
@@ -466,7 +479,7 @@ exports.updateService = async (req, res) => {
     }
 };
 
-// Delete service (soft delete)
+// Delete service (hard delete)
 exports.deleteService = async (req, res) => {
     try {
         if (req.profile.role !== 'admin') {
@@ -480,7 +493,7 @@ exports.deleteService = async (req, res) => {
 
         const { error } = await supabaseAdmin
             .from('services')
-            .update({ is_active: false })
+            .delete()
             .eq('id', id);
 
         if (error) {
@@ -491,7 +504,7 @@ exports.deleteService = async (req, res) => {
             });
         }
 
-        logger.info('Service deleted', { serviceId: id });
+        logger.info('Service permanently deleted', { serviceId: id });
 
         res.json({
             success: true,

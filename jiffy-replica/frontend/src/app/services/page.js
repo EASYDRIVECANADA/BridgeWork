@@ -76,20 +76,9 @@ function ServicesPageContent() {
 
   const handleServiceClick = (e, service) => {
     e.preventDefault();
-    
-    // If emergency is 'yes' (regardless of rate), show modal for user to choose
-    if (service.emergency === 'yes') {
-      setSelectedService(service);
-      setShowServiceModal(true);
-    } 
-    // If rate is 'yes' and emergency is 'no', navigate directly to rate-based page
-    else if (service.rate === 'yes' && service.emergency === 'no') {
-      window.location.href = `/services/${service.id}?type=rate`;
-    }
-    // If rate is 'quote' and emergency is 'no', navigate directly (free quote page)
-    else {
-      window.location.href = `/services/${service.id}`;
-    }
+    // Always navigate directly to the service booking page
+    // The service type selection (Free Quote vs Emergency) will be shown on that page
+    window.location.href = `/services/${service.id}`;
   };
 
   const handleModalSelection = (type) => {

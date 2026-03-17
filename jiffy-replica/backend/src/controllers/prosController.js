@@ -416,10 +416,12 @@ exports.declineJob = async (req, res) => {
 };
 
 // Submit proof of work — pro uploads photos + notes after completing the job
+// NEW FLOW: Customer pays AFTER reviewing proof (no payment required before proof submission)
+// ADDITIONAL INVOICE: Pro can optionally add extra charges (labor hours + materials)
 exports.submitJobProof = async (req, res) => {
     try {
         const { id } = req.params;
-        const { photos, notes } = req.body;
+        const { photos, notes, additional_invoice } = req.body;
 
         if (!photos || !Array.isArray(photos) || photos.length === 0) {
             return res.status(400).json({
@@ -430,7 +432,7 @@ exports.submitJobProof = async (req, res) => {
 
         const { data: proProfile } = await supabaseAdmin
             .from('pro_profiles')
-            .select('id')
+            .select('id, business_name, user_id, hourly_rate')
             .eq('user_id', req.user.id)
             .single();
 
@@ -444,7 +446,7 @@ exports.submitJobProof = async (req, res) => {
         // Only allow proof submission for accepted jobs assigned to this pro
         const { data: booking, error: fetchError } = await supabaseAdmin
             .from('bookings')
-            .select('*, transactions(id, status)')
+            .select('*')
             .eq('id', id)
             .eq('pro_id', proProfile.id)
             .in('status', ['accepted', 'in_progress'])
@@ -454,18 +456,6 @@ exports.submitJobProof = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: 'Booking not found or not in a state where proof can be submitted.'
-            });
-        }
-
-        // Check if customer has paid (held funds)
-        const hasPaid = booking.transactions && booking.transactions.some(
-            t => t.status === 'held' || t.status === 'succeeded'
-        );
-
-        if (!hasPaid) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot submit proof — customer has not paid yet.'
             });
         }
 
@@ -490,33 +480,148 @@ exports.submitJobProof = async (req, res) => {
             });
         }
 
-        // Update booking to mark proof submitted
+        // Handle additional invoice if provided
+        let additionalInvoiceData = null;
+        let finalTotalPrice = parseFloat(booking.total_price) || 0;
+        const originalAmount = finalTotalPrice;
+
+        if (additional_invoice && additional_invoice.has_additional_charges) {
+            const additionalHours = parseFloat(additional_invoice.additional_hours) || 0;
+            const hourlyRate = parseFloat(additional_invoice.hourly_rate) || parseFloat(proProfile.hourly_rate) || 0;
+            const laborTotal = additionalHours * hourlyRate;
+
+            // Calculate materials total
+            const materials = additional_invoice.materials || [];
+            let materialsTotal = 0;
+            const processedMaterials = materials.map(item => {
+                const quantity = parseFloat(item.quantity) || 0;
+                const unitPrice = parseFloat(item.unit_price) || 0;
+                const total = quantity * unitPrice;
+                materialsTotal += total;
+                return {
+                    name: item.name || '',
+                    quantity,
+                    unit_price: unitPrice,
+                    total
+                };
+            }).filter(item => item.name && item.quantity > 0);
+
+            const subtotal = laborTotal + materialsTotal;
+            const taxRate = 0.13; // 13% tax
+            const tax = subtotal * taxRate;
+            const grandTotal = originalAmount + subtotal + tax;
+
+            // Insert additional invoice record
+            const { data: invoice, error: invoiceError } = await supabaseAdmin
+                .from('additional_invoices')
+                .insert({
+                    booking_id: id,
+                    pro_id: proProfile.id,
+                    original_amount: originalAmount,
+                    additional_hours: additionalHours,
+                    hourly_rate: hourlyRate,
+                    labor_total: laborTotal,
+                    materials: processedMaterials,
+                    materials_total: materialsTotal,
+                    subtotal,
+                    tax,
+                    tax_rate: taxRate,
+                    grand_total: grandTotal,
+                    notes: additional_invoice.notes || null,
+                    status: 'pending'
+                })
+                .select()
+                .single();
+
+            if (invoiceError) {
+                logger.error('Create additional invoice error', { error: invoiceError.message });
+                // Continue without additional invoice - don't fail the whole submission
+            } else {
+                additionalInvoiceData = invoice;
+                finalTotalPrice = grandTotal;
+
+                // Update booking with additional invoice flag and new total
+                await supabaseAdmin
+                    .from('bookings')
+                    .update({
+                        has_additional_invoice: true,
+                        updated_total_price: grandTotal
+                    })
+                    .eq('id', id);
+            }
+        }
+
+        // Update booking to mark proof submitted - customer will now review and pay
         await supabaseAdmin
             .from('bookings')
             .update({
                 proof_submitted_at: new Date().toISOString(),
-                status: 'in_progress'
+                status: 'proof_submitted'  // New status: waiting for customer review & payment
             })
             .eq('id', id);
 
-        // Notify the customer to review and confirm
+        // Notify the customer to review proof and pay
+        const priceMessage = additionalInvoiceData 
+            ? `Review and pay $${finalTotalPrice.toFixed(2)} (includes additional charges) to complete.`
+            : `Review and pay $${finalTotalPrice.toFixed(2)} to complete.`;
+
         await supabaseAdmin
             .from('notifications')
             .insert({
                 user_id: booking.user_id,
                 type: 'booking',
-                title: 'Job Proof Submitted',
-                message: `The pro has submitted proof of work for booking ${booking.booking_number}. Please review and confirm the job is complete.`,
+                title: additionalInvoiceData ? 'Job Complete - Review Invoice & Pay 📸' : 'Job Complete - Review & Pay 📸',
+                message: `${proProfile.business_name || 'The pro'} has completed your ${booking.service_name} and submitted proof of work. ${priceMessage}`,
                 link: `/my-jobs`,
-                data: { booking_id: id }
+                data: { 
+                    booking_id: id, 
+                    proof_id: proof.id,
+                    has_additional_invoice: !!additionalInvoiceData,
+                    additional_invoice_id: additionalInvoiceData?.id
+                }
             });
 
-        logger.info('Job proof submitted', { bookingId: id, proId: proProfile.id, photoCount: photos.length });
+        // Notify admins with a copy of the proof
+        const { data: admins } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('role', 'admin');
+
+        for (const admin of (admins || [])) {
+            await supabaseAdmin
+                .from('notifications')
+                .insert({
+                    user_id: admin.id,
+                    type: 'system',
+                    title: additionalInvoiceData ? 'Proof + Additional Invoice Submitted' : 'Proof of Work Submitted',
+                    message: `${proProfile.business_name || 'A pro'} submitted proof for ${booking.service_name} (${booking.booking_number}).${additionalInvoiceData ? ` Additional charges: $${(finalTotalPrice - originalAmount).toFixed(2)}` : ''} Awaiting customer review.`,
+                    link: `/admin/proofs`,
+                    data: { 
+                        booking_id: id, 
+                        proof_id: proof.id,
+                        additional_invoice_id: additionalInvoiceData?.id
+                    }
+                });
+        }
+
+        logger.info('Job proof submitted', { 
+            bookingId: id, 
+            proId: proProfile.id, 
+            photoCount: photos.length,
+            hasAdditionalInvoice: !!additionalInvoiceData,
+            originalAmount,
+            finalTotal: finalTotalPrice
+        });
 
         res.json({
             success: true,
-            message: 'Proof submitted! The customer will review and confirm the job.',
-            data: { proof }
+            message: additionalInvoiceData 
+                ? 'Proof and additional invoice submitted! The customer will review and pay to complete the job.'
+                : 'Proof submitted! The customer will review and pay to complete the job.',
+            data: { 
+                proof,
+                additional_invoice: additionalInvoiceData
+            }
         });
     } catch (error) {
         logger.error('Submit job proof controller error', { error: error.message });
@@ -592,7 +697,7 @@ exports.uploadProofFiles = async (req, res) => {
     }
 };
 
-// Get proof for a booking
+// Get proof for a booking (also returns additional invoice if exists)
 exports.getJobProof = async (req, res) => {
     try {
         const { id } = req.params;
@@ -612,9 +717,19 @@ exports.getJobProof = async (req, res) => {
             });
         }
 
+        // Also fetch additional invoice if it exists
+        const { data: additionalInvoice } = await supabaseAdmin
+            .from('additional_invoices')
+            .select('*')
+            .eq('booking_id', id)
+            .single();
+
         res.json({
             success: true,
-            data: { proof }
+            data: { 
+                proof,
+                additional_invoice: additionalInvoice || null
+            }
         });
     } catch (error) {
         logger.error('Get job proof error', { error: error.message });

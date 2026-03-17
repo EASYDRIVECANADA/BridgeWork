@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star } from 'lucide-react';
+import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText } from 'lucide-react';
 import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
 import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
@@ -15,18 +15,28 @@ const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
   accepted: 'bg-blue-100 text-blue-700',
   in_progress: 'bg-purple-100 text-purple-700',
+  proof_submitted: 'bg-indigo-100 text-indigo-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   disputed: 'bg-red-100 text-red-700',
+  pending_assignment: 'bg-amber-100 text-amber-700',
+  awaiting_quotes: 'bg-orange-100 text-orange-700',
+  quote_approved: 'bg-teal-100 text-teal-700',
+  quote_pending: 'bg-orange-100 text-orange-700',
 };
 
 const statusLabels = {
   pending: 'Pending',
-  accepted: 'Accepted',
-  in_progress: 'Proof Submitted',
+  accepted: 'In Progress',
+  in_progress: 'In Progress',
+  proof_submitted: 'Review & Pay',
   completed: 'Completed',
   cancelled: 'Cancelled',
   disputed: 'Disputed',
+  pending_assignment: 'Under Review',
+  awaiting_quotes: 'Getting Quotes',
+  quote_approved: 'Quote Ready',
+  quote_pending: 'Quote Pending',
 };
 
 export default function MyJobsPage() {
@@ -99,7 +109,11 @@ export default function MyJobsPage() {
   const handleViewProof = async (bookingId) => {
     try {
       const res = await prosAPI.getJobProof(bookingId);
-      setProofModal(res.data?.data?.proof || null);
+      const data = res.data?.data;
+      setProofModal({
+        proof: data?.proof || null,
+        additional_invoice: data?.additional_invoice || null
+      });
     } catch {
       toast.error('Could not load proof of work.');
     }
@@ -141,7 +155,7 @@ export default function MyJobsPage() {
 
   const allBookings = Array.isArray(bookings) ? bookings : [];
   const activeBookings = allBookings.filter(
-    (b) => ['pending', 'accepted', 'in_progress', 'disputed'].includes(b.status)
+    (b) => ['pending', 'accepted', 'in_progress', 'proof_submitted', 'disputed', 'pending_assignment', 'awaiting_quotes', 'quote_approved', 'quote_pending'].includes(b.status)
   );
   const completedBookings = allBookings.filter((b) => b.status === 'completed');
 
@@ -196,121 +210,173 @@ export default function MyJobsPage() {
               {activeBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-4"
+                  className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
                 >
-                  <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Briefcase className="w-6 h-6 text-[#0E7480]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {booking.service_name}
-                      </p>
-                      {booking.total_price > 0 && (
-                        <span className="text-sm font-bold text-[#0E7480]">
-                          ${parseFloat(booking.total_price).toFixed(2)}
-                        </span>
-                      )}
+                  <div className="flex items-start gap-4">
+                    {/* Icon */}
+                    <div className="w-14 h-14 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Briefcase className="w-7 h-7 text-white" />
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {(booking.pro_profiles?.business_name || booking.pro_profiles?.profiles?.full_name) && (
-                        <span className="text-xs text-gray-600 font-medium">
-                          by {booking.pro_profiles?.business_name || booking.pro_profiles?.profiles?.full_name}
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Title Row */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-base font-bold text-gray-900 mb-1">
+                            {booking.service_name}
+                          </h3>
+                          {(booking.pro_profiles?.business_name || booking.pro_profiles?.profiles?.full_name) && (
+                            <p className="text-sm text-gray-600">
+                              by <span className="font-medium text-gray-900">{booking.pro_profiles?.business_name || booking.pro_profiles?.profiles?.full_name}</span>
+                            </p>
+                          )}
+                        </div>
+                        {booking.total_price > 0 && (
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-[#0E7480]">
+                              ${parseFloat(booking.updated_total_price || booking.total_price).toFixed(2)}
+                            </p>
+                            {booking.has_additional_invoice && booking.updated_total_price && (
+                              <p className="text-xs text-gray-500 line-through">
+                                ${parseFloat(booking.total_price).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details Row */}
+                      <div className="flex items-center gap-4 mb-4 flex-wrap">
+                        <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          {booking.scheduled_date
+                            ? new Date(booking.scheduled_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : ''}
                         </span>
-                      )}
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {booking.scheduled_date
-                          ? new Date(booking.scheduled_date).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })
-                          : ''}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {booking.scheduled_time || ''}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {booking.city}, {booking.state}
-                      </span>
+                        <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          {booking.scheduled_time || ''}
+                        </span>
+                        <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          {booking.city}, {booking.state}
+                        </span>
+                      </div>
+
+                      {/* Status & Actions Row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Status Badge */}
+                        <span
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${
+                            statusColors[booking.status] || 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {statusLabels[booking.status] || booking.status}
+                        </span>
+
+                        {/* Payment Status */}
+                        {booking.transactions?.some(t => t.status === 'succeeded') ? (
+                          <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 flex items-center gap-1.5">
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Paid
+                          </span>
+                        ) : booking.transactions?.some(t => t.status === 'held') ? (
+                          <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            Funds Held
+                          </span>
+                        ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && booking.status !== 'disputed' ? (
+                          <Link
+                            href={`/checkout/${booking.id}`}
+                            className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#0E7480] text-white hover:bg-[#0a5a63] transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Pay Now
+                          </Link>
+                        ) : null}
+
+                        {/* Cancel button */}
+                        {['pending', 'accepted'].includes(booking.status) && !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && (
+                          <button
+                            onClick={() => { setCancelModal(booking.id); setCancelReason(''); }}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-1.5"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        )}
+
+                        {/* Proof Submitted - Customer reviews and pays */}
+                        {booking.status === 'proof_submitted' && (
+                          <>
+                            <button
+                              onClick={() => handleViewProof(booking.id)}
+                              className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 transition-colors flex items-center gap-1.5"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Proof
+                            </button>
+                            <Link
+                              href={`/checkout/${booking.id}`}
+                              className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              Approve & Pay
+                            </Link>
+                            <button
+                              onClick={() => { setDisputeModal(booking.id); setDisputeReason(''); }}
+                              className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-1.5"
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                              Dispute
+                            </button>
+                          </>
+                        )}
+
+                        {/* Legacy: in_progress with proof (for backward compatibility) */}
+                        {booking.status === 'in_progress' && booking.proof_submitted_at && (
+                          <>
+                            <button
+                              onClick={() => handleViewProof(booking.id)}
+                              className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 transition-colors flex items-center gap-1.5"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View Proof
+                            </button>
+                            <button
+                              onClick={() => handleConfirmJob(booking.id)}
+                              disabled={actionLoading === booking.id}
+                              className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                              {actionLoading === booking.id ? 'Processing...' : 'Confirm & Pay'}
+                            </button>
+                            <button
+                              onClick={() => { setDisputeModal(booking.id); setDisputeReason(''); }}
+                              className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-1.5"
+                            >
+                              <ShieldAlert className="w-4 h-4" />
+                              Dispute
+                            </button>
+                          </>
+                        )}
+
+                        {/* Message Pro */}
+                        {(booking.status === 'accepted' || booking.status === 'in_progress' || booking.status === 'proof_submitted') && (
+                          <Link
+                            href={`/messages/${booking.id}`}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg text-[#0E7480] hover:bg-[#0E7480]/10 border border-[#0E7480]/20 transition-colors flex items-center gap-1.5"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            Message
+                          </Link>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                      statusColors[booking.status] || 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {statusLabels[booking.status] || booking.status}
-                  </span>
-                  {/* Payment Status */}
-                  {booking.transactions?.some(t => t.status === 'succeeded') ? (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-600 flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      Paid
-                    </span>
-                  ) : booking.transactions?.some(t => t.status === 'held') ? (
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Funds Held
-                    </span>
-                  ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && booking.status !== 'disputed' ? (
-                    <Link
-                      href={`/checkout/${booking.id}`}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
-                    >
-                      <CreditCard className="w-3 h-3" />
-                      Pay Now
-                    </Link>
-                  ) : null}
-                  {/* Cancel button — only for pending bookings with NO payment held/succeeded */}
-                  {['pending', 'accepted'].includes(booking.status) && !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && (
-                    <button
-                      onClick={() => { setCancelModal(booking.id); setCancelReason(''); }}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      Cancel
-                    </button>
-                  )}
-                  {/* Actions based on status */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {booking.status === 'in_progress' && booking.proof_submitted_at && (
-                      <>
-                        <button
-                          onClick={() => handleViewProof(booking.id)}
-                          className="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
-                        >
-                          <Eye className="w-3 h-3" />
-                          View Proof
-                        </button>
-                        <button
-                          onClick={() => handleConfirmJob(booking.id)}
-                          disabled={actionLoading === booking.id}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <ShieldCheck className="w-3 h-3" />
-                          {actionLoading === booking.id ? 'Processing...' : 'Confirm & Pay'}
-                        </button>
-                        <button
-                          onClick={() => { setDisputeModal(booking.id); setDisputeReason(''); }}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1"
-                        >
-                          <ShieldAlert className="w-3 h-3" />
-                          Dispute
-                        </button>
-                      </>
-                    )}
-                    {(booking.status === 'accepted' || booking.status === 'in_progress') && (
-                      <Link
-                        href={`/messages/${booking.id}`}
-                        className="text-xs text-[#0E7480] hover:underline font-medium flex items-center gap-1"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Message
-                      </Link>
-                    )}
                   </div>
                 </div>
               ))}
@@ -409,7 +475,7 @@ export default function MyJobsPage() {
                           </p>
                           {booking.total_price > 0 && (
                             <span className="text-sm font-bold text-green-600">
-                              ${parseFloat(booking.total_price).toFixed(2)}
+                              ${parseFloat(booking.updated_total_price || booking.total_price).toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -511,19 +577,81 @@ export default function MyJobsPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              {proofModal.notes && (
-                <p className="text-sm text-gray-700 mb-4 bg-gray-50 rounded-lg p-3">{proofModal.notes}</p>
+              {proofModal.proof?.notes && (
+                <p className="text-sm text-gray-700 mb-4 bg-gray-50 rounded-lg p-3">{proofModal.proof.notes}</p>
               )}
               <div className="grid grid-cols-2 gap-3">
-                {(proofModal.photos || []).map((photo, i) => (
+                {(proofModal.proof?.photos || []).map((photo, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
                     <Image src={photo} alt={`Proof ${i + 1}`} fill className="object-cover" unoptimized />
                   </div>
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                Submitted: {proofModal.submitted_at ? new Date(proofModal.submitted_at).toLocaleString() : 'N/A'}
+                Submitted: {proofModal.proof?.submitted_at ? new Date(proofModal.proof.submitted_at).toLocaleString() : 'N/A'}
               </p>
+
+              {/* Additional Invoice Section */}
+              {proofModal.additional_invoice && (
+                <div className="mt-4 border border-[#0E7480]/30 rounded-lg p-4 bg-[#0E7480]/5">
+                  <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#0E7480]" />
+                    Additional Invoice
+                  </h4>
+                  
+                  {/* Original Amount */}
+                  <div className="flex justify-between text-sm mb-2 pb-2 border-b border-gray-200">
+                    <span className="text-gray-600">Original Booking:</span>
+                    <span className="font-medium text-gray-900">${parseFloat(proofModal.additional_invoice.original_amount || 0).toFixed(2)}</span>
+                  </div>
+
+                  {/* Additional Labor */}
+                  {proofModal.additional_invoice.additional_hours > 0 && (
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">
+                        Additional Labor ({proofModal.additional_invoice.additional_hours}hrs × ${parseFloat(proofModal.additional_invoice.hourly_rate || 0).toFixed(2)}/hr):
+                      </span>
+                      <span className="text-gray-900">${parseFloat(proofModal.additional_invoice.labor_total || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {/* Materials */}
+                  {proofModal.additional_invoice.materials && proofModal.additional_invoice.materials.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs font-medium text-gray-600 mb-1">Materials:</p>
+                      {proofModal.additional_invoice.materials.map((item, i) => (
+                        <div key={i} className="flex justify-between text-xs text-gray-600 pl-2">
+                          <span>{item.name} ({item.quantity} × ${parseFloat(item.unit_price || 0).toFixed(2)})</span>
+                          <span>${parseFloat(item.total || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm mt-1">
+                        <span className="text-gray-600">Materials Total:</span>
+                        <span className="text-gray-900">${parseFloat(proofModal.additional_invoice.materials_total || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tax */}
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Tax ({((proofModal.additional_invoice.tax_rate || 0.13) * 100).toFixed(0)}%):</span>
+                    <span className="text-gray-900">${parseFloat(proofModal.additional_invoice.tax || 0).toFixed(2)}</span>
+                  </div>
+
+                  {/* Grand Total */}
+                  <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-300">
+                    <span className="text-gray-900">NEW TOTAL:</span>
+                    <span className="text-[#0E7480]">${parseFloat(proofModal.additional_invoice.grand_total || 0).toFixed(2)}</span>
+                  </div>
+
+                  {/* Invoice Notes */}
+                  {proofModal.additional_invoice.notes && (
+                    <p className="text-xs text-gray-600 mt-2 bg-gray-100 rounded p-2">
+                      <span className="font-medium">Note:</span> {proofModal.additional_invoice.notes}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

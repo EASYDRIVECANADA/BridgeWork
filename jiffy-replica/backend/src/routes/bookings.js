@@ -6,7 +6,155 @@ const validate = require('../middleware/validate');
 
 const router = express.Router();
 
-// ==================== ADMIN: QUOTE REQUESTS ====================
+// ==================== PRO: QUOTATION ENDPOINTS ====================
+
+// Get all quote requests available for pro to bid on
+router.get('/pro/quote-requests',
+    authenticate,
+    authorize('pro'),
+    bookingsController.getQuoteRequestsForPro
+);
+
+// Get single quote request details for pro
+router.get('/pro/quote-requests/:id',
+    authenticate,
+    authorize('pro'),
+    [
+        param('id').isUUID(),
+        validate
+    ],
+    bookingsController.getQuoteRequestDetail
+);
+
+// Submit quotation for a booking
+router.post('/pro/quote-requests/:id/submit',
+    authenticate,
+    authorize('pro'),
+    [
+        param('id').isUUID(),
+        body('quoted_price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
+        body('description').optional().trim(),
+        body('estimated_duration').optional().isInt({ min: 1 }),
+        body('materials_included').optional().isBoolean(),
+        body('warranty_info').optional().trim(),
+        body('notes').optional().trim(),
+        validate
+    ],
+    bookingsController.submitQuotation
+);
+
+// Get pro's own submitted quotations
+router.get('/pro/my-quotations',
+    authenticate,
+    authorize('pro'),
+    bookingsController.getMyQuotations
+);
+
+// ==================== ADMIN: QUOTE ASSIGNMENT MANAGEMENT ====================
+
+// Get all pending quote requests that need pro assignment
+router.get('/admin/pending-assignments',
+    authenticate,
+    authorize('admin'),
+    bookingsController.getPendingAssignments
+);
+
+// Get available pros for a specific quote request
+router.get('/admin/available-pros/:bookingId',
+    authenticate,
+    authorize('admin'),
+    [
+        param('bookingId').isUUID(),
+        validate
+    ],
+    bookingsController.getAvailableProsForQuote
+);
+
+// Assign pros to a quote request
+router.post('/admin/assign-pros',
+    authenticate,
+    authorize('admin'),
+    [
+        body('bookingId').isUUID(),
+        body('proIds').isArray({ min: 1 }),
+        validate
+    ],
+    bookingsController.assignProsToQuote
+);
+
+// Get assignment details for a booking
+router.get('/admin/assignments/:bookingId',
+    authenticate,
+    authorize('admin'),
+    [
+        param('bookingId').isUUID(),
+        validate
+    ],
+    bookingsController.getBookingAssignments
+);
+
+// Remove a pro from a quote assignment
+router.delete('/admin/assignments/:bookingId/:proId',
+    authenticate,
+    authorize('admin'),
+    [
+        param('bookingId').isUUID(),
+        param('proId').isUUID(),
+        validate
+    ],
+    bookingsController.removeProAssignment
+);
+
+// ==================== ADMIN: MULTI-QUOTATION MANAGEMENT ====================
+
+// Get all bookings with their quotations
+router.get('/admin/quotations',
+    authenticate,
+    authorize('admin'),
+    bookingsController.getAllQuotations
+);
+
+// Select a winning quotation
+router.put('/admin/quotations/:bookingId/select/:quotationId',
+    authenticate,
+    authorize('admin'),
+    [
+        param('bookingId').isUUID(),
+        param('quotationId').isUUID(),
+        body('admin_notes').optional().trim(),
+        validate
+    ],
+    bookingsController.selectQuotation
+);
+
+// ==================== ADMIN: PROOFS & DISPUTES ====================
+
+// Get all submitted proofs
+router.get('/admin/proofs',
+    authenticate,
+    authorize('admin'),
+    bookingsController.getAllProofs
+);
+
+// Get all disputed bookings
+router.get('/admin/disputes',
+    authenticate,
+    authorize('admin'),
+    bookingsController.getAllDisputes
+);
+
+// Get dispute details with messages
+router.get('/admin/disputes/:bookingId',
+    authenticate,
+    authorize('admin'),
+    [
+        param('bookingId').isUUID(),
+        validate
+    ],
+    bookingsController.getDisputeDetails
+);
+
+// ==================== ADMIN: LEGACY QUOTE REQUESTS (for backward compatibility) ====================
 
 // Get all quote_pending bookings (Free Quote requests awaiting pricing)
 router.get('/admin/quote-requests', 

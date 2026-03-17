@@ -90,6 +90,9 @@ export default function Navbar() {
                     <Link href="/pro-dashboard" className={navLinkClass}>
                       Pro Dashboard
                     </Link>
+                    <Link href="/pro-dashboard/quote-requests" className={navLinkClass}>
+                      Quote Requests
+                    </Link>
                     <Link href="/pro-dashboard/quotes" className={navLinkClass}>
                       Quotes
                     </Link>
@@ -100,8 +103,8 @@ export default function Navbar() {
                       Explore Services
                     </button>
                     {isAuthenticated && (
-                      <Link href="/dashboard/quotes" className={navLinkClass}>
-                        Quotes
+                      <Link href="/dashboard/invoices" className={navLinkClass}>
+                        Invoices
                       </Link>
                     )}
                   </>
@@ -128,8 +131,11 @@ export default function Navbar() {
                     <Link href="/admin/pro-applications" className={navLinkClass}>
                       Pro Applications
                     </Link>
-                    <Link href="/admin/quote-requests" className={navLinkClass}>
-                      Quotes
+                    <Link href="/admin/quote-assignments" className={navLinkClass}>
+                      Assign Quotes
+                    </Link>
+                    <Link href="/admin/quotations" className={navLinkClass}>
+                      Quotations
                     </Link>
                     <Link href="/admin/invitations" className={navLinkClass}>
                       Admins
@@ -215,8 +221,11 @@ export default function Navbar() {
                   <Link href="/admin/pro-applications" className={navMobileLinkClass}>
                     Pro Applications
                   </Link>
-                  <Link href="/admin/quote-requests" className={navMobileLinkClass}>
-                    Quote Requests
+                  <Link href="/admin/quote-assignments" className={navMobileLinkClass}>
+                    Assign Quotes
+                  </Link>
+                  <Link href="/admin/quotations" className={navMobileLinkClass}>
+                    Quotations
                   </Link>
                   <Link href="/admin/support-chat" className={navMobileLinkClass}>
                     Support Chat
@@ -235,6 +244,9 @@ export default function Navbar() {
                 <>
                   <Link href="/pro-dashboard" className={navMobileLinkClass}>
                     Pro Dashboard
+                  </Link>
+                  <Link href="/pro-dashboard/quote-requests" className={navMobileLinkClass}>
+                    Quote Requests
                   </Link>
                   <Link href="/pro-dashboard/quotes" className={navMobileLinkClass}>
                     Quotes & Invoices
@@ -255,8 +267,8 @@ export default function Navbar() {
                     Explore Services
                   </button>
                   {isAuthenticated && (
-                    <Link href="/dashboard/quotes" className={navMobileLinkClass}>
-                      Quotes & Invoices
+                    <Link href="/dashboard/invoices" className={navMobileLinkClass}>
+                      Invoices
                     </Link>
                   )}
                   {isAuthenticated ? (

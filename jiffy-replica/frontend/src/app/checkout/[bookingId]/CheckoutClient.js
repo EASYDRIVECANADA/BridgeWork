@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { bookingsAPI, paymentsAPI } from '@/lib/api';
+import { bookingsAPI, paymentsAPI, settingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 import {
   ArrowLeft,
@@ -101,7 +101,7 @@ function CheckoutForm({ booking, clientSecret, paymentIntentId }) {
         ) : (
           <>
             <Lock className="w-4 h-4" />
-            Pay ${booking.total_price?.toFixed(2) || '0.00'}
+            Pay ${(booking.updated_total_price || booking.total_price)?.toFixed(2) || '0.00'}
           </>
         )}
       </button>
@@ -125,6 +125,7 @@ export default function CheckoutClient() {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [creatingIntent, setCreatingIntent] = useState(false);
+  const [taxRate, setTaxRate] = useState(13); // Default 13%, fetched from API
   const fetchedRef = useRef(false);
 
   // Fetch booking details — only once, with retry logic for database replication lag
@@ -139,14 +140,29 @@ export default function CheckoutClient() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
+    // Fetch tax rate for display
+    const fetchTaxRate = async () => {
+      try {
+        const res = await settingsAPI.getTaxRate('quote');
+        const rate = res.data?.data?.tax_rate;
+        if (rate !== undefined) {
+          setTaxRate(rate);
+        }
+      } catch (err) {
+        console.error('Failed to fetch tax rate:', err);
+      }
+    };
+
     const fetchBooking = async (retries = 3, delay = 800) => {
       try {
         const res = await bookingsAPI.getById(bookingId);
         const bookingData = res.data.data.booking;
         setBooking(bookingData);
+        fetchTaxRate(); // Fetch tax rate for display
 
-        // Allow payment for pending (escrow hold) or accepted bookings
-        if (!['pending', 'accepted'].includes(bookingData.status)) {
+        // Allow payment for pending, accepted, or proof_submitted bookings
+        // proof_submitted = new flow where customer pays AFTER reviewing proof
+        if (!['pending', 'accepted', 'proof_submitted'].includes(bookingData.status)) {
           toast.info('This booking has already been processed.');
           router.push('/dashboard');
           return;
@@ -408,13 +424,13 @@ export default function CheckoutClient() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax (8%)</span>
+                  <span className="text-gray-600">Tax ({taxRate}%)</span>
                   <span className="text-gray-900">${parseFloat(booking.tax || 0).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-2 flex justify-between">
                   <span className="text-base font-bold text-gray-900">Total</span>
                   <span className="text-base font-bold text-gray-900">
-                    ${parseFloat(booking.total_price || 0).toFixed(2)}
+                    ${parseFloat(booking.updated_total_price || booking.total_price || 0).toFixed(2)}
                   </span>
                 </div>
               </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { paymentsAPI, prosAPI, quotesAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, quotesAPI, settingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import {
   FileText,
   Eye,
   Send,
+  Calculator,
 } from 'lucide-react';
 
 const txStatusConfig = {
@@ -61,6 +62,17 @@ export default function AdminRevenuePage() {
   const [qiSubTab, setQiSubTab] = useState('quotes');
   const [qiPage, setQiPage] = useState(0);
   const QI_PAGE_SIZE = 15;
+  
+  // Tax settings state
+  const [taxSettings, setTaxSettings] = useState({
+    rate: 13,
+    quote: 13,
+    emergency: 13
+  });
+  const [taxLoading, setTaxLoading] = useState(false);
+  const [editingTaxType, setEditingTaxType] = useState(null);
+  const [editTaxValue, setEditTaxValue] = useState('');
+  const [savingTax, setSavingTax] = useState(false);
 
   useEffect(() => {
     if (!authInitialized) return;
@@ -76,7 +88,46 @@ export default function AdminRevenuePage() {
     fetchRevenue();
     fetchPros();
     fetchQuotesInvoices();
+    fetchTaxSettings();
   }, [user, authInitialized, profile, router]);
+
+  const fetchTaxSettings = async () => {
+    setTaxLoading(true);
+    try {
+      const res = await settingsAPI.getTaxSettings();
+      const settings = res.data?.data?.settings || [];
+      const newTaxSettings = { rate: 13, quote: 13, emergency: 13 };
+      settings.forEach(s => {
+        if (s.service_type && s.value !== undefined) {
+          newTaxSettings[s.service_type] = s.value;
+        }
+      });
+      setTaxSettings(newTaxSettings);
+    } catch (err) {
+      console.error('[ADMIN] Tax settings error:', err);
+    }
+    setTaxLoading(false);
+  };
+
+  const handleSaveTax = async (serviceType) => {
+    setSavingTax(true);
+    try {
+      const value = parseFloat(editTaxValue);
+      if (isNaN(value) || value < 0 || value > 100) {
+        toast.error('Tax rate must be between 0 and 100');
+        setSavingTax(false);
+        return;
+      }
+      const res = await settingsAPI.updateTaxSetting(serviceType, { value });
+      toast.success(res.data?.message || 'Tax rate updated');
+      setEditingTaxType(null);
+      setEditTaxValue('');
+      fetchTaxSettings();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update tax rate');
+    }
+    setSavingTax(false);
+  };
 
   const fetchRevenue = async () => {
     setLoading(true);
@@ -235,6 +286,17 @@ export default function AdminRevenuePage() {
           >
             <FileText className="w-4 h-4" />
             Quotes & Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab('tax')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+              activeTab === 'tax'
+                ? 'bg-[#0E7480] text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Calculator className="w-4 h-4" />
+            Tax Management
           </button>
         </div>
 
@@ -534,6 +596,227 @@ export default function AdminRevenuePage() {
                 })()}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ==================== TAX MANAGEMENT TAB ==================== */}
+        {activeTab === 'tax' && (
+          <div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Tax Rate Settings</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Configure tax rates for different service types. Default: 13%</p>
+                </div>
+                <button
+                  onClick={fetchTaxSettings}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Refresh"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {taxLoading ? (
+                <div className="px-6 py-12 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Loading tax settings...</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {/* Rate-based Services */}
+                  <div className="px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <DollarSign className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Rate-based Services</p>
+                        <p className="text-xs text-gray-500">Services with fixed hourly or per-job rates</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {editingTaxType === 'rate' ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={editTaxValue}
+                              onChange={(e) => setEditTaxValue(e.target.value)}
+                              className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
+                              placeholder="13"
+                            />
+                            <span className="text-gray-500 font-medium">%</span>
+                          </div>
+                          <button
+                            onClick={() => handleSaveTax('rate')}
+                            disabled={savingTax}
+                            className="px-3 py-2 bg-[#0E7480] text-white rounded-lg text-sm font-medium hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {savingTax ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => { setEditingTaxType(null); setEditTaxValue(''); }}
+                            className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900">{taxSettings.rate}%</p>
+                            <p className="text-xs text-gray-400">current rate</p>
+                          </div>
+                          <button
+                            onClick={() => { setEditingTaxType('rate'); setEditTaxValue(taxSettings.rate.toString()); }}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Free Quote Services */}
+                  <div className="px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Free Quote Services</p>
+                        <p className="text-xs text-gray-500">Services that require custom quotes from pros</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {editingTaxType === 'quote' ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={editTaxValue}
+                              onChange={(e) => setEditTaxValue(e.target.value)}
+                              className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
+                              placeholder="13"
+                            />
+                            <span className="text-gray-500 font-medium">%</span>
+                          </div>
+                          <button
+                            onClick={() => handleSaveTax('quote')}
+                            disabled={savingTax}
+                            className="px-3 py-2 bg-[#0E7480] text-white rounded-lg text-sm font-medium hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {savingTax ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => { setEditingTaxType(null); setEditTaxValue(''); }}
+                            className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900">{taxSettings.quote}%</p>
+                            <p className="text-xs text-gray-400">current rate</p>
+                          </div>
+                          <button
+                            onClick={() => { setEditingTaxType('quote'); setEditTaxValue(taxSettings.quote.toString()); }}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Emergency Services */}
+                  <div className="px-6 py-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                        <AlertTriangle className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Emergency Services</p>
+                        <p className="text-xs text-gray-500">24/7 urgent services with priority response</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {editingTaxType === 'emergency' ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={editTaxValue}
+                              onChange={(e) => setEditTaxValue(e.target.value)}
+                              className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
+                              placeholder="13"
+                            />
+                            <span className="text-gray-500 font-medium">%</span>
+                          </div>
+                          <button
+                            onClick={() => handleSaveTax('emergency')}
+                            disabled={savingTax}
+                            className="px-3 py-2 bg-[#0E7480] text-white rounded-lg text-sm font-medium hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {savingTax ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => { setEditingTaxType(null); setEditTaxValue(''); }}
+                            className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900">{taxSettings.emergency}%</p>
+                            <p className="text-xs text-gray-400">current rate</p>
+                          </div>
+                          <button
+                            onClick={() => { setEditingTaxType('emergency'); setEditTaxValue(taxSettings.emergency.toString()); }}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info Box */}
+              <div className="px-6 py-4 bg-amber-50 border-t border-amber-100">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Tax Rate Information</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Tax rates are applied to the total service price at checkout. Changes will affect all new bookings immediately.
+                      Existing bookings will retain their original tax rates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

@@ -23,8 +23,9 @@ exports.createPaymentIntent = async (req, res) => {
             });
         }
 
-        // Allow payment at booking time (pending) or after pro accepts (accepted)
-        if (!['pending', 'accepted'].includes(booking.status)) {
+        // Allow payment at booking time (pending), after pro accepts (accepted), or after proof submitted
+        // proof_submitted = new flow where customer pays AFTER reviewing proof of work
+        if (!['pending', 'accepted', 'proof_submitted'].includes(booking.status)) {
             return res.status(400).json({
                 success: false,
                 message: 'Payment is not available for this booking status.'
@@ -74,14 +75,17 @@ exports.createPaymentIntent = async (req, res) => {
         }
 
         // Build payment intent params with MANUAL capture (escrow hold)
+        // Use updated_total_price if additional invoice exists, otherwise use total_price
+        const finalAmount = booking.updated_total_price || booking.total_price;
         const paymentIntentParams = {
-            amount: Math.round(booking.total_price * 100),
+            amount: Math.round(finalAmount * 100),
             currency: 'cad',
             customer: customerId,
             capture_method: 'manual', // ESCROW: authorize but don't charge yet
             metadata: {
                 booking_id: booking.id,
-                user_id: req.user.id
+                user_id: req.user.id,
+                has_additional_invoice: booking.has_additional_invoice || false
             },
             description: `Payment hold for ${booking.service_name}`
         };
@@ -718,7 +722,7 @@ exports.cancelHeldPayment = async (req, res) => {
     }
 };
 
-// Dispute a booking — user claims pro didn't do the job
+// Dispute a booking — user disputes the proof of work
 exports.disputeBooking = async (req, res) => {
     try {
         const { booking_id, reason } = req.body;
@@ -735,7 +739,7 @@ exports.disputeBooking = async (req, res) => {
             .select('*')
             .eq('id', booking_id)
             .eq('user_id', req.user.id)
-            .in('status', ['accepted', 'in_progress'])
+            .in('status', ['accepted', 'in_progress', 'proof_submitted'])
             .single();
 
         if (error || !booking) {
@@ -750,9 +754,20 @@ exports.disputeBooking = async (req, res) => {
             .update({
                 status: 'disputed',
                 disputed_at: new Date().toISOString(),
-                dispute_reason: reason
+                dispute_reason: reason,
+                dispute_status: 'open'
             })
             .eq('id', booking_id);
+
+        // Create initial dispute message from customer
+        await supabaseAdmin
+            .from('dispute_messages')
+            .insert({
+                booking_id: booking_id,
+                sender_id: req.user.id,
+                sender_role: 'customer',
+                message: reason
+            });
 
         // Notify admins
         const { data: admins } = await supabaseAdmin
@@ -766,9 +781,9 @@ exports.disputeBooking = async (req, res) => {
                 .insert({
                     user_id: admin.id,
                     type: 'system',
-                    title: 'New Dispute',
-                    message: `Booking ${booking.booking_number} has been disputed. Reason: ${reason}`,
-                    link: `/admin/disputes/${booking_id}`,
+                    title: '🚨 New Dispute - Action Required',
+                    message: `Booking ${booking.booking_number} has been disputed. Customer needs assistance. Reason: ${reason.substring(0, 100)}...`,
+                    link: `/admin/disputes`,
                     data: { booking_id }
                 });
         }
@@ -788,8 +803,8 @@ exports.disputeBooking = async (req, res) => {
                         user_id: proProfile.user_id,
                         type: 'booking',
                         title: 'Job Disputed',
-                        message: `The customer has disputed booking ${booking.booking_number}. An admin will review.`,
-                        link: `/pro/bookings/${booking_id}`,
+                        message: `The customer has disputed booking ${booking.booking_number}. An admin will review and contact you if needed.`,
+                        link: `/pro-dashboard/jobs`,
                         data: { booking_id }
                     });
             }
@@ -799,7 +814,7 @@ exports.disputeBooking = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Dispute submitted. An admin will review and resolve it.',
+            message: 'Dispute submitted. An admin will contact you shortly to resolve this.',
             data: { status: 'disputed' }
         });
     } catch (error) {
@@ -808,6 +823,265 @@ exports.disputeBooking = async (req, res) => {
             success: false,
             message: 'Failed to submit dispute'
         });
+    }
+};
+
+// Get dispute messages for a booking (customer or admin)
+exports.getDisputeMessages = async (req, res) => {
+    try {
+        const { booking_id } = req.params;
+
+        // Verify access - customer owns booking or user is admin
+        const { data: booking } = await supabaseAdmin
+            .from('bookings')
+            .select('user_id, status')
+            .eq('id', booking_id)
+            .single();
+
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Booking not found' });
+        }
+
+        const isAdmin = req.profile?.role === 'admin';
+        const isCustomer = booking.user_id === req.user.id;
+
+        if (!isAdmin && !isCustomer) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const { data: messages, error } = await supabaseAdmin
+            .from('dispute_messages')
+            .select(`
+                *,
+                sender:profiles!dispute_messages_sender_id_fkey (
+                    id, full_name, avatar_url, role
+                )
+            `)
+            .eq('booking_id', booking_id)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            logger.error('Get dispute messages error', { error: error.message });
+            return res.status(500).json({ success: false, message: 'Failed to fetch messages' });
+        }
+
+        // Mark messages as read
+        if (isCustomer) {
+            await supabaseAdmin
+                .from('dispute_messages')
+                .update({ is_read: true, read_at: new Date().toISOString() })
+                .eq('booking_id', booking_id)
+                .eq('sender_role', 'admin')
+                .eq('is_read', false);
+        } else if (isAdmin) {
+            await supabaseAdmin
+                .from('dispute_messages')
+                .update({ is_read: true, read_at: new Date().toISOString() })
+                .eq('booking_id', booking_id)
+                .eq('sender_role', 'customer')
+                .eq('is_read', false);
+        }
+
+        res.json({ success: true, data: { messages } });
+    } catch (error) {
+        logger.error('Get dispute messages error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to fetch messages' });
+    }
+};
+
+// Send dispute message (customer or admin)
+exports.sendDisputeMessage = async (req, res) => {
+    try {
+        const { booking_id } = req.params;
+        const { message } = req.body;
+
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({ success: false, message: 'Message is required' });
+        }
+
+        // Verify access
+        const { data: booking } = await supabaseAdmin
+            .from('bookings')
+            .select('user_id, status, booking_number')
+            .eq('id', booking_id)
+            .eq('status', 'disputed')
+            .single();
+
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Disputed booking not found' });
+        }
+
+        const isAdmin = req.profile?.role === 'admin';
+        const isCustomer = booking.user_id === req.user.id;
+
+        if (!isAdmin && !isCustomer) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const senderRole = isAdmin ? 'admin' : 'customer';
+
+        const { data: newMessage, error } = await supabaseAdmin
+            .from('dispute_messages')
+            .insert({
+                booking_id,
+                sender_id: req.user.id,
+                sender_role: senderRole,
+                message: message.trim()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            logger.error('Send dispute message error', { error: error.message });
+            return res.status(500).json({ success: false, message: 'Failed to send message' });
+        }
+
+        // Notify the other party
+        if (isAdmin) {
+            // Notify customer
+            await supabaseAdmin
+                .from('notifications')
+                .insert({
+                    user_id: booking.user_id,
+                    type: 'system',
+                    title: 'New Message from Support',
+                    message: `Admin replied to your dispute for booking ${booking.booking_number}`,
+                    link: `/my-jobs?dispute=${booking_id}`,
+                    data: { booking_id }
+                });
+        } else {
+            // Notify admins
+            const { data: admins } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('role', 'admin');
+
+            for (const admin of (admins || [])) {
+                await supabaseAdmin
+                    .from('notifications')
+                    .insert({
+                        user_id: admin.id,
+                        type: 'system',
+                        title: 'Customer Replied to Dispute',
+                        message: `New message in dispute for booking ${booking.booking_number}`,
+                        link: `/admin/disputes`,
+                        data: { booking_id }
+                    });
+            }
+        }
+
+        res.json({ success: true, data: { message: newMessage } });
+    } catch (error) {
+        logger.error('Send dispute message error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to send message' });
+    }
+};
+
+// Admin: Resolve dispute
+exports.resolveDispute = async (req, res) => {
+    try {
+        const { booking_id } = req.params;
+        const { resolution, action } = req.body;
+        // action: 'approve' (force customer to pay), 'revision' (pro must redo), 'refund' (cancel job)
+
+        if (!resolution || !action) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Resolution notes and action are required' 
+            });
+        }
+
+        const { data: booking, error: bookingError } = await supabaseAdmin
+            .from('bookings')
+            .select('*, pro_profiles(user_id, business_name)')
+            .eq('id', booking_id)
+            .eq('status', 'disputed')
+            .single();
+
+        if (bookingError || !booking) {
+            return res.status(404).json({ success: false, message: 'Disputed booking not found' });
+        }
+
+        let newStatus = 'disputed';
+        let customerMessage = '';
+        let proMessage = '';
+
+        if (action === 'approve') {
+            // Admin approves the proof - customer must pay
+            newStatus = 'proof_submitted';
+            customerMessage = `Your dispute has been reviewed. The admin has approved the proof of work. Please proceed to payment.`;
+            proMessage = `The dispute for booking ${booking.booking_number} has been resolved in your favor. Customer will proceed to payment.`;
+        } else if (action === 'revision') {
+            // Pro must redo the work
+            newStatus = 'accepted';
+            customerMessage = `Your dispute has been reviewed. The pro will revise their work and submit new proof.`;
+            proMessage = `The dispute for booking ${booking.booking_number} requires you to revise your work. Please complete the revisions and submit new proof.`;
+        } else if (action === 'refund') {
+            // Cancel the job
+            newStatus = 'cancelled';
+            customerMessage = `Your dispute has been resolved. The job has been cancelled.`;
+            proMessage = `The dispute for booking ${booking.booking_number} has resulted in job cancellation.`;
+        }
+
+        await supabaseAdmin
+            .from('bookings')
+            .update({
+                status: newStatus,
+                dispute_status: 'resolved',
+                dispute_resolved_at: new Date().toISOString(),
+                dispute_resolution: resolution,
+                dispute_admin_id: req.user.id,
+                ...(action === 'refund' ? { cancelled_at: new Date().toISOString() } : {}),
+                ...(action === 'revision' ? { proof_submitted_at: null } : {})
+            })
+            .eq('id', booking_id);
+
+        // Send resolution message in chat
+        await supabaseAdmin
+            .from('dispute_messages')
+            .insert({
+                booking_id,
+                sender_id: req.user.id,
+                sender_role: 'admin',
+                message: `🔔 DISPUTE RESOLVED: ${resolution}\n\nAction taken: ${action.toUpperCase()}`
+            });
+
+        // Notify customer
+        await supabaseAdmin
+            .from('notifications')
+            .insert({
+                user_id: booking.user_id,
+                type: 'system',
+                title: 'Dispute Resolved',
+                message: customerMessage,
+                link: `/my-jobs`,
+                data: { booking_id }
+            });
+
+        // Notify pro
+        if (booking.pro_profiles?.user_id) {
+            await supabaseAdmin
+                .from('notifications')
+                .insert({
+                    user_id: booking.pro_profiles.user_id,
+                    type: 'booking',
+                    title: 'Dispute Resolved',
+                    message: proMessage,
+                    link: `/pro-dashboard/jobs`,
+                    data: { booking_id }
+                });
+        }
+
+        logger.info('Dispute resolved', { bookingId: booking_id, action, adminId: req.user.id });
+
+        res.json({
+            success: true,
+            message: `Dispute resolved with action: ${action}`,
+            data: { status: newStatus }
+        });
+    } catch (error) {
+        logger.error('Resolve dispute error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to resolve dispute' });
     }
 };
 

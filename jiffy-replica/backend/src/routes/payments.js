@@ -54,6 +54,26 @@ router.post('/dispute', authenticate,
     paymentsController.disputeBooking
 );
 
+// Dispute chat routes
+router.get('/disputes/:booking_id/messages', authenticate, paymentsController.getDisputeMessages);
+router.post('/disputes/:booking_id/messages', authenticate,
+    [
+        body('message').trim().notEmpty(),
+        validate
+    ],
+    paymentsController.sendDisputeMessage
+);
+
+// Admin: Resolve dispute
+router.post('/admin/disputes/:booking_id/resolve', authenticate, authorize('admin'),
+    [
+        body('resolution').trim().notEmpty(),
+        body('action').isIn(['approve', 'revision', 'refund']),
+        validate
+    ],
+    paymentsController.resolveDispute
+);
+
 // Stripe Connect routes (pro payouts)
 router.post('/connect/onboard', authenticate, authorize('pro'), stripeConnectController.createConnectAccount);
 router.get('/connect/status', authenticate, authorize('pro'), stripeConnectController.getConnectStatus);

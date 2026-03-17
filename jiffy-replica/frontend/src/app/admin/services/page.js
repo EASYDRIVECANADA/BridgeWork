@@ -34,6 +34,9 @@ export default function AdminServicesPage() {
     sales_channel: 'residential',
     rate: 'quote',
     emergency: 'no',
+    emergency_base_price: '',
+    emergency_pricing_type: 'hourly',
+    additional_hourly_rate: '',
     use_cases: []
   });
   const [submitting, setSubmitting] = useState(false);
@@ -157,6 +160,9 @@ export default function AdminServicesPage() {
       sales_channel: service.sales_channel || 'residential',
       rate: service.rate || 'quote',
       emergency: service.emergency || 'no',
+      emergency_base_price: service.emergency_base_price?.toString() || '',
+      emergency_pricing_type: service.emergency_pricing_type || 'hourly',
+      additional_hourly_rate: service.additional_hourly_rate?.toString() || '',
       use_cases: service.use_cases || []
     });
     setUseCaseInput('');
@@ -191,6 +197,9 @@ export default function AdminServicesPage() {
       sales_channel: activeChannel,
       rate: activeChannel === 'commercial' ? 'quote' : 'quote',
       emergency: 'no',
+      emergency_base_price: '',
+      emergency_pricing_type: 'hourly',
+      additional_hourly_rate: '',
       use_cases: []
     });
     setImageFile(null);
@@ -417,12 +426,17 @@ export default function AdminServicesPage() {
               </div>
             )}
 
-            <form id="service-form" onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Sales Channel */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sales Channel *</label>
-                  <div className="flex gap-3">
+            <form id="service-form" onSubmit={handleSubmit} className="space-y-6">
+                {/* SECTION 1: Service Type */}
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">1</div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Service Type</h3>
+                      <p className="text-xs text-gray-600">Choose who this service is for</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, sales_channel: 'residential', category_id: '' })}
@@ -448,9 +462,23 @@ export default function AdminServicesPage() {
                       Commercial
                     </button>
                   </div>
+                  {formData.sales_channel === 'commercial' && (
+                    <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-700">💡 Commercial services have no categories and are always quote-based.</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Category (Residential only) */}
+                {/* SECTION 2: Basic Information */}
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">2</div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Basic Information</h3>
+                      <p className="text-xs text-gray-600">Service name and category</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {formData.sales_channel === 'residential' && (
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
@@ -467,15 +495,6 @@ export default function AdminServicesPage() {
                     </select>
                   </div>
                 )}
-
-                {formData.sales_channel === 'commercial' && (
-                  <div className="md:col-span-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-700">Commercial services have no categories and are always quote-based.</p>
-                    </div>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Service Name *</label>
                   <input
@@ -490,25 +509,37 @@ export default function AdminServicesPage() {
                       });
                     }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                    placeholder="e.g. Electrical"
+                    placeholder="e.g. Appliance Repair & Install"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Slug *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Slug * 
+                    <span className="text-xs text-gray-500 font-normal ml-1">(URL-friendly)</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={formData.slug}
                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                    placeholder="electrical"
+                    placeholder="appliance-repair"
                   />
                 </div>
+                  </div>
+                </div>
 
-                {/* Rate & Emergency (Residential only) */}
+                {/* SECTION 3: Pricing Configuration */}
                 {formData.sales_channel === 'residential' && (
-                  <>
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">3</div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Pricing Configuration</h3>
+                      <p className="text-xs text-gray-600">Set pricing mode and rates</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Mode</label>
                       <select
@@ -520,6 +551,34 @@ export default function AdminServicesPage() {
                         <option value="yes">Rate-Based (shows price)</option>
                       </select>
                     </div>
+
+                    {/* Additional Hourly Rate - shown when rate is 'yes' (Rate-Based) */}
+                    {formData.rate === 'yes' && (
+                      <div className="md:col-span-2 bg-[#0E7480]/5 border border-[#0E7480]/20 rounded-lg p-4">
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          Additional Charge Per Hour (CAD)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.additional_hourly_rate || ''}
+                            onChange={(e) => setFormData({ ...formData, additional_hourly_rate: e.target.value })}
+                            className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] transition-all bg-white"
+                            placeholder="100.00"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-600 mt-2 flex items-start gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-[#0E7480] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <span>Rate charged for additional hours beyond the base service when pros submit additional invoices</span>
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Service?</label>
                       <select
@@ -531,9 +590,20 @@ export default function AdminServicesPage() {
                         <option value="yes">Yes</option>
                       </select>
                     </div>
-                  </>
+                  </div>
+                </div>
                 )}
 
+                {/* SECTION 4: Pricing Details */}
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">{formData.sales_channel === 'residential' ? '4' : '3'}</div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Pricing Details</h3>
+                      <p className="text-xs text-gray-600">Set base price and pricing type</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (CAD)</label>
                   {formData.pricing_type === 'custom' ? (
@@ -568,7 +638,64 @@ export default function AdminServicesPage() {
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
+                {/* Emergency Pricing Fields - shown when emergency is 'yes' */}
+                {formData.sales_channel === 'residential' && formData.emergency === 'yes' && (
+                  <div className="md:col-span-2 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          Emergency Base Price (CAD)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.emergency_base_price || ''}
+                            onChange={(e) => setFormData({ ...formData, emergency_base_price: e.target.value })}
+                            className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] transition-all bg-white"
+                            placeholder="150.00"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          Emergency Pricing Type
+                        </label>
+                        <select
+                          value={formData.emergency_pricing_type}
+                          onChange={(e) => setFormData({ ...formData, emergency_pricing_type: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent bg-white"
+                        >
+                          <option value="fixed">Fixed</option>
+                          <option value="hourly">Hourly</option>
+                          <option value="per_job">Per Job</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-red-700 mt-2 flex items-start gap-1.5">
+                      <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>Emergency services have higher pricing for urgent/after-hours requests</span>
+                    </p>
+                  </div>
+                )}
+                  </div>
+                </div>
+
+                {/* SECTION 5: Service Description */}
+                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">{formData.sales_channel === 'residential' ? '5' : '4'}</div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Service Description</h3>
+                      <p className="text-xs text-gray-600">Describe what this service offers</p>
+                    </div>
+                  </div>
+                <div className="space-y-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
                   <input
                     type="text"
@@ -656,7 +783,8 @@ export default function AdminServicesPage() {
                     </label>
                   </div>
                 </div>
-              </div>
+                </div>
+                </div>
 
             </form>
             </div>

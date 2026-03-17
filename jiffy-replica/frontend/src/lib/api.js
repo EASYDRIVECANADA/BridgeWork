@@ -51,10 +51,33 @@ export const bookingsAPI = {
   getById: (id) => api.get(`/bookings/${id}`),
   updateStatus: (id, data) => api.patch(`/bookings/${id}/status`, data),
   cancel: (id, data) => api.post(`/bookings/${id}/cancel`, data),
-  // Admin: Quote Requests (Free Quote bookings awaiting pricing)
+  
+  // Pro: Quotation endpoints
+  getQuoteRequestsForPro: () => api.get('/bookings/pro/quote-requests'),
+  getQuoteRequestDetail: (id) => api.get(`/bookings/pro/quote-requests/${id}`),
+  submitQuotation: (id, data) => api.post(`/bookings/pro/quote-requests/${id}/submit`, data),
+  getMyQuotations: () => api.get('/bookings/pro/my-quotations'),
+  
+  // Admin: Quote Assignment Management
+  getPendingAssignments: () => api.get('/bookings/admin/pending-assignments'),
+  getAvailableProsForQuote: (bookingId) => api.get(`/bookings/admin/available-pros/${bookingId}`),
+  assignProsToQuote: (data) => api.post('/bookings/admin/assign-pros', data),
+  getBookingAssignments: (bookingId) => api.get(`/bookings/admin/assignments/${bookingId}`),
+  removeProAssignment: (bookingId, proId) => api.delete(`/bookings/admin/assignments/${bookingId}/${proId}`),
+  
+  // Admin: Multi-quotation management
+  getAllQuotations: () => api.get('/bookings/admin/quotations'),
+  selectQuotation: (bookingId, quotationId, data) => api.put(`/bookings/admin/quotations/${bookingId}/select/${quotationId}`, data),
+  
+  // Admin: Legacy Quote Requests (backward compatibility)
   getQuoteRequests: (params) => api.get('/bookings/admin/quote-requests', { params }),
   setQuotePrice: (id, data) => api.put(`/bookings/admin/quote-requests/${id}/set-price`, data),
   cancelQuoteRequest: (id, data) => api.delete(`/bookings/admin/quote-requests/${id}`, { data }),
+  
+  // Admin: Proofs & Disputes
+  getAllProofs: () => api.get('/bookings/admin/proofs'),
+  getAllDisputes: () => api.get('/bookings/admin/disputes'),
+  getDisputeDetails: (bookingId) => api.get(`/bookings/admin/disputes/${bookingId}`),
 };
 
 export const prosAPI = {
@@ -101,6 +124,9 @@ export const paymentsAPI = {
   cancelHold: (data) => api.post('/payments/cancel-hold', data),
   disputeBooking: (data) => api.post('/payments/dispute', data),
   getTransactions: (params) => api.get('/payments/transactions', { params }),
+  // Dispute chat
+  getDisputeMessages: (bookingId) => api.get(`/payments/disputes/${bookingId}/messages`),
+  sendDisputeMessage: (bookingId, data) => api.post(`/payments/disputes/${bookingId}/messages`, data),
   // Stripe Connect (pro payouts)
   connectOnboard: (params) => api.post('/payments/connect/onboard', {}, { params }),
   connectStatus: () => api.get('/payments/connect/status'),
@@ -110,6 +136,7 @@ export const paymentsAPI = {
   // Admin
   adminRevenue: () => api.get('/payments/admin/revenue'),
   adminRefund: (data) => api.post('/payments/admin/refund', data),
+  adminResolveDispute: (bookingId, data) => api.post(`/payments/admin/disputes/${bookingId}/resolve`, data),
 };
 
 export const messagesAPI = {
@@ -169,6 +196,14 @@ export const supportChatAPI = {
   // Admin
   getAllConversations: (params) => api.get('/support-chat/admin/conversations', { params }),
   closeConversation: (conversationId) => api.patch(`/support-chat/admin/${conversationId}/close`),
+};
+
+export const settingsAPI = {
+  // Tax settings (Admin)
+  getTaxSettings: () => api.get('/settings/tax'),
+  updateTaxSetting: (serviceType, data) => api.put(`/settings/tax/${serviceType}`, data),
+  // Public tax rate
+  getTaxRate: (serviceType) => api.get(`/settings/tax/${serviceType}`),
 };
 
 export default api;

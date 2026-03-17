@@ -350,9 +350,17 @@ export default function ProDashboardPage() {
   const [proofPhotos, setProofPhotos] = useState([]);
   const [proofNotes, setProofNotes] = useState('');
   const [proofJobId, setProofJobId] = useState(null);
+  const [proofJobData, setProofJobData] = useState(null); // Store job data for invoice
   const [proofLoading, setProofLoading] = useState(false);
   const [proofMode, setProofMode] = useState('upload'); // 'upload' or 'url'
   const [proofFiles, setProofFiles] = useState([]);
+  
+  // Additional Invoice State
+  const [hasAdditionalInvoice, setHasAdditionalInvoice] = useState(false);
+  const [additionalHours, setAdditionalHours] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
+  const [materials, setMaterials] = useState([{ name: '', quantity: '', unit_price: '' }]);
+  const [invoiceNotes, setInvoiceNotes] = useState('');
 
   const handleSubmitProof = async () => {
     if (!proofJobId) return;
@@ -382,13 +390,42 @@ export default function ProDashboardPage() {
         }
       }
 
-      const res = await prosAPI.submitProof(proofJobId, { photos, notes: proofNotes });
+      // Build additional invoice data if checkbox is checked
+      let additional_invoice = null;
+      if (hasAdditionalInvoice) {
+        additional_invoice = {
+          has_additional_charges: true,
+          additional_hours: parseFloat(additionalHours) || 0,
+          hourly_rate: parseFloat(hourlyRate) || 0,
+          materials: materials.filter(m => m.name && m.quantity).map(m => ({
+            name: m.name,
+            quantity: parseFloat(m.quantity) || 0,
+            unit_price: parseFloat(m.unit_price) || 0
+          })),
+          notes: invoiceNotes
+        };
+      }
+
+      const res = await prosAPI.submitProof(proofJobId, { 
+        photos, 
+        notes: proofNotes,
+        additional_invoice
+      });
       toast.success(res.data?.message || 'Proof submitted! Waiting for customer confirmation.');
+      
+      // Reset all state
       setProofJobId(null);
+      setProofJobData(null);
       setProofPhotos([]);
       setProofNotes('');
       setProofFiles([]);
       setProofMode('upload');
+      setHasAdditionalInvoice(false);
+      setAdditionalHours('');
+      setHourlyRate('');
+      setMaterials([{ name: '', quantity: '', unit_price: '' }]);
+      setInvoiceNotes('');
+      
       dispatch(fetchProJobs({ status: 'accepted' }));
       dispatch(fetchProJobs({ status: 'completed' }));
       dispatch(fetchProStatistics());
@@ -894,7 +931,17 @@ export default function ProDashboardPage() {
                               </span>
                             ) : (
                               <button
-                                onClick={() => { setProofJobId(job.id); setProofPhotos([]); setProofNotes(''); }}
+                                onClick={() => { 
+                                  setProofJobId(job.id); 
+                                  setProofJobData(job);
+                                  setProofPhotos([]); 
+                                  setProofNotes(''); 
+                                  setHasAdditionalInvoice(false);
+                                  setAdditionalHours('');
+                                  setHourlyRate('');
+                                  setMaterials([{ name: '', quantity: '', unit_price: '' }]);
+                                  setInvoiceNotes('');
+                                }}
                                 className="flex items-center gap-1.5 bg-[#ff9800] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#f57c00] transition-colors"
                               >
                                 <FileText className="w-4 h-4" />
@@ -1662,7 +1709,7 @@ export default function ProDashboardPage() {
       {/* Proof Submission Modal */}
       {proofJobId && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setProofJobId(null)}>
-          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900">Submit Proof of Work</h3>
               <button onClick={() => setProofJobId(null)} className="text-gray-400 hover:text-gray-600">
@@ -1780,6 +1827,138 @@ export default function ProDashboardPage() {
               placeholder="Optional notes about the work completed..."
               className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none h-20 focus:ring-2 focus:ring-blue-300 outline-none mb-4"
             />
+
+            {/* Additional Invoice Checkbox */}
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasAdditionalInvoice}
+                onChange={(e) => setHasAdditionalInvoice(e.target.checked)}
+                className="w-4 h-4 text-[#0E7480] border-gray-300 rounded focus:ring-[#0E7480]"
+              />
+              <span className="text-sm font-medium text-gray-700">Add Additional Invoice</span>
+            </label>
+
+            {/* Additional Invoice Form */}
+            {hasAdditionalInvoice && proofJobData && (
+              <div className="border border-[#0E7480]/30 rounded-lg p-4 mb-4 bg-[#0E7480]/5">
+                <h4 className="text-sm font-bold text-gray-900 mb-3">Additional Invoice</h4>
+                
+                {/* Original Amount */}
+                <div className="flex justify-between text-sm mb-3 pb-3 border-b border-gray-200">
+                  <span className="text-gray-600">Original Booking:</span>
+                  <span className="font-semibold text-gray-900">${parseFloat(proofJobData.billedAmount || 0).toFixed(2)}</span>
+                </div>
+
+                {/* Additional Hours */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Additional Hours</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={additionalHours}
+                      onChange={(e) => setAdditionalHours(e.target.value)}
+                      placeholder="Hours"
+                      className="w-20 border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    />
+                    <span className="text-gray-500 self-center">×</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={hourlyRate}
+                      onChange={(e) => setHourlyRate(e.target.value)}
+                      placeholder="$/hr"
+                      className="w-24 border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    />
+                    <span className="text-gray-700 self-center text-sm font-medium">
+                      = ${((parseFloat(additionalHours) || 0) * (parseFloat(hourlyRate) || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Materials */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Materials Used</label>
+                  {materials.map((item, i) => (
+                    <div key={i} className="flex gap-1 mb-1.5 items-center">
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => {
+                          const updated = [...materials];
+                          updated[i].name = e.target.value;
+                          setMaterials(updated);
+                        }}
+                        placeholder="Item"
+                        className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const updated = [...materials];
+                          updated[i].quantity = e.target.value;
+                          setMaterials(updated);
+                        }}
+                        placeholder="Qty"
+                        className="w-14 border border-gray-300 rounded px-2 py-1 text-xs"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) => {
+                          const updated = [...materials];
+                          updated[i].unit_price = e.target.value;
+                          setMaterials(updated);
+                        }}
+                        placeholder="$"
+                        className="w-16 border border-gray-300 rounded px-2 py-1 text-xs"
+                      />
+                      <span className="text-xs text-gray-600 w-14 text-right">
+                        ${((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
+                      </span>
+                      {materials.length > 1 && (
+                        <button onClick={() => setMaterials(materials.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setMaterials([...materials, { name: '', quantity: '', unit_price: '' }])}
+                    className="text-xs text-[#0E7480] font-medium hover:underline"
+                  >
+                    + Add Material
+                  </button>
+                </div>
+
+                {/* Totals */}
+                <div className="border-t border-gray-200 pt-3 space-y-1 text-sm">
+                  {(() => {
+                    const laborTotal = (parseFloat(additionalHours) || 0) * (parseFloat(hourlyRate) || 0);
+                    const materialsTotal = materials.reduce((sum, m) => sum + (parseFloat(m.quantity) || 0) * (parseFloat(m.unit_price) || 0), 0);
+                    const subtotal = laborTotal + materialsTotal;
+                    const tax = subtotal * 0.13;
+                    const originalAmount = parseFloat(proofJobData.billedAmount) || 0;
+                    const grandTotal = originalAmount + subtotal + tax;
+                    return (
+                      <>
+                        <div className="flex justify-between text-gray-600"><span>Labor:</span><span>${laborTotal.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-gray-600"><span>Materials:</span><span>${materialsTotal.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-gray-600"><span>Tax (13%):</span><span>${tax.toFixed(2)}</span></div>
+                        <div className="flex justify-between font-bold text-gray-900 pt-2 border-t"><span>NEW TOTAL:</span><span className="text-[#0E7480]">${grandTotal.toFixed(2)}</span></div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3">
               <button

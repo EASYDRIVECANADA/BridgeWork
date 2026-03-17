@@ -16,8 +16,9 @@ export default function ServiceDetailPage() {
   const dispatch = useDispatch();
   const { user, profile } = useSelector((state) => state.auth);
   const serviceId = params.id;
-  const serviceType = searchParams.get('type') || 'rate'; // 'rate' or 'emergency'
-
+  const initialServiceType = searchParams.get('type') || 'rate'; // 'rate' or 'emergency'
+  
+  const [serviceType, setServiceType] = useState(initialServiceType);
   const [apiService, setApiService] = useState(null);
   const [loadingService, setLoadingService] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -209,6 +210,26 @@ export default function ServiceDetailPage() {
     fetchService();
   }, [serviceId]);
 
+  // Set default service type based on service settings when loaded
+  useEffect(() => {
+    if (apiService) {
+      const hasFreeQuote = apiService.rate === 'quote' || apiService.pricing_type === 'custom';
+      const hasRate = apiService.rate === 'yes';
+      const hasEmergency = apiService.emergency === 'yes';
+      
+      // Set default based on URL param first, then service settings
+      if (initialServiceType === 'emergency' && hasEmergency) {
+        setServiceType('emergency');
+      } else if (hasFreeQuote) {
+        setServiceType('quote');
+      } else if (hasRate) {
+        setServiceType('rate');
+      } else if (hasEmergency) {
+        setServiceType('emergency');
+      }
+    }
+  }, [apiService, initialServiceType]);
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     console.log('[BOOKING] handleBookingSubmit called', { user: !!user, apiService: !!apiService, serviceId });
@@ -323,7 +344,7 @@ export default function ServiceDetailPage() {
                   
                   {/* Service Title and Rating */}
                   <h1 className={`text-2xl font-bold mb-3 ${serviceType === 'emergency' ? 'text-red-600' : 'text-gray-900'}`}>
-                    {serviceType === 'emergency' ? `Emergency ${displayName}` : displayName} in Boston
+                    {serviceType === 'emergency' ? `Emergency ${displayName}` : displayName} Service
                   </h1>
 
                   {/* Service Description */}
@@ -433,61 +454,110 @@ export default function ServiceDetailPage() {
 
               {/* Right Box - Booking Card */}
       <div className="lg:col-span-1">
-        <div className={`bg-white rounded-lg shadow-xl p-6 sticky top-28 ${serviceType === 'emergency' ? 'border-2 border-red-500' : ''}`}>
-                  {serviceType === 'emergency' ? (
-                    <>
-                      <div className="bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full text-center mb-3">
-                        🚨 EMERGENCY SERVICE
-                      </div>
-                      <h3 className="text-base font-bold text-red-600 mb-3 text-center">Emergency {displayName}</h3>
-                      
-                      <div className="text-center mb-3">
-                        <p className="text-xs text-gray-600 mb-1">Emergency Rate</p>
-                        <div className="text-3xl font-bold text-red-600">
-                          {displayPricing?.range ? displayPricing.range.replace('$', '$').split('–')[1]?.trim() || displayPricing.range : `$${apiService?.base_price || '250'}+`}
-                        </div>
-                        <div className="text-xs text-red-500 mt-1">
-                          Priority response • After-hours available
-                        </div>
-                      </div>
-                      
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                        <p className="text-xs text-red-700 font-medium">⚡ Fast Response Guaranteed</p>
-                        <p className="text-xs text-red-600 mt-1">Our emergency team is available 24/7 for urgent {displayName?.toLowerCase()} issues.</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h3 className="text-base font-bold text-gray-900 mb-3 text-center">Book {displayName}</h3>
-                      
-                      <div className="text-center mb-3">
-                        {(apiService?.rate === 'quote' || apiService?.pricing_type === 'custom') ? (
-                          <>
-                            <p className="text-xs text-gray-600 mb-1">Book Job</p>
-                            <div className="text-3xl font-bold text-green-600">
-                              Free Quote
+        <div className="bg-white rounded-lg shadow-xl p-6 sticky top-28">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 text-center">Book {displayName}</h3>
+                  
+                  {/* Service Type Selection Cards - Dynamic based on admin settings */}
+                  {(() => {
+                    // Determine available options from service settings
+                    const hasFreeQuote = apiService?.rate === 'quote' || apiService?.pricing_type === 'custom';
+                    const hasRate = apiService?.rate === 'yes';
+                    const hasEmergency = apiService?.emergency === 'yes';
+                    
+                    // Count how many options are available
+                    const optionCount = [hasFreeQuote, hasRate, hasEmergency].filter(Boolean).length;
+                    
+                    // Only show selection cards if there are multiple options
+                    if (optionCount <= 1) return null;
+                    
+                    // Determine grid columns based on option count
+                    const gridCols = optionCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
+                    
+                    return (
+                      <div className={`grid ${gridCols} gap-3 mb-4`}>
+                        {/* Free Quote Card */}
+                        {hasFreeQuote && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceType('quote')}
+                            className={`relative p-4 rounded-xl text-left transition-all duration-200 ${
+                              serviceType === 'quote'
+                                ? 'bg-gradient-to-br from-[#0E7480] to-[#0d6670] text-white ring-2 ring-[#0E7480] ring-offset-2'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-lg mb-1">💎</div>
+                            <div className="font-bold text-sm">Free Quote</div>
+                            <div className="text-xs opacity-80 mt-1">Get a Quote</div>
+                            <div className="text-xl font-bold mt-1">Free</div>
+                            <div className="text-xs opacity-70 mt-1">No upfront cost</div>
+                          </button>
+                        )}
+
+                        {/* Rate-based Card */}
+                        {hasRate && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceType('rate')}
+                            className={`relative p-4 rounded-xl text-left transition-all duration-200 ${
+                              serviceType === 'rate'
+                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-2 ring-blue-500 ring-offset-2'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-lg mb-1">💰</div>
+                            <div className="font-bold text-sm">Rate</div>
+                            <div className="text-xs opacity-80 mt-1">Fixed Price</div>
+                            <div className="text-xl font-bold mt-1">${apiService?.base_price || '120'}</div>
+                            <div className="text-xs opacity-70 mt-1">{apiService?.pricing_type === 'hourly' ? 'per hour' : 'per job'}</div>
+                          </button>
+                        )}
+
+                        {/* Emergency Service Card */}
+                        {hasEmergency && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceType('emergency')}
+                            className={`relative p-4 rounded-xl text-left transition-all duration-200 ${
+                              serviceType === 'emergency'
+                                ? 'bg-gradient-to-br from-red-500 to-red-600 text-white ring-2 ring-red-500 ring-offset-2'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-lg mb-1">🚨</div>
+                            <div className="font-bold text-sm">Emergency</div>
+                            <div className="text-xs opacity-80 mt-1">Emergency Rate</div>
+                            <div className="text-xl font-bold mt-1">
+                              ${apiService?.emergency_base_price || '150'}
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-xs text-gray-600 mb-1">Estimated Rate</p>
-                            <div className="text-3xl font-bold text-gray-900">
-                              {displayPricing?.range || `$${apiService?.base_price || '180'}`}
+                            <div className="text-xs opacity-70 mt-1">
+                              {apiService?.emergency_pricing_type === 'hourly' ? 'per hour' : apiService?.emergency_pricing_type === 'per_job' ? 'per job' : 'fixed'}
                             </div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              {apiService?.pricing_type === 'hourly' ? 'per hour' : (displayPricing?.model || 'per job')}
-                            </div>
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3">
-                              <p className="text-xs text-amber-700">
-                                <span className="font-semibold">Note:</span> Additional charges may apply if the job exceeds the estimated time.
-                              </p>
-                            </div>
-                          </>
+                          </button>
                         )}
                       </div>
-                    </>
-                  )}
-                  
+                    );
+                  })()}
+
+                  {/* Selected Service Type Info */}
+                  {serviceType === 'emergency' ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                      <p className="text-xs text-red-700 font-medium">⚡ Fast Response Guaranteed</p>
+                      <p className="text-xs text-red-600 mt-1">24/7 availability • Priority response time</p>
+                    </div>
+                  ) : serviceType === 'rate' && apiService?.additional_hourly_rate ? (
+                    <div className="bg-[#0E7480]/10 border border-[#0E7480]/20 rounded-lg p-3 mb-3">
+                      <p className="text-xs text-[#0E7480] font-medium">💰 Additional Charge Per Hour (CAD)</p>
+                      <p className="text-xs text-gray-600 mt-1">${parseFloat(apiService.additional_hourly_rate).toFixed(2)}/hr for additional hours beyond base service</p>
+                    </div>
+                  ) : serviceType === 'quote' ? (
+                    <div className="text-center mb-3">
+                      <div className="bg-[#0E7480]/10 border border-[#0E7480]/20 rounded-lg p-3">
+                        <p className="text-xs text-[#0E7480] font-medium">✓ Custom pricing for your project</p>
+                        <p className="text-xs text-gray-600 mt-1">Get a personalized quote based on your needs</p>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="border-t border-gray-200 my-3"></div>
 

@@ -134,12 +134,12 @@ export default function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id) => {
-    const svcCount = getServiceCount(id);
-    if (svcCount > 0) {
-      alert(`Cannot delete this category — it has ${svcCount} active service(s). Remove or reassign them first.`);
+    const totalSvcCount = services.filter(s => s.category_id === id).length;
+    if (totalSvcCount > 0) {
+      alert(`Cannot delete this category — it has ${totalSvcCount} service(s). Remove or reassign all services first.`);
       return;
     }
-    if (!confirm('Are you sure you want to delete this category?')) return;
+    if (!confirm('Are you sure you want to permanently delete this category? This cannot be undone.')) return;
 
     try {
       await api.delete(`/admin/manage/categories/${id}`);

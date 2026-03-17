@@ -1,0 +1,82 @@
+const express = require('express');
+const { body } = require('express-validator');
+const authController = require('../controllers/authController');
+const { authenticate } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+
+const router = express.Router();
+
+router.post('/signup',
+    [
+        body('email').isEmail().normalizeEmail(),
+        body('password').isLength({ min: 8 }),
+        body('full_name').trim().isLength({ min: 2 }),
+        body('role').optional().isIn(['user', 'pro']),
+        validate
+    ],
+    authController.signup
+);
+
+router.post('/login',
+    [
+        body('email').isEmail().normalizeEmail(),
+        body('password').notEmpty(),
+        validate
+    ],
+    authController.login
+);
+
+router.post('/logout', authenticate, authController.logout);
+
+router.post('/refresh',
+    [
+        body('refresh_token').notEmpty(),
+        validate
+    ],
+    authController.refreshToken
+);
+
+router.get('/me', authenticate, authController.getCurrentUser);
+
+router.patch('/profile', authenticate,
+    [
+        body('full_name').optional().trim().isLength({ min: 2 }),
+        body('phone').optional().trim(),
+        body('address').optional().trim(),
+        body('city').optional().trim(),
+        body('state').optional().trim(),
+        body('zip_code').optional().trim(),
+        validate
+    ],
+    authController.updateProfile
+);
+
+router.post('/change-password', authenticate,
+    [
+        body('current_password').notEmpty(),
+        body('new_password').isLength({ min: 8 }),
+        validate
+    ],
+    authController.changePassword
+);
+
+router.post('/forgot-password',
+    [
+        body('email').isEmail().normalizeEmail(),
+        validate
+    ],
+    authController.forgotPassword
+);
+
+router.post('/reset-password',
+    [
+        body('token').notEmpty().withMessage('Reset token is required'),
+        body('new_password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+        validate
+    ],
+    authController.resetPassword
+);
+
+router.get('/search-users', authenticate, authController.searchUsers);
+
+module.exports = router;
