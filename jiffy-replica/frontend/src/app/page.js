@@ -201,7 +201,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[400px] sm:min-h-[500px] lg:h-[600px] flex items-center justify-center overflow-hidden py-8 sm:py-0">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <Image
@@ -223,25 +223,26 @@ export default function HomePage() {
             initial="hidden"
             animate="visible"
             transition={{ duration: 0.55, ease: 'easeOut' }}
-            className="mx-auto max-w-3xl rounded-3xl bg-white/10 backdrop-blur-md ring-1 ring-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.30)] px-6 sm:px-10 py-10"
+            className="mx-auto max-w-3xl rounded-2xl sm:rounded-3xl bg-white/10 backdrop-blur-md ring-1 ring-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.30)] px-4 sm:px-6 lg:px-10 py-6 sm:py-8 lg:py-10"
           >
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-white/90 ring-1 ring-white/15 mb-5">
-              <span className="h-2 w-2 rounded-full bg-[#0E7480]" />
-              Fast matching. Transparent pricing. Trusted pros.
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold tracking-wide text-white/90 ring-1 ring-white/15 mb-3 sm:mb-5">
+              <span className="h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full bg-[#0E7480]" />
+              <span className="hidden sm:inline">Fast matching. Transparent pricing. Trusted pros.</span>
+              <span className="sm:hidden">Fast matching. Trusted pros.</span>
             </div>
 
-            <h1 className="font-brand text-5xl md:text-6xl font-extrabold text-white mb-6 leading-[1.05] tracking-tight drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
+            <h1 className="font-brand text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 sm:mb-6 leading-[1.1] sm:leading-[1.05] tracking-tight drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
               Home services booked when you need them.
             </h1>
 
             {/* Search Box */}
-            <div className="max-w-2xl mx-auto mb-5">
-              <div className="bg-white/95 rounded-2xl shadow-xl flex items-center px-6 py-4 ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-[#0E7480]/40 transition">
-                <Search className="w-6 h-6 text-gray-400 mr-4" />
+            <div className="max-w-2xl mx-auto mb-3 sm:mb-5">
+              <div className="bg-white/95 rounded-xl sm:rounded-2xl shadow-xl flex items-center px-4 sm:px-6 py-3 sm:py-4 ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-[#0E7480]/40 transition">
+                <Search className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400 mr-3 sm:mr-4 flex-shrink-0" />
                 <input
                   type="text"
                   placeholder={animatedPlaceholder}
-                  className="flex-1 text-gray-900 text-lg outline-none placeholder:text-gray-400 bg-transparent"
+                  className="flex-1 text-gray-900 text-sm sm:text-lg outline-none placeholder:text-gray-400 bg-transparent min-w-0"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
@@ -281,11 +282,11 @@ export default function HomePage() {
       </section>
 
       {/* Stats and Social Proof Section */}
-      <section className="py-16 bg-white/60 backdrop-blur-sm">
+      <section className="py-10 sm:py-12 lg:py-16 bg-white/60 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4">
           {/* Description Text */}
-          <div className="max-w-4xl mx-auto text-center mb-10">
-            <p className="text-xl md:text-2xl text-gray-700 leading-relaxed">
+          <div className="max-w-4xl mx-auto text-center mb-6 sm:mb-8 lg:mb-10">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 leading-relaxed">
               Small jobs around the house are as good as done, with no shopping around. 
               BridgeWork connects you with certified Ottawa pros who are already in your area and will complete your job at 
               transparent rates you can feel good about.
@@ -296,7 +297,7 @@ export default function HomePage() {
           <div className="text-center">
             <button
               onClick={() => router.push('/services')}
-              className="btn-brand px-10 py-4 text-lg font-brand tracking-tight"
+              className="btn-brand px-6 sm:px-8 lg:px-10 py-3 sm:py-4 text-sm sm:text-base lg:text-lg font-brand tracking-tight"
             >
               Book Now
             </button>
@@ -305,7 +306,7 @@ export default function HomePage() {
       </section>
 
       {/* Section 1: Video Showcase */}
-      <section className="py-16 bg-transparent">
+      <section className="py-10 sm:py-12 lg:py-16 bg-transparent">
         <div className="max-w-5xl mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 14 }}

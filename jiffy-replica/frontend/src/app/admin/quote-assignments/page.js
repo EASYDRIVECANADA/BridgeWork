@@ -131,30 +131,30 @@ export default function AdminQuoteAssignmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quote Assignments</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quote Assignments</h1>
+              <p className="mt-1 text-xs sm:text-sm text-gray-500">
                 Assign pros to quote requests from customers
               </p>
             </div>
             <button
               onClick={fetchPendingAssignments}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="flex items-center justify-center px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
             >
-              <RefreshCw className="h-5 w-5 mr-2" />
+              <RefreshCw className="h-4 sm:h-5 w-4 sm:w-5 mr-2" />
               Refresh
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-lg">
                 <ClipboardList className="h-6 w-6 text-yellow-600" />
@@ -180,7 +180,7 @@ export default function AdminQuoteAssignmentsPage() {
               <div key={booking.id} className="bg-white rounded-lg shadow overflow-hidden">
                 {/* Booking Header */}
                 <div 
-                  className="p-6 cursor-pointer hover:bg-gray-50"
+                  className="p-4 sm:p-6 cursor-pointer hover:bg-gray-50"
                   onClick={() => handleExpandBooking(booking.id)}
                 >
                   <div className="flex items-center justify-between">
@@ -193,10 +193,10 @@ export default function AdminQuoteAssignmentsPage() {
                           #{booking.booking_number}
                         </span>
                       </div>
-                      <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                      <h3 className="mt-2 text-base sm:text-lg font-semibold text-gray-900">
                         {booking.service_name || booking.services?.name}
                       </h3>
-                      <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
+                      <div className="mt-2 flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                         <div className="flex items-center">
                           <Users className="h-4 w-4 mr-1" />
                           {booking.profiles?.full_name || 'Customer'}
@@ -228,12 +228,12 @@ export default function AdminQuoteAssignmentsPage() {
 
                 {/* Expanded Pro Selection */}
                 {expandedBooking === booking.id && (
-                  <div className="border-t border-gray-200 bg-gray-50 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-medium text-gray-900">
+                  <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                      <h4 className="text-base sm:text-lg font-medium text-gray-900">
                         Select a Pro to Assign
                       </h4>
-                      <p className="text-sm text-gray-500">Choose one pro for this job</p>
+                      <p className="text-xs sm:text-sm text-gray-500">Choose one pro for this job</p>
                     </div>
 
                     {loadingPros ? (
@@ -328,12 +328,12 @@ export default function AdminQuoteAssignmentsPage() {
                         </div>
 
                         {/* Assign Button */}
-                        <div className="flex justify-end">
+                        <div className="flex justify-center sm:justify-end">
                           <button
                             onClick={() => handleAssignPro(booking.id)}
                             disabled={!selectedPro || assigning}
                             className={`
-                              flex items-center px-6 py-3 rounded-lg font-medium transition-all
+                              flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-all
                               ${!selectedPro || assigning
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700'

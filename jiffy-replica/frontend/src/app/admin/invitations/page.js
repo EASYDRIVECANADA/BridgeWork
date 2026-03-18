@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { Plus, Mail, X, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Plus, Mail, X, Clock, CheckCircle, XCircle, RefreshCw, UserPlus } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function AdminInvitationsPage() {
@@ -12,10 +12,18 @@ export default function AdminInvitationsPage() {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDirectCreateModal, setShowDirectCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
     phone: ''
+  });
+  const [directFormData, setDirectFormData] = useState({
+    email: '',
+    full_name: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -86,6 +94,42 @@ export default function AdminInvitationsPage() {
     }
   };
 
+  const handleDirectCreate = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (directFormData.password !== directFormData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (directFormData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await api.post('/admin/invitations/direct-create', {
+        email: directFormData.email,
+        full_name: directFormData.full_name,
+        phone: directFormData.phone,
+        password: directFormData.password
+      });
+      if (response.data.success) {
+        setSuccess('Admin account created successfully!');
+        setDirectFormData({ email: '', full_name: '', phone: '', password: '', confirmPassword: '' });
+        setShowDirectCreateModal(false);
+        alert('Admin account created successfully! They can now log in.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create admin account');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const styles = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -130,13 +174,22 @@ export default function AdminInvitationsPage() {
               <h1 className="text-3xl font-bold text-gray-900">Admin Invitations</h1>
               <p className="mt-2 text-gray-600">Invite new admins to join the BridgeWork team</p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              Send Invitation
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setError(''); setSuccess(''); setShowDirectCreateModal(true); }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#142841] text-white rounded-lg hover:bg-[#0e1e30] transition-colors font-medium"
+              >
+                <UserPlus className="w-5 h-5" />
+                Add Admin
+              </button>
+              <button
+                onClick={() => { setError(''); setSuccess(''); setShowCreateModal(true); }}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium"
+              >
+                <Plus className="w-5 h-5" />
+                Send Invitation
+              </button>
+            </div>
           </div>
         </div>
 
@@ -341,6 +394,123 @@ export default function AdminInvitationsPage() {
                   className="flex-1 px-4 py-2 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Sending...' : 'Send Invitation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Create Admin Modal */}
+      {showDirectCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Add Admin Directly</h2>
+              <button
+                onClick={() => setShowDirectCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-4">
+              Create an admin account directly — no email invitation needed. The admin can log in immediately with the credentials you set.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleDirectCreate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={directFormData.full_name}
+                  onChange={(e) => setDirectFormData({ ...directFormData, full_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={directFormData.email}
+                  onChange={(e) => setDirectFormData({ ...directFormData, email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                  placeholder="john@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number (Optional)
+                </label>
+                <input
+                  type="tel"
+                  value={directFormData.phone}
+                  onChange={(e) => setDirectFormData({ ...directFormData, phone: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={directFormData.password}
+                  onChange={(e) => setDirectFormData({ ...directFormData, password: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                  placeholder="Min 6 characters"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={directFormData.confirmPassword}
+                  onChange={(e) => setDirectFormData({ ...directFormData, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                  placeholder="Confirm password"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDirectCreateModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-[#142841] text-white rounded-lg hover:bg-[#0e1e30] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Creating...' : 'Create Admin'}
                 </button>
               </div>
             </form>

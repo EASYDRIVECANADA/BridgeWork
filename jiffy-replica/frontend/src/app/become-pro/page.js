@@ -61,7 +61,7 @@ export default function BecomeProPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Signup Form Overlay */}
-      <div className="relative h-[500px] w-full">
+      <div className="relative min-h-[600px] sm:min-h-[500px] w-full py-8 sm:py-0">
         <Image
           src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=2000"
           alt="Living Room Background"
@@ -69,23 +69,25 @@ export default function BecomeProPage() {
           className="object-cover"
           priority
         />
+        {/* Dark overlay for better text readability on mobile */}
+        <div className="absolute inset-0 bg-black/30 sm:bg-transparent" />
         
         {/* Hero Content - Left Side */}
-        <div className="absolute inset-0 flex items-center">
-          <div className="max-w-7xl mx-auto px-6 w-full">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
+        <div className="relative sm:absolute inset-0 flex items-center">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center">
               {/* Left: Text Content */}
-              <div className="text-white">
-                <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              <div className="text-white order-2 md:order-1">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
                   The App for your home
                 </h1>
-                <p className="text-base leading-relaxed">
+                <p className="text-sm sm:text-base leading-relaxed">
                   BridgeWork your days! Homeowners with top quality home service professionals in real time. Gain access to our large network of customers for no upfront fee. BridgeWork's app and customer service team handles all the minor details of each job so you can spend your time doing what you do best.
                 </p>
               </div>
 
               {/* Right: Signup Form Card */}
-              <div className="bg-white rounded-lg shadow-2xl p-8">
+              <div className="bg-white rounded-lg shadow-2xl p-5 sm:p-8 order-1 md:order-2">
                 {signupSuccess ? (
                   <div className="text-center py-4">
                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -117,8 +119,8 @@ export default function BecomeProPage() {
                   Become a BridgeWork Professional
                 </p>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
                         First Name <span className="text-red-500">*</span>
@@ -147,7 +149,7 @@ export default function BecomeProPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
                         Email Address <span className="text-red-500">*</span>
@@ -176,7 +178,7 @@ export default function BecomeProPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs text-gray-700 mb-1">
                         Password <span className="text-red-500">*</span>
@@ -230,13 +232,13 @@ export default function BecomeProPage() {
       </div>
 
       {/* The BridgeWork Advantage Section */}
-      <div className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-[#0E7480] text-center mb-12">
+      <div className="bg-white py-10 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#0E7480] text-center mb-6 sm:mb-8 lg:mb-12">
             The BridgeWork Advantage. Here's why you should sign up:
           </h2>
 
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {/* Feature 1 */}
             <div className="text-center">
               <div className="flex justify-center mb-4">

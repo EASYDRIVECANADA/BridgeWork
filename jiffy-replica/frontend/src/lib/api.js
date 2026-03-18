@@ -12,7 +12,15 @@ const api = axios.create({
 
 api.interceptors.request.use(
   async (config) => {
-    const { data: { session } } = await supabase.auth.getSession();
+    // Try to get current session
+    let { data: { session } } = await supabase.auth.getSession();
+    
+    // If no session or token might be expired, try to refresh
+    if (!session?.access_token) {
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      session = refreshData?.session;
+    }
+    
     if (session?.access_token) {
       config.headers.Authorization = `Bearer ${session.access_token}`;
     }
@@ -23,7 +31,27 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If 401 error and we haven't retried yet, try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (session?.access_token && !refreshError) {
+          originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshErr) {
+        console.error('Token refresh failed:', refreshErr);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
 );
 
 export const authAPI = {
@@ -111,6 +139,19 @@ export const prosAPI = {
   setCommission: (id, data) => api.patch(`/pros/${id}/commission`, data),
 };
 
+export const proProfileUpdatesAPI = {
+  // Pro endpoints
+  submitUpdate: (data) => api.post('/pro-profile-updates/request', data),
+  getMyPending: () => api.get('/pro-profile-updates/my-pending'),
+  getMyHistory: () => api.get('/pro-profile-updates/my-history'),
+  // Admin endpoints
+  getRequests: (params) => api.get('/pro-profile-updates/admin/requests', { params }),
+  getPendingCount: () => api.get('/pro-profile-updates/admin/pending-count'),
+  approve: (id) => api.post(`/pro-profile-updates/admin/approve/${id}`),
+  reject: (id, data) => api.post(`/pro-profile-updates/admin/reject/${id}`, data),
+  adminUpdatePro: (proProfileId, data) => api.put(`/pro-profile-updates/admin/pro/${proProfileId}`, data),
+};
+
 export const reviewsAPI = {
   create: (data) => api.post('/reviews', data),
   getByProId: (proId, params) => api.get(`/reviews/pro/${proId}`, { params }),
@@ -131,6 +172,7 @@ export const paymentsAPI = {
   connectOnboard: (params) => api.post('/payments/connect/onboard', {}, { params }),
   connectStatus: () => api.get('/payments/connect/status'),
   connectDashboard: () => api.get('/payments/connect/dashboard'),
+  connectRemediationLink: () => api.get('/payments/connect/remediation-link'),
   connectEarnings: () => api.get('/payments/connect/earnings'),
   commissionRate: () => api.get('/payments/connect/commission-rate'),
   // Admin
@@ -172,6 +214,8 @@ export const quotesAPI = {
   updateInvoiceStatus: (id, data) => api.patch(`/quotes-invoices/invoices/${id}/status`, data),
   // Stats
   getStats: () => api.get('/quotes-invoices/stats'),
+  // Admin: Quote Bookings as Invoices
+  getQuoteInvoices: (params) => api.get('/quotes-invoices/admin/quote-invoices', { params }),
 };
 
 export const onboardingAPI = {

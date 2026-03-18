@@ -167,6 +167,13 @@ exports.getConnectStatus = async (req, res) => {
 
         const account = await stripe.accounts.retrieve(proProfile.stripe_account_id);
 
+        // Check if there are outstanding requirements that block payouts
+        const requirements = account.requirements || {};
+        const currentlyDue = requirements.currently_due || [];
+        const pastDue = requirements.past_due || [];
+        const eventuallyDue = requirements.eventually_due || [];
+        const disabledReason = requirements.disabled_reason || null;
+
         res.json({
             success: true,
             data: {
@@ -175,6 +182,13 @@ exports.getConnectStatus = async (req, res) => {
                 payouts_enabled: account.payouts_enabled,
                 details_submitted: account.details_submitted,
                 account_id: account.id,
+                requirements: {
+                    currently_due: currentlyDue,
+                    past_due: pastDue,
+                    eventually_due: eventuallyDue,
+                    disabled_reason: disabledReason,
+                    pending_verification: requirements.pending_verification || [],
+                },
             }
         });
     } catch (error) {
@@ -182,6 +196,57 @@ exports.getConnectStatus = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get Stripe Connect status'
+        });
+    }
+};
+
+/**
+ * Generate a Stripe remediation/onboarding link for a Pro who has outstanding requirements.
+ * This is the same link an admin would get from "Request information from the connected account".
+ * The Pro can use it to upload ID, selfie, or any other missing verification documents.
+ * GET /api/payments/connect/remediation-link
+ */
+exports.getRemediationLink = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { data: proProfile, error: proError } = await supabaseAdmin
+            .from('pro_profiles')
+            .select('stripe_account_id')
+            .eq('user_id', userId)
+            .single();
+
+        if (proError || !proProfile || !proProfile.stripe_account_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Stripe Connect account not set up yet'
+            });
+        }
+
+        // Generate an account link — this creates the same remediation URL
+        // that the Stripe Dashboard's "Request information" button produces
+        const accountLink = await stripe.accountLinks.create({
+            account: proProfile.stripe_account_id,
+            refresh_url: `${STRIPE_REDIRECT_URL}/pro-dashboard?stripe=refresh&tab=earnings`,
+            return_url: `${STRIPE_REDIRECT_URL}/pro-dashboard?stripe=success&tab=earnings`,
+            type: 'account_onboarding',
+        });
+
+        logger.info('Stripe remediation link generated', {
+            userId,
+            stripeAccountId: proProfile.stripe_account_id,
+        });
+
+        res.json({
+            success: true,
+            data: { url: accountLink.url }
+        });
+    } catch (error) {
+        logger.error('Get remediation link error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate verification link',
+            detail: error.message,
         });
     }
 };

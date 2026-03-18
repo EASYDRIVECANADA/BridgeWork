@@ -1421,3 +1421,196 @@ exports.getStats = async (req, res) => {
         });
     }
 };
+
+// ==================== QUOTE BOOKINGS AS INVOICES (Admin) ====================
+
+/**
+ * Get all quote-based bookings formatted as invoices for admin view
+ * GET /api/quotes/admin/quote-invoices
+ */
+exports.getQuoteBookingsAsInvoices = async (req, res) => {
+    try {
+        const { status, limit = 50, offset = 0 } = req.query;
+
+        // Get bookings that have quotations (free quote flow)
+        // Fetch without booking_quotations to avoid ambiguous relationship error
+        let query = supabaseAdmin
+            .from('bookings')
+            .select(`
+                *,
+                services (id, name, category_id, image_url),
+                profiles!bookings_user_id_fkey (id, full_name, email, phone, avatar_url),
+                pro_profiles (
+                    id,
+                    business_name,
+                    profiles!pro_profiles_user_id_fkey (
+                        full_name,
+                        email,
+                        phone
+                    )
+                ),
+                transactions (
+                    id,
+                    amount,
+                    status,
+                    created_at
+                )
+            `, { count: 'exact' })
+            .not('selected_quotation_id', 'is', null)
+            .order('created_at', { ascending: false });
+
+        // Filter by status if provided
+        if (status === 'pending') {
+            query = query.in('status', ['accepted', 'in_progress']);
+        } else if (status === 'paid') {
+            query = query.eq('status', 'completed');
+        }
+
+        query = query.range(offset, parseInt(offset) + parseInt(limit) - 1);
+
+        const { data: bookings, error, count } = await query;
+
+        if (error) {
+            logger.error('Get quote bookings as invoices error', { error: error.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch quote invoices'
+            });
+        }
+
+        // Fetch quotations separately to avoid relationship ambiguity
+        let quotationsMap = {};
+        if (bookings && bookings.length > 0) {
+            const selectedQuotationIds = bookings.map(b => b.selected_quotation_id).filter(Boolean);
+            if (selectedQuotationIds.length > 0) {
+                const { data: quotations } = await supabaseAdmin
+                    .from('booking_quotations')
+                    .select('id, booking_id, pro_id, quoted_price, description, estimated_duration, materials_included, warranty_info, notes, status, created_at, selected_at')
+                    .in('id', selectedQuotationIds);
+                
+                (quotations || []).forEach(q => {
+                    quotationsMap[q.id] = q;
+                });
+            }
+        }
+
+        // Transform bookings to invoice-like format
+        const quoteInvoices = (bookings || []).map(booking => {
+            // Get quotation from the map using selected_quotation_id
+            const quotation = quotationsMap[booking.selected_quotation_id] || {};
+            const transaction = booking.transactions?.find(t => t.status === 'succeeded' || t.status === 'held');
+            
+            // Parse extended data from notes (materials_list, your_price, etc.)
+            let extendedData = {};
+            if (quotation.notes) {
+                try {
+                    const parsed = JSON.parse(quotation.notes);
+                    if (parsed && typeof parsed === 'object' && 'original_notes' in parsed) {
+                        extendedData = parsed;
+                    }
+                } catch {
+                    // Notes is plain text
+                }
+            }
+
+            // Calculate totals
+            const workPrice = extendedData.your_price || quotation.quoted_price || 0;
+            const materialsList = extendedData.materials_list || [];
+            const materialsTotal = materialsList.reduce((sum, m) => sum + (parseFloat(m.price) || 0), 0);
+            const subtotal = parseFloat(workPrice) + materialsTotal;
+            const taxRate = 0.13; // 13% tax
+            const taxAmount = subtotal * taxRate;
+            const total = subtotal + taxAmount;
+
+            // Determine invoice status
+            let invoiceStatus = 'pending';
+            if (booking.status === 'completed') {
+                invoiceStatus = 'paid';
+            } else if (transaction?.status === 'held') {
+                invoiceStatus = 'held';
+            } else if (booking.proof_submitted_at) {
+                invoiceStatus = 'awaiting_approval';
+            }
+
+            return {
+                id: booking.id,
+                invoice_number: `BW-QT-${booking.booking_number || booking.id.slice(0, 8).toUpperCase()}`,
+                type: 'quote_booking',
+                booking_id: booking.id,
+                booking_number: booking.booking_number,
+                service_name: booking.service_name || booking.services?.name,
+                service: booking.services,
+                
+                // Customer info
+                customer_id: booking.user_id,
+                customer: booking.profiles,
+                
+                // Pro info
+                pro_id: booking.pro_id,
+                pro: booking.pro_profiles,
+                
+                // Job details
+                address: booking.address,
+                city: booking.city,
+                state: booking.state,
+                postal_code: booking.postal_code,
+                scheduled_date: booking.scheduled_date,
+                scheduled_time: booking.scheduled_time,
+                special_instructions: booking.special_instructions,
+                
+                // Quotation details
+                quotation: {
+                    id: quotation.id,
+                    work_price: parseFloat(workPrice),
+                    materials_included: quotation.materials_included,
+                    materials_list: materialsList,
+                    materials_total: materialsTotal,
+                    description: quotation.description,
+                    estimated_duration: quotation.estimated_duration,
+                    duration_unit: extendedData.duration_unit || 'minutes',
+                    warranty_info: quotation.warranty_info,
+                    notes: extendedData.original_notes || (typeof quotation.notes === 'string' && !quotation.notes.startsWith('{') ? quotation.notes : ''),
+                    created_at: quotation.created_at,
+                    selected_at: quotation.selected_at
+                },
+                
+                // Totals
+                subtotal: parseFloat(subtotal.toFixed(2)),
+                tax_rate: taxRate,
+                tax_amount: parseFloat(taxAmount.toFixed(2)),
+                total: parseFloat(total.toFixed(2)),
+                
+                // Status
+                status: invoiceStatus,
+                booking_status: booking.status,
+                proof_submitted_at: booking.proof_submitted_at,
+                
+                // Payment
+                transaction: transaction || null,
+                paid_at: booking.status === 'completed' ? booking.updated_at : null,
+                
+                // Dates
+                created_at: booking.created_at,
+                updated_at: booking.updated_at
+            };
+        });
+
+        res.json({
+            success: true,
+            data: {
+                invoices: quoteInvoices,
+                pagination: {
+                    limit: parseInt(limit),
+                    offset: parseInt(offset),
+                    total: count
+                }
+            }
+        });
+    } catch (error) {
+        logger.error('Get quote bookings as invoices error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch quote invoices'
+        });
+    }
+};

@@ -25,6 +25,7 @@ const adminInvitationsRoutes = require('./routes/adminInvitations');
 const adminInvitationsPublicRoutes = require('./routes/adminInvitationsPublic');
 const adminServicesRoutes = require('./routes/adminServices');
 const settingsRoutes = require('./routes/settings');
+const proProfileUpdatesRoutes = require('./routes/proProfileUpdates');
 
 const app = express();
 
@@ -226,6 +227,7 @@ app.use('/api/admin/invitations', adminInvitationsRoutes);
 app.use('/api/admin-invitations', adminInvitationsPublicRoutes);
 app.use('/api/admin/manage', adminServicesRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/pro-profile-updates', proProfileUpdatesRoutes);
 
 // Serve uploaded images
 app.use('/uploads', express.static('uploads'));

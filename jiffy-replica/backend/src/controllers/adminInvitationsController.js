@@ -373,6 +373,115 @@ exports.cancelInvitation = async (req, res) => {
     }
 };
 
+// Directly create admin account (bypass email invitation)
+exports.directCreateAdmin = async (req, res) => {
+    try {
+        const { email, full_name, phone, password } = req.body;
+
+        if (req.profile.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only admins can create admin accounts'
+            });
+        }
+
+        if (!email || !full_name || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, full name, and password are required'
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters'
+            });
+        }
+
+        // Check if email already exists
+        const { data: existingProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email, role')
+            .eq('email', email.toLowerCase())
+            .single();
+
+        if (existingProfile) {
+            return res.status(400).json({
+                success: false,
+                message: existingProfile.role === 'admin'
+                    ? 'This email is already registered as an admin'
+                    : 'This email is already registered. Please use a different email.'
+            });
+        }
+
+        // Create admin user in Supabase Auth
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email: email.toLowerCase(),
+            password,
+            email_confirm: true,
+            user_metadata: {
+                full_name,
+                phone: phone || null,
+                role: 'admin'
+            }
+        });
+
+        if (authError) {
+            logger.error('Direct create admin user error', { error: authError.message });
+            return res.status(500).json({
+                success: false,
+                message: authError.message || 'Failed to create admin account'
+            });
+        }
+
+        // Create profile
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .insert({
+                id: authData.user.id,
+                email: email.toLowerCase(),
+                full_name,
+                phone: phone || null,
+                role: 'admin'
+            });
+
+        if (profileError) {
+            logger.error('Direct create admin profile error', { error: profileError.message });
+            // Rollback: delete auth user
+            await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create admin profile'
+            });
+        }
+
+        logger.info('Admin account created directly', {
+            email: email.toLowerCase(),
+            userId: authData.user.id,
+            createdBy: req.profile.id
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Admin account created successfully',
+            data: {
+                user: {
+                    id: authData.user.id,
+                    email: authData.user.email,
+                    full_name
+                }
+            }
+        });
+    } catch (error) {
+        logger.error('Direct create admin controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create admin account'
+        });
+    }
+};
+
 // Resend invitation email
 exports.resendInvitation = async (req, res) => {
     try {

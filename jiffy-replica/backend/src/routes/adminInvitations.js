@@ -16,6 +16,9 @@ router.get('/', adminInvitationsController.getAllInvitations);
 // Verify token (public - no auth required for this one)
 router.get('/verify/:token', adminInvitationsController.verifyToken);
 
+// Direct create admin (bypass email)
+router.post('/direct-create', adminInvitationsController.directCreateAdmin);
+
 // Cancel invitation
 router.delete('/:id', adminInvitationsController.cancelInvitation);
 

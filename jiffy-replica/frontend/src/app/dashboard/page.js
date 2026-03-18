@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Link as LinkIcon, Coins, Calendar, MessageSquare, Edit, Loader2, Clock, Briefcase, CreditCard, CheckCircle, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Link as LinkIcon, Coins, Calendar, MessageSquare, Edit, Loader2, Clock, Briefcase, CreditCard, CheckCircle, Star, FileText } from 'lucide-react';
 import { fetchBookings } from '@/store/slices/bookingsSlice';
 import ReviewModal from '@/components/ReviewModal';
 
@@ -122,11 +122,11 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Content with Sidebar */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
           {/* Left Sidebar */}
-          <div className="w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm sticky top-8">
+          <div className="w-full lg:w-64 lg:flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm lg:sticky lg:top-8">
               {/* Profile Section */}
               <div className="text-center pt-6 pb-4 px-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-1">{profile?.full_name || 'User'}</h2>
@@ -198,18 +198,18 @@ export default function DashboardPage() {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Dashboard Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-8 border-b border-gray-200">
-                <h1 className="text-3xl font-bold text-gray-900 pb-4 border-b-2 border-[#0E7480]">Dashboard</h1>
-                <Link href="/profile/edit" className="text-gray-600 hover:text-gray-900 pb-4">Edit Profile</Link>
-                <Link href="/credits" className="text-gray-600 hover:text-gray-900 pb-4">Credits</Link>
+            <div className="mb-4 sm:mb-6 lg:mb-8">
+              <div className="flex items-center gap-4 sm:gap-8 border-b border-gray-200 overflow-x-auto">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 pb-3 sm:pb-4 border-b-2 border-[#0E7480] whitespace-nowrap">Dashboard</h1>
+                <Link href="/profile/edit" className="text-sm sm:text-base text-gray-600 hover:text-gray-900 pb-3 sm:pb-4 whitespace-nowrap">Edit Profile</Link>
+                <Link href="/credits" className="text-sm sm:text-base text-gray-600 hover:text-gray-900 pb-3 sm:pb-4 whitespace-nowrap">Credits</Link>
               </div>
             </div>
 
             {/* Hero Carousel */}
-            <div className="relative mb-8 rounded-2xl overflow-hidden shadow-lg h-80">
+            <div className="relative mb-4 sm:mb-6 lg:mb-8 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg h-48 sm:h-64 lg:h-80">
               <Image
                 src={heroSlides[currentSlide].image}
                 alt="Hero"
@@ -234,9 +234,9 @@ export default function DashboardPage() {
               </button>
 
               {/* CTA Content */}
-              <div className="absolute right-8 top-1/2 -translate-y-1/2">
-                <h2 className="text-white text-3xl font-bold mb-4">{heroSlides[currentSlide].title}</h2>
-                <button className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+              <div className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 max-w-[60%] sm:max-w-none">
+                <h2 className="text-white text-lg sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-4">{heroSlides[currentSlide].title}</h2>
+                <button className="bg-white text-gray-900 px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-gray-100 transition-colors">
                   {heroSlides[currentSlide].cta}
                 </button>
               </div>
@@ -299,10 +299,19 @@ export default function DashboardPage() {
                       </span>
                       {/* Payment Status */}
                       {booking.transactions && booking.transactions.some(t => t.status === 'succeeded') ? (
-                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-600 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          Paid
-                        </span>
+                        <>
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-600 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" />
+                            Paid
+                          </span>
+                          <Link
+                            href="/dashboard/invoices"
+                            className="px-3 py-1.5 text-xs font-semibold rounded-full border border-[#0E7480] text-[#0E7480] hover:bg-[#0E7480] hover:text-white transition-colors flex items-center gap-1"
+                          >
+                            <FileText className="w-3 h-3" />
+                            View Invoice
+                          </Link>
+                        </>
                       ) : booking.transactions && booking.transactions.some(t => t.status === 'held') ? (
                         <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
                           <Clock className="w-3 h-3" />

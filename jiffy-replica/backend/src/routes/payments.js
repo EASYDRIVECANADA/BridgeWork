@@ -78,6 +78,7 @@ router.post('/admin/disputes/:booking_id/resolve', authenticate, authorize('admi
 router.post('/connect/onboard', authenticate, authorize('pro'), stripeConnectController.createConnectAccount);
 router.get('/connect/status', authenticate, authorize('pro'), stripeConnectController.getConnectStatus);
 router.get('/connect/dashboard', authenticate, authorize('pro'), stripeConnectController.getConnectDashboardLink);
+router.get('/connect/remediation-link', authenticate, authorize('pro'), stripeConnectController.getRemediationLink);
 router.get('/connect/earnings', authenticate, authorize('pro'), stripeConnectController.getProEarnings);
 router.get('/connect/commission-rate', authenticate, stripeConnectController.getCommissionRate);
 

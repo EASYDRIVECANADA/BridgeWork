@@ -9,13 +9,13 @@ import {
   MapPin, Star, Clock, DollarSign, Briefcase, Bell, MessageSquare,
   ChevronRight, CheckCircle, XCircle, Phone, Mail, Calendar,
   TrendingUp, Users, Award, Settings, Edit, LogOut, FileText, Loader2,
-  Camera, Upload, X, Plus, Image as ImageIcon
+  Camera, Upload, X, Plus, Image as ImageIcon, AlertTriangle
 } from 'lucide-react';
 import { signOut, updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
 import { fetchProJobs, acceptJob, declineJob, fetchProStatistics, updateProProfile } from '@/store/slices/prosSlice';
 import { fetchConversations, fetchMessages, sendMessage } from '@/store/slices/messagesSlice';
-import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 // Helper: format a booking from the API into a display-friendly job object
@@ -59,6 +59,10 @@ export default function ProDashboardPage() {
   const [responseText, setResponseText] = useState('');
   const [respondLoading, setRespondLoading] = useState(false);
 
+  // Quote requests state
+  const [quoteRequests, setQuoteRequests] = useState([]);
+  const [quoteRequestsLoading, setQuoteRequestsLoading] = useState(false);
+
   // Pro profile settings state
   const avatarInputRef = useRef(null);
   const portfolioInputRef = useRef(null);
@@ -76,6 +80,19 @@ export default function ProDashboardPage() {
   const [settingsPortfolioImages, setSettingsPortfolioImages] = useState([]);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
   const [proDocuments, setProDocuments] = useState({});
+  // Business info & insurance editing state
+  const [settingsBusinessAddress, setSettingsBusinessAddress] = useState('');
+  const [settingsBusinessUnit, setSettingsBusinessUnit] = useState('');
+  const [settingsGstNumber, setSettingsGstNumber] = useState('');
+  const [settingsWebsite, setSettingsWebsite] = useState('');
+  const [settingsInsuranceProvider, setSettingsInsuranceProvider] = useState('');
+  const [settingsInsurancePolicyNumber, setSettingsInsurancePolicyNumber] = useState('');
+  const [settingsInsuranceExpiry, setSettingsInsuranceExpiry] = useState('');
+  const [settingsInsuranceDocUrl, setSettingsInsuranceDocUrl] = useState('');
+  const [insuranceUploading, setInsuranceUploading] = useState(false);
+  const insuranceInputRef = useRef(null);
+  const [pendingUpdateRequest, setPendingUpdateRequest] = useState(null);
+  const [submitReviewLoading, setSubmitReviewLoading] = useState(false);
 
   // Available service categories (from DB)
   const SERVICE_CATEGORIES = [
@@ -166,6 +183,19 @@ export default function ProDashboardPage() {
       setEarningsLoading(false);
     };
     fetchConnectData();
+
+    // Fetch quote requests assigned to this pro
+    const fetchQuoteRequests = async () => {
+      try {
+        setQuoteRequestsLoading(true);
+        const res = await bookingsAPI.getQuoteRequestsForPro();
+        setQuoteRequests(res.data?.data?.bookings || []);
+      } catch (err) {
+        console.log('[PRO-DASH] Quote requests not available:', err?.response?.status);
+      }
+      setQuoteRequestsLoading(false);
+    };
+    fetchQuoteRequests();
   }, [user, router, dispatch]);
 
   // Handle return from Stripe onboarding (?stripe=success)
@@ -217,6 +247,20 @@ export default function ProDashboardPage() {
             certifications: pp.certifications,
             is_verified: pp.is_verified,
           });
+          // Business info & insurance editing fields
+          setSettingsBusinessAddress(pp.business_address || '');
+          setSettingsBusinessUnit(pp.business_unit || '');
+          setSettingsGstNumber(pp.gst_number || '');
+          setSettingsWebsite(pp.website || '');
+          setSettingsInsuranceProvider(pp.insurance_provider || '');
+          setSettingsInsurancePolicyNumber(pp.insurance_policy_number || '');
+          setSettingsInsuranceExpiry(pp.insurance_expiry || '');
+          setSettingsInsuranceDocUrl(pp.insurance_document_url || '');
+          // Check for pending update request
+          try {
+            const pendingRes = await proProfileUpdatesAPI.getMyPending();
+            setPendingUpdateRequest(pendingRes.data?.data?.request || null);
+          } catch {}
         } else {
           setSettingsBusinessName(profile?.full_name || '');
           setSettingsPhone(profile?.phone || '');
@@ -326,6 +370,60 @@ export default function ProDashboardPage() {
       toast.error(err || 'Failed to save settings');
     }
     setSettingsSaving(false);
+  };
+
+  // Insurance document upload handler
+  const handleInsuranceUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setInsuranceUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/insurance_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('pro-documents')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) {
+        toast.error('Failed to upload insurance document');
+        setInsuranceUploading(false);
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage
+        .from('pro-documents')
+        .getPublicUrl(fileName);
+      setSettingsInsuranceDocUrl(publicUrl);
+      toast.success('Insurance document uploaded!');
+    } catch (err) {
+      toast.error('Failed to upload insurance document');
+    }
+    setInsuranceUploading(false);
+    if (insuranceInputRef.current) insuranceInputRef.current.value = '';
+  };
+
+  // Submit business info / insurance changes for admin review
+  const handleSubmitForReview = async () => {
+    setSubmitReviewLoading(true);
+    try {
+      const changes = {
+        business_name: settingsBusinessName,
+        business_address: settingsBusinessAddress,
+        business_unit: settingsBusinessUnit,
+        gst_number: settingsGstNumber,
+        website: settingsWebsite,
+        insurance_provider: settingsInsuranceProvider,
+        insurance_policy_number: settingsInsurancePolicyNumber,
+        insurance_expiry: settingsInsuranceExpiry || null,
+        insurance_document_url: settingsInsuranceDocUrl,
+      };
+      const res = await proProfileUpdatesAPI.submitUpdate(changes);
+      if (res.data.success) {
+        setPendingUpdateRequest(res.data.data.request);
+        toast.success('Changes submitted for admin review!');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit changes for review');
+    }
+    setSubmitReviewLoading(false);
   };
 
   const handleAcceptJob = async (jobId) => {
@@ -491,6 +589,22 @@ export default function ProDashboardPage() {
     }
   };
 
+  const handleStripeRemediation = async () => {
+    setConnectLoading(true);
+    try {
+      const res = await paymentsAPI.connectRemediationLink();
+      const url = res.data?.data?.url;
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.error('Could not generate verification link.');
+      }
+    } catch (err) {
+      toast.error('Failed to generate verification link. Please try again.');
+    }
+    setConnectLoading(false);
+  };
+
   const handleSignOut = async () => {
     await dispatch(signOut());
     router.push('/');
@@ -505,11 +619,11 @@ export default function ProDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
           {/* ==================== LEFT SIDEBAR ==================== */}
-          <div className="w-72 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm sticky top-28">
+          <div className="w-full lg:w-72 lg:flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm lg:sticky lg:top-28">
               {/* Profile Section */}
               <div className="text-center pt-6 pb-4 px-6">
                 {(avatarUrl || profile?.avatar_url) ? (
@@ -579,6 +693,25 @@ export default function ProDashboardPage() {
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('quotes')}
+                  className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
+                    activeTab === 'quotes' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className={`w-5 h-5 ${activeTab === 'quotes' ? 'text-[#0E7480]' : 'text-gray-500'}`} />
+                    <span className={`text-sm ${activeTab === 'quotes' ? 'text-[#0E7480] font-semibold' : 'text-gray-700'}`}>
+                      Quote Requests
+                    </span>
+                  </div>
+                  {quoteRequests.length > 0 && (
+                    <span className="bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                      {quoteRequests.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
                   onClick={() => setActiveTab('active')}
                   className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
                     activeTab === 'active' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
@@ -637,6 +770,11 @@ export default function ProDashboardPage() {
                       Earnings
                     </span>
                   </div>
+                  {(!connectStatus || !connectStatus.charges_enabled) && (
+                    <span className="flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full animate-pulse">
+                      !
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -690,15 +828,15 @@ export default function ProDashboardPage() {
           </div>
 
           {/* ==================== MAIN CONTENT ==================== */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">Pro Dashboard</h1>
-              <p className="text-gray-500 text-sm">Welcome back, {profile?.full_name?.split(' ')[0] || 'Pro'}!</p>
+            <div className="mb-4 sm:mb-6 lg:mb-8">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Pro Dashboard</h1>
+              <p className="text-gray-500 text-xs sm:text-sm">Welcome back, {profile?.full_name?.split(' ')[0] || 'Pro'}!</p>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -721,16 +859,35 @@ export default function ProDashboardPage() {
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div className={`bg-white rounded-xl p-5 shadow-sm border ${(!connectStatus || !connectStatus.charges_enabled) ? 'border-orange-300' : 'border-gray-100'} relative`}>
+                {(!connectStatus || !connectStatus.charges_enabled) && (
+                  <div className="absolute -top-2 -right-2">
+                    <span className="relative flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 items-center justify-center">
+                        <span className="text-white text-[8px] font-bold">!</span>
+                      </span>
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-yellow-600" />
+                  <div className={`w-10 h-10 ${(!connectStatus || !connectStatus.charges_enabled) ? 'bg-orange-100' : 'bg-yellow-100'} rounded-lg flex items-center justify-center`}>
+                    <TrendingUp className={`w-5 h-5 ${(!connectStatus || !connectStatus.charges_enabled) ? 'text-orange-600' : 'text-yellow-600'}`} />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">${Number(totalEarnings).toFixed(2)}</p>
                     <p className="text-xs text-gray-500">This Month</p>
                   </div>
                 </div>
+                {(!connectStatus || !connectStatus.charges_enabled) && (
+                  <Link 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setActiveTab('earnings'); }}
+                    className="mt-3 block text-xs text-orange-600 hover:text-orange-700 font-medium"
+                  >
+                    ⚠️ Complete Stripe setup to withdraw
+                  </Link>
+                )}
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-3">
@@ -835,6 +992,110 @@ export default function ProDashboardPage() {
                               className="text-[#0E7480] text-xs hover:underline mt-1"
                             >
                               {expandedAlert === job.id ? 'Less info' : 'More info'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ==================== QUOTE REQUESTS TAB ==================== */}
+            {activeTab === 'quotes' && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  Quote Requests
+                  {quoteRequests.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-gray-500">
+                      ({quoteRequests.length} pending)
+                    </span>
+                  )}
+                </h2>
+
+                {quoteRequestsLoading ? (
+                  <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
+                    <Loader2 className="w-8 h-8 text-[#0E7480] mx-auto mb-4 animate-spin" />
+                    <p className="text-sm text-gray-500">Loading quote requests...</p>
+                  </div>
+                ) : quoteRequests.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No quote requests</h3>
+                    <p className="text-sm text-gray-500">Quote requests assigned to you by admin will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {quoteRequests.map((booking) => (
+                      <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="flex">
+                          {/* Service Image */}
+                          <div className="w-32 h-32 relative flex-shrink-0">
+                            <Image
+                              src={booking.services?.image_url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=300'}
+                              alt={booking.service_name || 'Service'}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+
+                          {/* Booking Details */}
+                          <div className="flex-1 p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-bold text-gray-900">{booking.service_name || booking.services?.name}</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{booking.profiles?.full_name || 'Customer'}</p>
+                              </div>
+                              <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
+                                {booking.assignment_status === 'quoted' ? 'Quote Submitted' : 'Awaiting Quote'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span>{booking.address}, {booking.city} {booking.state}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>{booking.scheduled_date ? new Date(booking.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Flexible'}</span>
+                              </div>
+                              {booking.scheduled_time && (
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{booking.scheduled_time}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {booking.special_instructions && (
+                              <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">
+                                <p className="font-medium mb-1">Customer Notes:</p>
+                                <p>{booking.special_instructions}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-col justify-center gap-2 p-4 border-l border-gray-100">
+                            <Link
+                              href={`/pro-dashboard/quote-requests/${booking.id}`}
+                              className="px-4 py-2 bg-[#0E7480] text-white text-sm font-medium rounded-lg hover:bg-[#0a5a63] transition-colors text-center"
+                            >
+                              Submit Quote
+                            </Link>
+                            <button
+                              onClick={() => {
+                                // TODO: Implement decline quote
+                                toast.info('Decline feature coming soon');
+                              }}
+                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              Decline
                             </button>
                           </div>
                         </div>
@@ -1178,7 +1439,7 @@ export default function ProDashboardPage() {
                 )}
 
                 {/* Connected Badge + Dashboard Link */}
-                {connectStatus?.charges_enabled && (
+                {connectStatus?.charges_enabled && connectStatus?.payouts_enabled && (
                   <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-green-600" />
@@ -1192,6 +1453,36 @@ export default function ProDashboardPage() {
                       className="px-4 py-2 bg-white border border-green-300 rounded-lg text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
                     >
                       Stripe Dashboard →
+                    </button>
+                  </div>
+                )}
+
+                {/* Payouts Paused Warning — charges work but payouts are paused due to verification */}
+                {connectStatus?.charges_enabled && !connectStatus?.payouts_enabled && (
+                  <div className="mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Payouts Paused — Action Required</p>
+                        <p className="text-xs text-amber-700">
+                          {connectStatus?.requirements?.past_due?.length > 0
+                            ? 'Stripe requires additional verification (e.g. photo ID, selfie) before payouts can resume. Click below to complete it now.'
+                            : connectStatus?.requirements?.currently_due?.length > 0
+                            ? 'Additional information is needed to enable payouts. Click below to complete verification.'
+                            : 'Your payouts are currently paused. Click below to resolve this.'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleStripeRemediation}
+                      disabled={connectLoading}
+                      className="px-4 py-2 bg-white border border-amber-300 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-50 transition-colors flex-shrink-0 disabled:opacity-50"
+                    >
+                      {connectLoading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin inline mr-1" /> Loading...</>
+                      ) : (
+                        'Complete Verification →'
+                      )}
                     </button>
                   </div>
                 )}
@@ -1503,6 +1794,153 @@ export default function ProDashboardPage() {
                     </div>
                   </div>
 
+                  {/* Business Info & Insurance (requires admin approval) */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Business Info & Insurance</h3>
+                        <p className="text-sm text-gray-500 mt-1">Changes to these fields require admin approval before they take effect.</p>
+                      </div>
+                      {pendingUpdateRequest && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                          <Clock className="w-3.5 h-3.5" />
+                          Pending Review
+                        </span>
+                      )}
+                    </div>
+
+                    {pendingUpdateRequest && (
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                        You have a pending update request submitted on {new Date(pendingUpdateRequest.created_at).toLocaleDateString()}. Please wait for admin review before submitting new changes.
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
+                        <input
+                          type="text"
+                          value={settingsBusinessAddress}
+                          onChange={(e) => setSettingsBusinessAddress(e.target.value)}
+                          disabled={!!pendingUpdateRequest}
+                          placeholder="123 Main St"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Unit / Suite</label>
+                        <input
+                          type="text"
+                          value={settingsBusinessUnit}
+                          onChange={(e) => setSettingsBusinessUnit(e.target.value)}
+                          disabled={!!pendingUpdateRequest}
+                          placeholder="Suite 200"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">GST/HST Number</label>
+                        <input
+                          type="text"
+                          value={settingsGstNumber}
+                          onChange={(e) => setSettingsGstNumber(e.target.value)}
+                          disabled={!!pendingUpdateRequest}
+                          placeholder="123456789RT0001"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                        <input
+                          type="url"
+                          value={settingsWebsite}
+                          onChange={(e) => setSettingsWebsite(e.target.value)}
+                          disabled={!!pendingUpdateRequest}
+                          placeholder="https://www.mybusiness.com"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Insurance Section */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">Liability Insurance</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
+                          <input
+                            type="text"
+                            value={settingsInsuranceProvider}
+                            onChange={(e) => setSettingsInsuranceProvider(e.target.value)}
+                            disabled={!!pendingUpdateRequest}
+                            placeholder="e.g. Canada"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Policy Number</label>
+                          <input
+                            type="text"
+                            value={settingsInsurancePolicyNumber}
+                            onChange={(e) => setSettingsInsurancePolicyNumber(e.target.value)}
+                            disabled={!!pendingUpdateRequest}
+                            placeholder="POL-123456"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                          <input
+                            type="date"
+                            value={settingsInsuranceExpiry}
+                            onChange={(e) => setSettingsInsuranceExpiry(e.target.value)}
+                            disabled={!!pendingUpdateRequest}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Document</label>
+                          <div className="flex items-center gap-2">
+                            {settingsInsuranceDocUrl ? (
+                              <a href={settingsInsuranceDocUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-[#0E7480] hover:underline truncate max-w-[200px]">
+                                View Document
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-400">No document</span>
+                            )}
+                            <button
+                              onClick={() => insuranceInputRef.current?.click()}
+                              disabled={insuranceUploading || !!pendingUpdateRequest}
+                              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {insuranceUploading ? 'Uploading...' : settingsInsuranceDocUrl ? 'Re-upload' : 'Upload'}
+                            </button>
+                            <input
+                              ref={insuranceInputRef}
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleInsuranceUpload}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Submit for Review Button */}
+                    {!pendingUpdateRequest && (
+                      <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end">
+                        <button
+                          onClick={handleSubmitForReview}
+                          disabled={submitReviewLoading}
+                          className="px-6 py-2.5 bg-[#142841] text-white rounded-lg text-sm font-medium hover:bg-[#0e1e30] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {submitReviewLoading ? 'Submitting...' : 'Submit Changes for Review'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Bio / About Me */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-2">About Me</h3>
@@ -1642,15 +2080,19 @@ export default function ProDashboardPage() {
 
                       {/* Stripe Connect */}
                       <div className={`flex items-center justify-between p-3 rounded-lg ${
-                        connectStatus?.charges_enabled
+                        connectStatus?.charges_enabled && connectStatus?.payouts_enabled
                           ? 'bg-green-50 border border-green-200'
-                          : connectStatus?.connected
-                            ? 'bg-yellow-50 border border-yellow-200'
-                            : 'bg-gray-50 border border-gray-200'
+                          : connectStatus?.charges_enabled && !connectStatus?.payouts_enabled
+                            ? 'bg-amber-50 border border-amber-200'
+                            : connectStatus?.connected
+                              ? 'bg-yellow-50 border border-yellow-200'
+                              : 'bg-gray-50 border border-gray-200'
                       }`}>
                         <div className="flex items-center gap-2">
-                          {connectStatus?.charges_enabled ? (
+                          {connectStatus?.charges_enabled && connectStatus?.payouts_enabled ? (
                             <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : connectStatus?.charges_enabled && !connectStatus?.payouts_enabled ? (
+                            <AlertTriangle className="w-4 h-4 text-amber-600" />
                           ) : connectStatus?.connected ? (
                             <Clock className="w-4 h-4 text-yellow-600" />
                           ) : (
@@ -1658,8 +2100,10 @@ export default function ProDashboardPage() {
                           )}
                           <span className="text-sm text-gray-700">Stripe Payments</span>
                         </div>
-                        {connectStatus?.charges_enabled ? (
+                        {connectStatus?.charges_enabled && connectStatus?.payouts_enabled ? (
                           <span className="text-xs text-green-600 font-medium">Active</span>
+                        ) : connectStatus?.charges_enabled && !connectStatus?.payouts_enabled ? (
+                          <span className="text-xs text-amber-600 font-medium">Payouts paused</span>
                         ) : connectStatus?.connected ? (
                           <span className="text-xs text-yellow-600 font-medium">Pending verification</span>
                         ) : (

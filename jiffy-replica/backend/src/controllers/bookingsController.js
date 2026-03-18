@@ -790,12 +790,12 @@ exports.getQuoteRequestsForPro = async (req, res) => {
             });
         }
 
-        // Get quote assignments for this pro
+        // Get quote assignments for this pro (include all non-declined statuses)
         const { data: assignments, error: assignError } = await supabaseAdmin
             .from('quote_assignments')
             .select('booking_id, status')
             .eq('pro_id', proProfile.id)
-            .in('status', ['invited', 'viewed', 'quoted']);
+            .in('status', ['invited', 'viewed', 'quoted', 'selected', 'accepted']);
 
         if (assignError) {
             // Table might not exist yet - return empty array
@@ -826,6 +826,7 @@ exports.getQuoteRequestsForPro = async (req, res) => {
         }, {});
 
         // Get only bookings that this pro is assigned to
+        // Include both 'awaiting_quotes' (available to bid) and 'accepted' (already submitted quote)
         // First get bookings without booking_quotations to avoid join ambiguity
         const { data: bookings, error: bookingsError } = await supabaseAdmin
             .from('bookings')
@@ -835,7 +836,7 @@ exports.getQuoteRequestsForPro = async (req, res) => {
                 profiles!bookings_user_id_fkey (id, full_name, avatar_url)
             `)
             .in('id', assignedBookingIds)
-            .eq('status', 'awaiting_quotes')
+            .in('status', ['awaiting_quotes', 'accepted', 'in_progress', 'completed'])
             .order('created_at', { ascending: false });
 
         if (bookingsError) {
@@ -916,7 +917,7 @@ exports.getQuoteRequestDetail = async (req, res) => {
             });
         }
 
-        // Get booking details
+        // Get booking details - include all statuses for quote requests the pro is assigned to
         const { data: booking, error } = await supabaseAdmin
             .from('bookings')
             .select(`
@@ -925,7 +926,7 @@ exports.getQuoteRequestDetail = async (req, res) => {
                 profiles!bookings_user_id_fkey (id, full_name, avatar_url, phone)
             `)
             .eq('id', id)
-            .eq('status', 'awaiting_quotes')
+            .in('status', ['awaiting_quotes', 'accepted', 'in_progress', 'completed'])
             .single();
 
         if (error || !booking) {

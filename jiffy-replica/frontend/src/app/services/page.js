@@ -103,42 +103,42 @@ function ServicesPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header Section */}
-      <div className="bg-gradient-to-b from-blue-50 to-blue-100 py-12">
+      <div className="bg-gradient-to-b from-blue-50 to-blue-100 py-6 sm:py-8 lg:py-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8">
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8">
             {serviceType === 'commercial'
               ? 'Professional commercial services for your business.'
               : 'BridgeWork keeps your home in great shape, inside and out.'}
           </h1>
 
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-8">
+          <div className="max-w-2xl mx-auto mb-4 sm:mb-6 lg:mb-8">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 sm:w-6 h-5 sm:h-6" />
               <input
                 type="text"
-                placeholder=""
+                placeholder="Search services..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-14 pr-4 py-4 text-lg border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#0E7480] transition-colors"
+                className="w-full pl-10 sm:pl-14 pr-4 py-3 sm:py-4 text-base sm:text-lg border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#0E7480] transition-colors"
               />
             </div>
           </div>
 
-          {/* Category Pills (Residential only) */}
+          {/* Category Pills (Residential only) - Scrollable on mobile */}
           {serviceType === 'residential' && categories.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-3 mb-6">
+            <div className="flex overflow-x-auto pb-2 sm:flex-wrap sm:justify-center gap-2 sm:gap-3 mb-4 sm:mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategoryId(category.id)}
-                  className={`px-6 py-3 rounded-full font-medium transition-all ${
+                  className={`flex-shrink-0 px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-base font-medium transition-all ${
                     selectedCategoryId === category.id
                       ? 'bg-black text-white shadow-lg'
                       : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
                   }`}
                 >
-                  <span className="mr-2">{category.icon_url || '📁'}</span>
+                  <span className="mr-1 sm:mr-2">{category.icon_url || '📁'}</span>
                   {category.name}
                 </button>
               ))}
@@ -146,7 +146,7 @@ function ServicesPageContent() {
           )}
 
           {/* Help Text */}
-          <p className="text-sm text-gray-600">
+          <p className="text-xs sm:text-sm text-gray-600">
             Need help finding the right service?{' '}
             <Link href="/chat" className="text-[#0E7480] underline hover:text-[#2570d4]">
               Chat with us.
@@ -156,17 +156,17 @@ function ServicesPageContent() {
       </div>
 
       {/* Services Grid */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 lg:py-12">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex items-center justify-center py-12 sm:py-20">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0E7480] mx-auto"></div>
-              <p className="mt-4 text-gray-500">Loading services...</p>
+              <div className="animate-spin rounded-full h-8 sm:h-10 w-8 sm:w-10 border-b-2 border-[#0E7480] mx-auto"></div>
+              <p className="mt-3 sm:mt-4 text-gray-500 text-sm sm:text-base">Loading services...</p>
             </div>
           </div>
         ) : (
           <>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredServices.map((service) => (
                 <div
                   key={service.id}

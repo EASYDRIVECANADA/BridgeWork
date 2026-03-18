@@ -167,27 +167,27 @@ export default function MyJobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-10">
         {/* Page Title */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Jobs</h1>
-        <hr className="border-gray-300 mb-6" />
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Jobs</h1>
+        <hr className="border-gray-300 mb-4 sm:mb-6" />
 
         {/* Promo Banner */}
         {showBanner && (
-          <div className="relative rounded-lg overflow-hidden mb-8">
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 px-5 py-3 flex items-center justify-between">
-              <p className="text-white text-sm font-medium">
+          <div className="relative rounded-lg overflow-hidden mb-4 sm:mb-6 lg:mb-8">
+            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 px-3 sm:px-5 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+              <p className="text-white text-xs sm:text-sm font-medium">
                 Get $40 off your next 2 jobs if you pay $25 now
               </p>
-              <div className="flex items-center gap-3">
-                <button className="bg-white text-gray-900 text-xs font-semibold px-4 py-1.5 rounded hover:bg-gray-100 transition-colors">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button className="bg-white text-gray-900 text-xs font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded hover:bg-gray-100 transition-colors">
                   See Offer
                 </button>
                 <button
                   onClick={() => setShowBanner(false)}
                   className="text-white hover:text-gray-200 transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 sm:w-5 h-4 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -195,8 +195,8 @@ export default function MyJobsPage() {
         )}
 
         {/* Active Jobs Section */}
-        <div className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="mb-6 sm:mb-8 lg:mb-10">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">
             Active Jobs ({activeBookings.length})
           </h2>
 
@@ -210,18 +210,18 @@ export default function MyJobsPage() {
               {activeBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     {/* Icon */}
-                    <div className="w-14 h-14 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Briefcase className="w-7 h-7 text-white" />
+                    <div className="w-10 sm:w-14 h-10 sm:h-14 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Briefcase className="w-5 sm:w-7 h-5 sm:h-7 text-white" />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       {/* Title Row */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-3 mb-2 sm:mb-3">
                         <div className="flex-1">
                           <h3 className="text-base font-bold text-gray-900 mb-1">
                             {booking.service_name}
@@ -247,9 +247,9 @@ export default function MyJobsPage() {
                       </div>
 
                       {/* Details Row */}
-                      <div className="flex items-center gap-4 mb-4 flex-wrap">
-                        <span className="text-sm text-gray-600 flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4 flex-wrap text-xs sm:text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Calendar className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-gray-400" />
                           {booking.scheduled_date
                             ? new Date(booking.scheduled_date).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -268,7 +268,7 @@ export default function MyJobsPage() {
                       </div>
 
                       {/* Status & Actions Row */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         {/* Status Badge */}
                         <span
                           className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${

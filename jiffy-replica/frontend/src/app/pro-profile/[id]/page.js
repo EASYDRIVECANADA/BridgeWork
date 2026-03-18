@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   MapPin, Star, Clock, Phone, Mail, Shield, Award, CheckCircle,
-  ChevronLeft, Calendar, ThumbsUp, Edit, Loader2
+  ChevronLeft, Calendar, ThumbsUp, Edit, Loader2, ExternalLink
 } from 'lucide-react';
 import { prosAPI, reviewsAPI } from '@/lib/api';
 
@@ -216,6 +216,43 @@ export default function ProProfilePage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">About</h2>
                 <p className="text-sm text-gray-700 leading-relaxed">{proBio}</p>
+              </div>
+            )}
+
+            {/* Business Info */}
+            {(pro.business_address || pro.website || pro.gst_number) && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-3">Business Information</h2>
+                <div className="space-y-3">
+                  {pro.business_address && (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-gray-700">
+                          {pro.business_address}
+                          {pro.business_unit && `, ${pro.business_unit}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {pro.website && (
+                    <div className="flex items-center gap-3">
+                      <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <a href={pro.website} target="_blank" rel="noopener noreferrer" className="text-sm text-[#0E7480] hover:underline">
+                        {pro.website.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  )}
+                  {pro.insurance_provider && (
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">
+                        Insured by {pro.insurance_provider}
+                        {pro.insurance_expiry && ` (expires ${new Date(pro.insurance_expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})`}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -15,13 +15,13 @@ export default function Footer() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 py-14">
+      <div className="relative max-w-7xl mx-auto px-4 py-8 sm:py-10 lg:py-14">
         {/* Top Section - 4 Columns */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8 sm:mb-12 lg:mb-16">
           {/* Column 1: BridgeWork Jobs */}
           <div>
-            <h4 className="font-semibold mb-4">BridgeWork Jobs</h4>
-            <ul className="space-y-3 text-sm">
+            <h4 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">BridgeWork Jobs</h4>
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
               <li>
                 <Link href="/services" className="text-white/85 hover:text-white transition-colors">
                   Explore Services
@@ -47,8 +47,8 @@ export default function Footer() {
 
           {/* Column 2: Company */}
           <div>
-            <h4 className="font-semibold mb-4">Company</h4>
-            <ul className="space-y-3 text-sm">
+            <h4 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Company</h4>
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
               <li>
                 <Link href="/about" className="text-white/85 hover:text-white transition-colors">
                   About Us
@@ -69,8 +69,8 @@ export default function Footer() {
 
           {/* Column 3: Legal */}
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
-            <ul className="space-y-3 text-sm">
+            <h4 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Legal</h4>
+            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
               <li>
                 <Link href="/terms" className="text-white/85 hover:text-white transition-colors">
                   Terms & Conditions
@@ -101,8 +101,8 @@ export default function Footer() {
 
           {/* Column 4: Contact Us */}
           <div>
-            <h5 className="font-semibold mb-3">Contact Us</h5>
-            <Link href="/contact" className="inline-block text-white/85 hover:text-white transition-colors text-sm mb-6">
+            <h5 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">Contact Us</h5>
+            <Link href="/contact" className="inline-block text-white/85 hover:text-white transition-colors text-xs sm:text-sm mb-4 sm:mb-6">
               Send us a message →
             </Link>
 
@@ -110,10 +110,10 @@ export default function Footer() {
         </div>
 
         {/* Bottom Section */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-white/20">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6 pt-6 sm:pt-8 border-t border-white/20">
           {/* Left: Logo and Copyright */}
-          <div>
-            <div className="font-brand text-2xl font-extrabold italic tracking-tight">
+          <div className="text-center md:text-left">
+            <div className="font-brand text-xl sm:text-2xl font-extrabold italic tracking-tight">
               <span className="text-white">Bridge</span>
               <span className="text-white/85">Work</span>
             </div>

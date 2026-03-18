@@ -86,6 +86,13 @@ router.delete('/quotes/:id', authenticate, authorize('pro', 'admin'),
     quotesController.deleteQuote
 );
 
+// ==================== ADMIN: QUOTE INVOICES ====================
+
+// Get quote bookings formatted as invoices (Admin only)
+router.get('/admin/quote-invoices', authenticate, authorize('admin'),
+    quotesController.getQuoteBookingsAsInvoices
+);
+
 // ==================== INVOICES ====================
 
 // Create standalone invoice (Pro only)

@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, CheckCircle, Calendar, Clock, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle, Calendar, Clock, Loader2, Phone, FileText } from 'lucide-react';
 import { servicesAPI, bookingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
@@ -27,8 +27,10 @@ export default function ServiceDetailPage() {
     city: '',
     state: '',
     zip_code: '',
+    phone_number: '',
     scheduled_date: '',
     scheduled_time: '09:00',
+    scheduled_period: 'AM',
     special_instructions: '',
     promo_code: '',
   });
@@ -242,19 +244,30 @@ export default function ServiceDetailPage() {
       toast.error('This service is not available for booking yet. Please try another service.');
       return;
     }
-    if (!bookingForm.address || !bookingForm.city || !bookingForm.state || !bookingForm.zip_code || !bookingForm.scheduled_date) {
+    if (!bookingForm.address || !bookingForm.city || !bookingForm.state || !bookingForm.zip_code || !bookingForm.scheduled_date || !bookingForm.phone_number) {
       toast.error('Please fill in all required fields.');
       return;
     }
     setSubmitting(true);
+    
+    // Convert 12-hour time + AM/PM to 24-hour format
+    let hour = parseInt(bookingForm.scheduled_time.split(':')[0]);
+    if (bookingForm.scheduled_period === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (bookingForm.scheduled_period === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    const formattedTime = `${hour.toString().padStart(2, '0')}:00`;
+    
     const payload = {
       service_id: apiService?.id || serviceId,
       scheduled_date: bookingForm.scheduled_date,
-      scheduled_time: bookingForm.scheduled_time,
+      scheduled_time: formattedTime,
       address: bookingForm.address,
       city: bookingForm.city,
       state: bookingForm.state,
       zip_code: bookingForm.zip_code,
+      phone_number: bookingForm.phone_number,
       special_instructions: bookingForm.special_instructions,
       promo_code: bookingForm.promo_code || undefined,
       // If we used a fallback service, override the name with the correct mock service name
@@ -318,19 +331,9 @@ export default function ServiceDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-  {/* Hero Image Section */}
-  <div className="relative h-[400px] w-full">
-    <Image
-      src={displayImage}
-      alt={displayName}
-      fill
-      className="object-cover"
-      priority
-    />
-  </div>
 
-  {/* Content Boxes - Now in normal flow */}
-  <div className="max-w-7xl mx-auto px-4 -mt-32 pb-8 relative z-10">
+  {/* Content Boxes */}
+  <div className="max-w-7xl mx-auto px-4 pt-8 pb-8 relative z-10">
     <div className="grid lg:grid-cols-3 gap-6 w-full">
       {/* Left Box - Service Details */}
       <div className="lg:col-span-2">
@@ -561,120 +564,175 @@ export default function ServiceDetailPage() {
 
                   <div className="border-t border-gray-200 my-3"></div>
 
-                  <form onSubmit={handleBookingSubmit} className="space-y-3">
-                    {/* Date & Time */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        <Calendar className="w-3 h-3 inline mr-1" />
-                        Preferred Date *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        min={new Date().toISOString().split('T')[0]}
-                        value={bookingForm.scheduled_date}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_date: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        <Clock className="w-3 h-3 inline mr-1" />
-                        Preferred Time *
-                      </label>
-                      <select
-                        value={bookingForm.scheduled_time}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_time: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
-                      >
-                        <option value="08:00">8:00 AM</option>
-                        <option value="09:00">9:00 AM</option>
-                        <option value="10:00">10:00 AM</option>
-                        <option value="11:00">11:00 AM</option>
-                        <option value="12:00">12:00 PM</option>
-                        <option value="13:00">1:00 PM</option>
-                        <option value="14:00">2:00 PM</option>
-                        <option value="15:00">3:00 PM</option>
-                        <option value="16:00">4:00 PM</option>
-                        <option value="17:00">5:00 PM</option>
-                      </select>
-                    </div>
-
-                    <div className="border-t border-gray-200 my-2"></div>
-
-                    {/* Address */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        <MapPin className="w-3 h-3 inline mr-1" />
-                        Street Address *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 36 Treyon Street"
-                        value={bookingForm.address}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, address: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
+                  <form onSubmit={handleBookingSubmit} className="space-y-4">
+                    {/* SECTION: Schedule */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#0E7480]" />
+                        Schedule Your Service
+                      </h4>
+                      
+                      {/* Date Picker */}
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Preferred Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          min={new Date().toISOString().split('T')[0]}
+                          value={bookingForm.scheduled_date}
+                          onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_date: e.target.value }))}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                        />
+                      </div>
+                      
+                      {/* Time Picker with AM/PM */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">City *</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Preferred Time *
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={bookingForm.scheduled_time}
+                            onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_time: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                          >
+                            <option value="12:00">12:00</option>
+                            <option value="01:00">1:00</option>
+                            <option value="02:00">2:00</option>
+                            <option value="03:00">3:00</option>
+                            <option value="04:00">4:00</option>
+                            <option value="05:00">5:00</option>
+                            <option value="06:00">6:00</option>
+                            <option value="07:00">7:00</option>
+                            <option value="08:00">8:00</option>
+                            <option value="09:00">9:00</option>
+                            <option value="10:00">10:00</option>
+                            <option value="11:00">11:00</option>
+                          </select>
+                          <select
+                            value={bookingForm.scheduled_period}
+                            onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_period: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white font-medium"
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION: Contact & Location */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-[#0E7480]" />
+                        Contact & Location
+                      </h4>
+
+                      {/* Phone Number */}
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Phone Number *
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="tel"
+                            required
+                            placeholder="(416) 555-0123"
+                            value={bookingForm.phone_number}
+                            onChange={(e) => setBookingForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                            className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Street Address */}
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Street Address *
+                        </label>
                         <input
                           type="text"
                           required
-                          placeholder="Toronto"
-                          value={bookingForm.city}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, city: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
+                          placeholder="e.g. 36 Treyon Street"
+                          value={bookingForm.address}
+                          onChange={(e) => setBookingForm(prev => ({ ...prev, address: e.target.value }))}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
                         />
                       </div>
+
+                      {/* City & Province */}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">City *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Toronto"
+                            value={bookingForm.city}
+                            onChange={(e) => setBookingForm(prev => ({ ...prev, city: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Province *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="ON"
+                            value={bookingForm.state}
+                            onChange={(e) => setBookingForm(prev => ({ ...prev, state: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Postal Code */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Province *</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Postal Code *</label>
                         <input
                           type="text"
                           required
-                          placeholder="ON"
-                          value={bookingForm.state}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, state: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
+                          placeholder="M5V 2T6"
+                          value={bookingForm.zip_code}
+                          onChange={(e) => setBookingForm(prev => ({ ...prev, zip_code: e.target.value }))}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Postal Code *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="M5V 2T6"
-                        value={bookingForm.zip_code}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, zip_code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
-                      />
-                    </div>
 
-                    {/* Special Instructions */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Special Instructions</label>
-                      <textarea
-                        rows={2}
-                        placeholder="Any details the pro should know..."
-                        value={bookingForm.special_instructions}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, special_instructions: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs resize-none"
-                      />
-                    </div>
+                    {/* SECTION: Additional Info */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#0E7480]" />
+                        Additional Information
+                      </h4>
 
-                    {/* Promo Code */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Promo Code</label>
-                      <input
-                        type="text"
-                        placeholder="Enter promo code"
-                        value={bookingForm.promo_code}
-                        onChange={(e) => setBookingForm(prev => ({ ...prev, promo_code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#0E7480] text-xs"
-                      />
+                      {/* Special Instructions */}
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Special Instructions</label>
+                        <textarea
+                          rows={3}
+                          placeholder="Any details the pro should know about the job..."
+                          value={bookingForm.special_instructions}
+                          onChange={(e) => setBookingForm(prev => ({ ...prev, special_instructions: e.target.value }))}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white resize-none"
+                        />
+                      </div>
+
+                      {/* Promo Code */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Promo Code</label>
+                        <input
+                          type="text"
+                          placeholder="Enter promo code"
+                          value={bookingForm.promo_code}
+                          onChange={(e) => setBookingForm(prev => ({ ...prev, promo_code: e.target.value }))}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                        />
+                      </div>
                     </div>
 
                     {/* Submit */}

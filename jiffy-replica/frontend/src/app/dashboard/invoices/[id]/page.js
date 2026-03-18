@@ -6,9 +6,10 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Loader2, CheckCircle, DollarSign, Clock,
-  User, Receipt, Calendar
+  User, Receipt, Calendar, Download
 } from 'lucide-react';
 import { fetchInvoiceById } from '@/store/slices/quotesSlice';
+import { generateInvoicePDF } from '@/utils/generateInvoicePDF';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -43,6 +44,7 @@ export default function CustomerInvoiceDetailPage() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { currentInvoice: invoice, isLoading } = useSelector((state) => state.quotes);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -51,6 +53,17 @@ export default function CustomerInvoiceDetailPage() {
     }
     dispatch(fetchInvoiceById(id));
   }, [user, router, dispatch, id]);
+
+  const handleDownloadPDF = async () => {
+    if (!invoice) return;
+    setDownloadingPDF(true);
+    try {
+      await generateInvoicePDF(invoice);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+    }
+    setDownloadingPDF(false);
+  };
 
   if (!user) return null;
 
@@ -98,6 +111,18 @@ export default function CustomerInvoiceDetailPage() {
               {parseFloat(invoice.amount_due) > 0 && invoice.status !== 'draft' && (
                 <p className="text-sm text-orange-600 font-semibold">Balance Due: {formatCurrency(invoice.amount_due)}</p>
               )}
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-[#0E7480] text-white text-sm font-medium rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50"
+              >
+                {downloadingPDF ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Download PDF
+              </button>
             </div>
           </div>
         </div>

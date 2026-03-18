@@ -101,27 +101,51 @@ export default function SubmitQuotePage() {
       
       // Pre-fill form if quote exists
       if (data?.my_quotation) {
-        setYourPrice(data.my_quotation.your_price?.toString() || data.my_quotation.quoted_price?.toString() || '');
+        // Parse extended data from notes field (backend stores JSON with your_price, duration_unit, materials_list)
+        let extendedData = null;
+        let originalNotes = '';
+        if (data.my_quotation.notes) {
+          try {
+            const parsed = JSON.parse(data.my_quotation.notes);
+            if (parsed && typeof parsed === 'object' && 'original_notes' in parsed) {
+              extendedData = parsed;
+              originalNotes = parsed.original_notes || '';
+            } else {
+              // Notes is not JSON, use as-is
+              originalNotes = data.my_quotation.notes;
+            }
+          } catch {
+            // Notes is not JSON, use as-is
+            originalNotes = data.my_quotation.notes;
+          }
+        }
+
+        // Use your_price from extended data if available, otherwise from quotation
+        const yourPriceValue = extendedData?.your_price || data.my_quotation.your_price || data.my_quotation.quoted_price;
+        setYourPrice(yourPriceValue?.toString() || '');
         setDescription(data.my_quotation.description || '');
-        // Handle duration with unit
+        
+        // Handle duration with unit - prefer extended data
         const duration = data.my_quotation.estimated_duration;
-        const unit = data.my_quotation.duration_unit || 'minutes';
+        const unit = extendedData?.duration_unit || data.my_quotation.duration_unit || 'minutes';
         setEstimatedDuration(duration?.toString() || '');
         setDurationUnit(unit);
         setMaterialsIncluded(data.my_quotation.materials_included || false);
-        // Parse materials if stored as JSON
-        if (data.my_quotation.materials_list) {
+        
+        // Parse materials - prefer extended data, then quotation field
+        const materialsSource = extendedData?.materials_list || data.my_quotation.materials_list;
+        if (materialsSource) {
           try {
-            const parsedMaterials = typeof data.my_quotation.materials_list === 'string' 
-              ? JSON.parse(data.my_quotation.materials_list) 
-              : data.my_quotation.materials_list;
+            const parsedMaterials = typeof materialsSource === 'string' 
+              ? JSON.parse(materialsSource) 
+              : materialsSource;
             setMaterials(Array.isArray(parsedMaterials) ? parsedMaterials : []);
           } catch {
             setMaterials([]);
           }
         }
         setWarrantyInfo(data.my_quotation.warranty_info || '');
-        setNotes(data.my_quotation.notes || '');
+        setNotes(originalNotes);
       }
     } catch (err) {
       console.error('Failed to fetch quote request:', err);

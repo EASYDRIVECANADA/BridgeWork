@@ -218,4 +218,353 @@
   background-size: 1000px 100%;
 }
 
-/* (intentionally left blank) */
+/* ==================== RESPONSIVE UTILITIES ==================== */
+
+/* Responsive container with proper padding */
+.responsive-container {
+  @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-container {
+    max-width: 1280px;
+  }
+}
+
+/* Responsive grid layouts */
+.responsive-grid {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Responsive table wrapper - makes tables scrollable on mobile */
+.table-responsive {
+  @apply w-full overflow-x-auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table {
+  @apply min-w-full;
+}
+
+/* Mobile-first sidebar layout */
+.sidebar-layout {
+  @apply flex flex-col;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-layout {
+    @apply flex-row gap-8;
+  }
+}
+
+.sidebar-layout .sidebar {
+  @apply w-full mb-6;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-layout .sidebar {
+    @apply w-72 flex-shrink-0 mb-0;
+  }
+}
+
+.sidebar-layout .main-content {
+  @apply flex-1 min-w-0;
+}
+
+/* Responsive modal */
+.modal-responsive {
+  @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4;
+}
+
+.modal-responsive .modal-content {
+  @apply w-full max-h-[90vh] sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl overflow-hidden;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .modal-responsive .modal-content {
+    max-width: 500px;
+  }
+}
+
+@media (min-width: 768px) {
+  .modal-responsive .modal-content {
+    max-width: 600px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .modal-responsive .modal-content {
+    max-width: 700px;
+  }
+}
+
+/* Responsive text sizes */
+.text-responsive-xs {
+  @apply text-xs sm:text-sm;
+}
+
+.text-responsive-sm {
+  @apply text-sm sm:text-base;
+}
+
+.text-responsive-base {
+  @apply text-base sm:text-lg;
+}
+
+.text-responsive-lg {
+  @apply text-lg sm:text-xl md:text-2xl;
+}
+
+.text-responsive-xl {
+  @apply text-xl sm:text-2xl md:text-3xl;
+}
+
+.text-responsive-2xl {
+  @apply text-2xl sm:text-3xl md:text-4xl;
+}
+
+/* Responsive spacing */
+.p-responsive {
+  @apply p-3 sm:p-4 md:p-6;
+}
+
+.px-responsive {
+  @apply px-3 sm:px-4 md:px-6;
+}
+
+.py-responsive {
+  @apply py-3 sm:py-4 md:py-6;
+}
+
+.gap-responsive {
+  @apply gap-3 sm:gap-4 md:gap-6;
+}
+
+/* Prevent horizontal overflow */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Fix for fixed-width elements causing overflow */
+.overflow-safe {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Responsive flex utilities */
+.flex-responsive {
+  @apply flex flex-col sm:flex-row;
+}
+
+.flex-responsive-reverse {
+  @apply flex flex-col-reverse sm:flex-row;
+}
+
+/* Mobile-friendly buttons */
+.btn-responsive {
+  @apply w-full sm:w-auto;
+}
+
+/* Responsive card grid */
+.card-grid {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Stats grid - responsive */
+.stats-grid {
+  @apply grid gap-3 sm:gap-4;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Form responsive layout */
+.form-grid {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .form-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Hide on mobile, show on desktop */
+.desktop-only {
+  @apply hidden lg:block;
+}
+
+/* Show on mobile, hide on desktop */
+.mobile-only {
+  @apply block lg:hidden;
+}
+
+/* Responsive image container */
+.img-responsive {
+  @apply w-full h-auto object-cover;
+}
+
+/* Touch-friendly tap targets (minimum 44px) */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive navigation tabs */
+.nav-tabs-responsive {
+  @apply flex overflow-x-auto gap-1 sm:gap-2 pb-1;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nav-tabs-responsive::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-tabs-responsive .nav-tab {
+  @apply flex-shrink-0 px-3 py-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap rounded-lg;
+}
+
+/* Dashboard layout responsive */
+.dashboard-grid {
+  @apply grid gap-4 sm:gap-6;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Fix for 12-column grid on mobile */
+@media (max-width: 767px) {
+  .grid-cols-12 {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .grid-cols-12 > [class*="col-span"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Responsive data table rows */
+@media (max-width: 767px) {
+  .data-row-responsive {
+    @apply flex flex-col gap-2 p-4 border-b;
+  }
+  
+  .data-row-responsive > div {
+    @apply flex justify-between items-center;
+  }
+  
+  .data-row-responsive > div::before {
+    content: attr(data-label);
+    @apply font-medium text-gray-500 text-xs uppercase;
+  }
+}
+
+/* Truncate text with ellipsis */
+.truncate-responsive {
+  @apply truncate;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .truncate-responsive {
+    max-width: none;
+  }
+}
+
+/* Mobile bottom sheet style for modals */
+@media (max-width: 639px) {
+  .bottom-sheet {
+    @apply fixed inset-x-0 bottom-0 rounded-t-2xl max-h-[85vh];
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+/* Responsive padding for page content */
+.page-padding {
+  @apply px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8;
+}
+
+/* Fix admin grid layouts on mobile */
+@media (max-width: 1023px) {
+  .admin-grid-12 {
+    display: block !important;
+  }
+  
+  .admin-grid-12 > * {
+    width: 100% !important;
+    margin-bottom: 0.5rem;
+  }
+}

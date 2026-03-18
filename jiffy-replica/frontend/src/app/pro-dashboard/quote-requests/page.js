@@ -61,11 +61,11 @@ export default function ProQuoteRequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Quote Requests</h1>
-          <p className="text-gray-600 mt-1">
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quote Requests</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Submit your quotations for Free Quote service requests
           </p>
         </div>
@@ -107,11 +107,11 @@ export default function ProQuoteRequestsPage() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6">
+        {/* Filter Tabs - Scrollable on mobile */}
+        <div className="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               filter === 'all'
                 ? 'bg-[#0E7480] text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -121,7 +121,7 @@ export default function ProQuoteRequestsPage() {
           </button>
           <button
             onClick={() => setFilter('available')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               filter === 'available'
                 ? 'bg-[#0E7480] text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -131,7 +131,7 @@ export default function ProQuoteRequestsPage() {
           </button>
           <button
             onClick={() => setFilter('submitted')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               filter === 'submitted'
                 ? 'bg-[#0E7480] text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -166,25 +166,25 @@ export default function ProQuoteRequestsPage() {
                 key={request.id}
                 className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                <div className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
                       {/* Service Name & Status */}
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                           {request.service_name}
                         </h3>
                         {request.has_submitted_quote ? (
-                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 flex items-center gap-1">
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-green-100 text-green-700 flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
                             Quote Submitted
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
                             Awaiting Your Quote
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">
+                        <span className="text-[10px] sm:text-xs text-gray-400">
                           {request.total_quotes} quote{request.total_quotes !== 1 ? 's' : ''} received
                         </span>
                       </div>
@@ -235,7 +235,7 @@ export default function ProQuoteRequestsPage() {
                     {/* Action Button */}
                     <Link
                       href={`/pro-dashboard/quote-requests/${request.id}`}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                      className={`flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-colors ${
                         request.has_submitted_quote
                           ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           : 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'

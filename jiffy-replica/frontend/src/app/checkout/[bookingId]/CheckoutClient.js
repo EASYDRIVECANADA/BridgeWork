@@ -260,26 +260,26 @@ export default function CheckoutClient() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
           <button
             onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Checkout</h1>
-            <p className="text-xs text-gray-500">Booking #{booking.booking_number}</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900">Checkout</h1>
+            <p className="text-[10px] sm:text-xs text-gray-500">Booking #{booking.booking_number}</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-5 gap-8">
+      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6 lg:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
           {/* Left: Payment Form */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="lg:col-span-3 order-2 lg:order-1">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <h2 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[#0E7480]" />
                 Secure Payment
@@ -326,28 +326,28 @@ export default function CheckoutClient() {
             </div>
 
             {/* Trust Badges */}
-            <div className="mt-6 grid grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                <Shield className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-700">Secure Payment</p>
-                <p className="text-[10px] text-gray-500">256-bit SSL encryption</p>
+            <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3 text-center">
+                <Shield className="w-4 sm:w-5 h-4 sm:h-5 text-green-600 mx-auto mb-1" />
+                <p className="text-[10px] sm:text-xs font-medium text-gray-700">Secure Payment</p>
+                <p className="text-[8px] sm:text-[10px] text-gray-500 hidden sm:block">256-bit SSL encryption</p>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-700">Money-Back Guarantee</p>
-                <p className="text-[10px] text-gray-500">If service not delivered</p>
+              <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3 text-center">
+                <CheckCircle className="w-4 sm:w-5 h-4 sm:h-5 text-green-600 mx-auto mb-1" />
+                <p className="text-[10px] sm:text-xs font-medium text-gray-700">Money-Back</p>
+                <p className="text-[8px] sm:text-[10px] text-gray-500 hidden sm:block">If service not delivered</p>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                <Lock className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-700">Powered by Stripe</p>
-                <p className="text-[10px] text-gray-500">PCI-DSS compliant</p>
+              <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3 text-center">
+                <Lock className="w-4 sm:w-5 h-4 sm:h-5 text-green-600 mx-auto mb-1" />
+                <p className="text-[10px] sm:text-xs font-medium text-gray-700">Stripe</p>
+                <p className="text-[8px] sm:text-[10px] text-gray-500 hidden sm:block">PCI-DSS compliant</p>
               </div>
             </div>
           </div>
 
-          {/* Right: Order Summary */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-8">
+          {/* Right: Order Summary - Shows first on mobile */}
+          <div className="lg:col-span-2 order-1 lg:order-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-8">
               <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-[#0E7480]" />
                 Order Summary

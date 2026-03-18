@@ -247,16 +247,16 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
         {/* Page Title */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Messages</h1>
-        <div className="h-[2px] bg-gradient-to-r from-[#0E7480] via-[#c9a84c] to-transparent mb-6" />
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Messages</h1>
+        <div className="h-[2px] bg-gradient-to-r from-[#0E7480] via-[#c9a84c] to-transparent mb-4 sm:mb-6" />
 
-        {/* Split Panel Container */}
-        <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 240px)', minHeight: '500px' }}>
+        {/* Split Panel Container - Stack on mobile, side-by-side on larger screens */}
+        <div className="flex flex-col md:flex-row bg-white rounded-xl border border-gray-200 overflow-hidden" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
 
           {/* ===== LEFT PANEL: Chat List ===== */}
-          <div className="w-[340px] flex-shrink-0 border-r border-gray-200 flex flex-col">
+          <div className={`w-full md:w-[300px] lg:w-[340px] flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col ${selectedBookingId ? 'hidden md:flex' : 'flex'}`}>
             {/* Search Bar */}
             <div className="p-3 border-b border-gray-100">
               <div className="relative">
@@ -335,13 +335,20 @@ export default function MessagesPage() {
           </div>
 
           {/* ===== RIGHT PANEL: Chat Area ===== */}
-          <div className="flex-1 flex flex-col">
+          <div className={`flex-1 flex flex-col ${selectedBookingId ? 'flex' : 'hidden md:flex'}`}>
             {selectedBookingId ? (
               <>
                 {/* Chat Header */}
-                <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
-                  <div className="w-9 h-9 bg-[#1a4d5c] rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-sm font-bold">
+                <div className="px-3 sm:px-4 py-3 border-b border-gray-200 flex items-center gap-2 sm:gap-3">
+                  {/* Mobile Back Button */}
+                  <button
+                    onClick={() => setSelectedBookingId(null)}
+                    className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div className="w-8 sm:w-9 h-8 sm:h-9 bg-[#1a4d5c] rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-xs sm:text-sm font-bold">
                       {otherParty?.full_name?.charAt(0) || '?'}
                     </span>
                   </div>

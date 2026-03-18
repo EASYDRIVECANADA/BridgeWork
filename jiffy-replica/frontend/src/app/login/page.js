@@ -74,12 +74,12 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div className="relative rounded-3xl p-[1px] bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-xl shadow-black/10">
-          <div className="relative bg-white/90 backdrop-blur rounded-3xl p-8 ring-1 ring-black/5">
+        <div className="relative rounded-2xl sm:rounded-3xl p-[1px] bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-xl shadow-black/10">
+          <div className="relative bg-white/90 backdrop-blur rounded-2xl sm:rounded-3xl p-5 sm:p-8 ring-1 ring-black/5">
             {/* Heading */}
-            <div className="text-center mb-7">
-              <div className="inline-flex items-center justify-center mb-3">
-                <div className="w-40 h-40 bg-white rounded-full flex items-center justify-center p-4 shadow-xl shadow-black/10 ring-1 ring-black/5">
+            <div className="text-center mb-5 sm:mb-7">
+              <div className="inline-flex items-center justify-center mb-2 sm:mb-3">
+                <div className="w-28 h-28 sm:w-40 sm:h-40 bg-white rounded-full flex items-center justify-center p-3 sm:p-4 shadow-xl shadow-black/10 ring-1 ring-black/5">
                   <Image
                     src="/images/logo/logov2.png"
                     alt="BridgeWork Logo"
@@ -90,10 +90,10 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
-              <h2 className="font-brand text-3xl font-extrabold text-gray-900 tracking-tight">
+              <h2 className="font-brand text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 Welcome back
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 Log in to manage bookings, messages, and receipts.
               </p>
             </div>
