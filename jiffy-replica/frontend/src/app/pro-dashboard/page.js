@@ -645,10 +645,6 @@ export default function ProDashboardPage() {
                   </div>
                 )}
                 <h2 className="text-lg font-bold text-gray-900">{profile?.full_name || 'Pro User'}</h2>
-                <div className="flex items-center justify-center gap-1 text-gray-500 text-sm mt-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{profile?.city || 'Toronto'}</span>
-                </div>
                 <div className="flex items-center justify-center gap-1 mt-1">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   <span className="text-sm font-semibold text-gray-700">{avgRating}</span>

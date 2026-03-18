@@ -130,10 +130,6 @@ export default function DashboardPage() {
               {/* Profile Section */}
               <div className="text-center pt-6 pb-4 px-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-1">{profile?.full_name || 'User'}</h2>
-                <div className="flex items-center justify-center gap-1 text-gray-500 text-sm">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{profile?.city || 'Boston'}</span>
-                </div>
               </div>
 
               {/* Navigation Menu */}
