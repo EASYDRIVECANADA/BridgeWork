@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -41,6 +41,18 @@ function formatJob(booking) {
 }
 
 export default function ProDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0E7480]"></div>
+      </div>
+    }>
+      <ProDashboardContent />
+    </Suspense>
+  );
+}
+
+function ProDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();

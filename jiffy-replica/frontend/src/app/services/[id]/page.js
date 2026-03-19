@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Image from 'next/image';
@@ -10,6 +10,18 @@ import { servicesAPI, bookingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ServiceDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0E7480]"></div>
+      </div>
+    }>
+      <ServiceDetailContent />
+    </Suspense>
+  );
+}
+
+function ServiceDetailContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
