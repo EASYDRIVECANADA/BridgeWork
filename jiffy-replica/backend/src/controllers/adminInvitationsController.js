@@ -82,7 +82,8 @@ exports.createInvitation = async (req, res) => {
         }
 
         // Send invitation email
-        const invitationUrl = `${process.env.FRONTEND_URL}/admin-signup?token=${token}`;
+        const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+        const invitationUrl = `${frontendUrl}/admin-signup?token=${token}`;
         
         try {
             await emailService.sendAdminInvitation({
@@ -530,7 +531,8 @@ exports.resendInvitation = async (req, res) => {
         }
 
         // Resend email
-        const invitationUrl = `${process.env.FRONTEND_URL}/admin-signup?token=${invitation.token}`;
+        const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+        const invitationUrl = `${frontendUrl}/admin-signup?token=${invitation.token}`;
         
         try {
             await emailService.sendAdminInvitation({
