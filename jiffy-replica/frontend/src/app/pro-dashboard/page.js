@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -41,18 +41,6 @@ function formatJob(booking) {
 }
 
 export default function ProDashboardPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0E7480]"></div>
-      </div>
-    }>
-      <ProDashboardContent />
-    </Suspense>
-  );
-}
-
-function ProDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
@@ -630,52 +618,52 @@ function ProDashboardContent() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-gray-50/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* ==================== LEFT SIDEBAR ==================== */}
           <div className="w-full lg:w-72 lg:flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm lg:sticky lg:top-28">
+            <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] ring-1 ring-gray-100 lg:sticky lg:top-28 overflow-hidden">
               {/* Profile Section */}
-              <div className="text-center pt-6 pb-4 px-6">
+              <div className="text-center pt-8 pb-5 px-6 bg-gradient-to-b from-[#0E7480]/5 to-transparent">
                 {(avatarUrl || profile?.avatar_url) ? (
-                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3">
+                  <div className="w-24 h-24 rounded-2xl overflow-hidden mx-auto mb-4 ring-4 ring-white shadow-lg">
                     <Image
                       src={avatarUrl || profile?.avatar_url}
                       alt={profile?.full_name || 'Pro'}
-                      width={80}
-                      height={80}
+                      width={96}
+                      height={96}
                       className="object-cover w-full h-full"
                       unoptimized
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-20 bg-[#1a4d5c] rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-2xl font-bold">
+                  <div className="w-24 h-24 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-white shadow-lg">
+                    <span className="text-white text-3xl font-bold">
                       {(profile?.full_name || 'P').charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
-                <h2 className="text-lg font-bold text-gray-900">{profile?.full_name || 'Pro User'}</h2>
-                <div className="flex items-center justify-center gap-1 mt-1">
+                <h2 className="text-xl font-bold text-gray-900">{profile?.full_name || 'Pro User'}</h2>
+                <div className="flex items-center justify-center gap-1.5 mt-2">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   <span className="text-sm font-semibold text-gray-700">{avgRating}</span>
                   <span className="text-xs text-gray-400">({completedCount} jobs)</span>
                 </div>
-                <span className="inline-block mt-2 px-3 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                <span className="inline-block mt-3 px-4 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
                   Active Pro
                 </span>
               </div>
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-2 gap-3 px-5 pb-4">
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-lg font-bold text-[#0E7480]">${Number(totalEarnings).toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">Total Earned</p>
+              <div className="grid grid-cols-2 gap-3 px-5 pb-6">
+                <div className="bg-gradient-to-br from-[#0E7480]/10 to-[#0E7480]/5 rounded-xl p-4 text-center ring-1 ring-[#0E7480]/10">
+                  <p className="text-xl font-bold text-[#0E7480]">${Number(totalEarnings).toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 mt-1 font-medium">Total Earned</p>
                 </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <p className="text-lg font-bold text-green-600">{completedCount}</p>
-                  <p className="text-xs text-gray-500">Jobs Done</p>
+                <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-4 text-center ring-1 ring-green-200/50">
+                  <p className="text-xl font-bold text-green-600">{completedCount}</p>
+                  <p className="text-xs text-gray-500 mt-1 font-medium">Jobs Done</p>
                 </div>
               </div>
 
@@ -683,8 +671,8 @@ function ProDashboardContent() {
               <nav>
                 <button
                   onClick={() => setActiveTab('alerts')}
-                  className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'alerts' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
+                  className={`w-full flex items-center justify-between px-5 py-3.5 transition-all duration-200 group border-t border-gray-100 ${
+                    activeTab === 'alerts' ? 'bg-[#0E7480]/5 border-l-4 border-l-[#0E7480]' : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -702,8 +690,8 @@ function ProDashboardContent() {
 
                 <button
                   onClick={() => setActiveTab('quotes')}
-                  className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'quotes' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
+                  className={`w-full flex items-center justify-between px-5 py-3.5 transition-all duration-200 group border-t border-gray-100 ${
+                    activeTab === 'quotes' ? 'bg-[#0E7480]/5 border-l-4 border-l-[#0E7480]' : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -721,8 +709,8 @@ function ProDashboardContent() {
 
                 <button
                   onClick={() => setActiveTab('active')}
-                  className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'active' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
+                  className={`w-full flex items-center justify-between px-5 py-3.5 transition-all duration-200 group border-t border-gray-100 ${
+                    activeTab === 'active' ? 'bg-[#0E7480]/5 border-l-4 border-l-[#0E7480]' : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -740,8 +728,8 @@ function ProDashboardContent() {
 
                 <button
                   onClick={() => setActiveTab('history')}
-                  className={`w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100 ${
-                    activeTab === 'history' ? 'bg-blue-50 border-l-4 border-l-[#0E7480]' : ''
+                  className={`w-full flex items-center justify-between px-5 py-3.5 transition-all duration-200 group border-t border-gray-100 ${
+                    activeTab === 'history' ? 'bg-[#0E7480]/5 border-l-4 border-l-[#0E7480]' : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">

@@ -169,24 +169,24 @@ export default function AdminInvitationsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Admin Invitations</h1>
-              <p className="mt-2 text-gray-600">Invite new admins to join the BridgeWork team</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Invitations</h1>
+              <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">Invite new admins to join the BridgeWork team</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <button
                 onClick={() => { setError(''); setSuccess(''); setShowDirectCreateModal(true); }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#142841] text-white rounded-lg hover:bg-[#0e1e30] transition-colors font-medium"
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#142841] text-white rounded-lg hover:bg-[#0e1e30] transition-colors font-medium text-sm sm:text-base"
               >
-                <UserPlus className="w-5 h-5" />
+                <UserPlus className="w-4 sm:w-5 h-4 sm:h-5" />
                 Add Admin
               </button>
               <button
                 onClick={() => { setError(''); setSuccess(''); setShowCreateModal(true); }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium"
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium text-sm sm:text-base"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
                 Send Invitation
               </button>
             </div>
@@ -194,26 +194,26 @@ export default function AdminInvitationsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Total Invitations</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{invitations.length}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Total Invitations</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-gray-900">{invitations.length}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Pending</div>
-            <div className="mt-2 text-3xl font-bold text-yellow-600">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Pending</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-yellow-600">
               {invitations.filter(i => i.status === 'pending').length}
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Accepted</div>
-            <div className="mt-2 text-3xl font-bold text-green-600">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Accepted</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-green-600">
               {invitations.filter(i => i.status === 'accepted').length}
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Expired</div>
-            <div className="mt-2 text-3xl font-bold text-red-600">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Expired</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-red-600">
               {invitations.filter(i => i.status === 'expired').length}
             </div>
           </div>

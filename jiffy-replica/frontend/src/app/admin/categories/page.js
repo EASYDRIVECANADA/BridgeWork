@@ -200,48 +200,48 @@ export default function AdminCategoriesPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-3xl font-bold text-gray-900">Residential Categories</h1>
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-teal-50 text-teal-700 text-xs font-semibold rounded-full border border-teal-200">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Residential Categories</h1>
+                <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-teal-50 text-teal-700 text-xs font-semibold rounded-full border border-teal-200">
                   <Home className="w-3 h-3" />
                   Residential Only
                 </span>
               </div>
-              <p className="mt-1 text-gray-600">Manage categories for residential services. Commercial services have no categories.</p>
+              <p className="mt-1 text-sm sm:text-base text-gray-600">Manage categories for residential services. Commercial services have no categories.</p>
             </div>
             <button
               onClick={() => {
                 resetForm();
                 setShowModal(true);
               }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium"
+              className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium text-sm sm:text-base"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
               Add Category
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Total Categories</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{categories.length}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Total Categories</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-gray-900">{categories.length}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Active</div>
-            <div className="mt-2 text-3xl font-bold text-green-600">{activeCategories.length}</div>
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Active</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-green-600">{activeCategories.length}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Inactive</div>
-            <div className="mt-2 text-3xl font-bold text-red-600">{inactiveCategories.length}</div>
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Inactive</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-red-600">{inactiveCategories.length}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-600">Residential Services</div>
-            <div className="mt-2 text-3xl font-bold text-[#0E7480]">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <div className="text-xs sm:text-sm font-medium text-gray-600">Residential Services</div>
+            <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-[#0E7480]">
               {services.filter(s => s.is_active).length}
             </div>
           </div>

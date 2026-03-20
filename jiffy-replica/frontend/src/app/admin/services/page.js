@@ -243,30 +243,30 @@ export default function AdminServicesPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Manage Services</h1>
-              <p className="mt-2 text-gray-600">Add, edit, or remove services for Residential and Commercial channels</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Manage Services</h1>
+              <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">Add, edit, or remove services for Residential and Commercial channels</p>
             </div>
             <button
               onClick={() => {
                 resetForm();
                 setShowModal(true);
               }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium"
+              className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium text-sm sm:text-base"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
               Add Service
             </button>
           </div>
         </div>
 
         {/* Channel Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => { setActiveChannel('residential'); setSelectedCategory(''); }}
-            className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all text-sm sm:text-base ${
               activeChannel === 'residential'
                 ? 'bg-[#0E7480] text-white shadow-lg'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -280,7 +280,7 @@ export default function AdminServicesPage() {
           </button>
           <button
             onClick={() => { setActiveChannel('commercial'); setSelectedCategory(''); }}
-            className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all text-sm sm:text-base ${
               activeChannel === 'commercial'
                 ? 'bg-[#0E7480] text-white shadow-lg'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'

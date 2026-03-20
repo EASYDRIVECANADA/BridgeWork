@@ -25,6 +25,7 @@ export default function ChatPage() {
   const [bookingInfo, setBookingInfo] = useState(null);
   const [otherParty, setOtherParty] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(true);
+  const [bookingError, setBookingError] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -45,24 +46,43 @@ export default function ChatPage() {
       router.push('/login');
       return;
     }
+    
+    // Don't retry if we already have an error
+    if (bookingError) return;
 
     const loadData = async () => {
       setLoadingBooking(true);
       try {
         // Fetch booking details
         const bookingRes = await bookingsAPI.getById(bookingId);
-        const booking = bookingRes.data.data.booking;
+        const booking = bookingRes.data?.data?.booking;
+        
+        if (!booking) {
+          setBookingError('Booking not found');
+          setLoadingBooking(false);
+          return;
+        }
+        
         setBookingInfo(booking);
 
         // Determine other party
         if (booking.user_id === user.id) {
           // Current user is the customer, other party is the pro
           const proProfile = booking.pro_profiles?.profiles;
-          setOtherParty({
-            name: proProfile?.full_name || booking.pro_profiles?.business_name || 'Pro',
-            avatar_url: proProfile?.avatar_url,
-            role: 'pro',
-          });
+          if (booking.pro_profiles) {
+            setOtherParty({
+              name: proProfile?.full_name || booking.pro_profiles?.business_name || 'Pro',
+              avatar_url: proProfile?.avatar_url,
+              role: 'pro',
+            });
+          } else {
+            // No pro assigned yet
+            setOtherParty({
+              name: 'Awaiting Pro Assignment',
+              avatar_url: null,
+              role: 'pro',
+            });
+          }
         } else {
           // Current user is the pro, other party is the customer
           setOtherParty({
@@ -72,21 +92,28 @@ export default function ChatPage() {
           });
         }
       } catch (err) {
-        console.error('Failed to load booking:', err);
+        console.error('Failed to load booking:', err.message);
+        setBookingError('Booking not found or access denied');
       }
       setLoadingBooking(false);
     };
 
     loadData();
+  }, [user, bookingId, router, dispatch, bookingError]);
+
+  // Fetch messages only after booking is successfully loaded
+  useEffect(() => {
+    if (!user || !bookingInfo || bookingError) return;
+    
     dispatch(fetchMessages({ bookingId }));
     dispatch(markMessagesAsRead(bookingId)).then(() => {
       dispatch(fetchUnreadCount());
     });
-  }, [user, bookingId, router, dispatch]);
+  }, [user, bookingInfo, bookingId, bookingError, dispatch]);
 
-  // Socket.IO setup
+  // Socket.IO setup - only connect if booking loaded successfully
   useEffect(() => {
-    if (!user) return;
+    if (!user || !bookingInfo || bookingError) return;
 
     const socket = connectSocket(user.id);
     joinBookingRoom(bookingId);
@@ -246,6 +273,28 @@ export default function ChatPage() {
 
   if (!user) return null;
 
+  // Show error state if booking failed to load
+  if (bookingError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Chat</h2>
+          <p className="text-gray-500 mb-6">{bookingError}</p>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -275,7 +324,7 @@ export default function ChatPage() {
                   {otherParty?.name || 'Chat'}
                 </h2>
                 <p className="text-xs text-gray-500 truncate">
-                  {bookingInfo?.service_name || 'Booking'} &middot; #{bookingInfo?.booking_number || ''}
+                  {bookingInfo?.service_name || bookingInfo?.services?.name || 'Booking'} &middot; #{bookingInfo?.booking_number || bookingId?.slice(0, 8)}
                 </p>
               </div>
             </>

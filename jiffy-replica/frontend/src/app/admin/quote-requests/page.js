@@ -108,10 +108,10 @@ export default function AdminQuoteRequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Quote Requests</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Quote Requests</h1>
           <p className="text-gray-500 text-sm">Review and price Free Quote service requests before sending to pros</p>
         </div>
 

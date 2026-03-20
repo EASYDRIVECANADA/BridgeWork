@@ -112,7 +112,7 @@ export default function Navbar() {
               />
             </Link>
 
-            {!isAuthPage && !isAdmin && (
+            {!isAuthPage && (
               <div className="hidden md:flex items-center gap-8">
                 {isAuthenticated && isPro ? (
                   <>
@@ -126,6 +126,10 @@ export default function Navbar() {
                       Quotes
                     </Link>
                   </>
+                ) : isAdmin ? (
+                  <button onClick={() => setShowServiceTypeModal(true)} className={navLinkClass}>
+                    Explore Services
+                  </button>
                 ) : (
                   <>
                     <button onClick={() => setShowServiceTypeModal(true)} className={navLinkClass}>

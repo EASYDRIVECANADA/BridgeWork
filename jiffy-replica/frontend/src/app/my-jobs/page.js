@@ -5,9 +5,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText } from 'lucide-react';
+import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign } from 'lucide-react';
 import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
-import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI } from '@/lib/api';
+import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI, bookingsAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
 import { toast } from 'react-toastify';
 
@@ -57,6 +57,12 @@ export default function MyJobsPage() {
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
+  
+  // Quotation viewing/acceptance state
+  const [quotesModal, setQuotesModal] = useState(null); // { bookingId, booking }
+  const [quotations, setQuotations] = useState([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const [acceptingQuoteId, setAcceptingQuoteId] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -132,6 +138,40 @@ export default function MyJobsPage() {
     }
   };
 
+  // View quotations for a booking
+  const handleViewQuotes = async (booking) => {
+    setQuotesModal({ bookingId: booking.id, booking });
+    setQuotesLoading(true);
+    try {
+      const res = await bookingsAPI.getBookingQuotations(booking.id);
+      setQuotations(res.data?.data?.quotations || []);
+    } catch (err) {
+      console.error('Failed to fetch quotations:', err);
+      toast.error('Failed to load quotes');
+      setQuotesModal(null);
+    } finally {
+      setQuotesLoading(false);
+    }
+  };
+
+  // Accept a quotation
+  const handleAcceptQuote = async (quotationId) => {
+    if (!quotesModal) return;
+    setAcceptingQuoteId(quotationId);
+    try {
+      await bookingsAPI.acceptQuotation(quotesModal.bookingId, quotationId);
+      toast.success('Quote accepted! The pro has been notified to start the job.');
+      setQuotesModal(null);
+      setQuotations([]);
+      dispatch(fetchBookings());
+    } catch (err) {
+      console.error('Failed to accept quotation:', err);
+      toast.error(err?.response?.data?.message || 'Failed to accept quote');
+    } finally {
+      setAcceptingQuoteId(null);
+    }
+  };
+
   const handleDispute = async () => {
     if (!disputeModal || disputeReason.trim().length < 10) {
       toast.error('Please provide a detailed reason (at least 10 characters).');
@@ -166,21 +206,21 @@ export default function MyJobsPage() {
     : services;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-gray-50/50">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10 lg:py-12">
         {/* Page Title */}
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Jobs</h1>
-        <hr className="border-gray-300 mb-4 sm:mb-6" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 tracking-tight">My Jobs</h1>
+        <p className="text-sm text-gray-500 mb-6 sm:mb-8">Track your bookings and manage active jobs</p>
 
         {/* Promo Banner */}
         {showBanner && (
-          <div className="relative rounded-lg overflow-hidden mb-4 sm:mb-6 lg:mb-8">
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 px-3 sm:px-5 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+          <div className="relative rounded-2xl overflow-hidden mb-6 sm:mb-8 shadow-lg shadow-purple-500/10">
+            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <p className="text-white text-xs sm:text-sm font-medium">
                 Get $40 off your next 2 jobs if you pay $25 now
               </p>
               <div className="flex items-center gap-2 sm:gap-3">
-                <button className="bg-white text-gray-900 text-xs font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded hover:bg-gray-100 transition-colors">
+                <button className="bg-white text-gray-900 text-xs font-semibold px-4 sm:px-5 py-2 rounded-full hover:bg-gray-100 transition-all shadow-sm">
                   See Offer
                 </button>
                 <button
@@ -195,26 +235,30 @@ export default function MyJobsPage() {
         )}
 
         {/* Active Jobs Section */}
-        <div className="mb-6 sm:mb-8 lg:mb-10">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">
-            Active Jobs ({activeBookings.length})
+        <div className="mb-8 sm:mb-10">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            Active Jobs
+            <span className="text-sm font-medium text-gray-400">({activeBookings.length})</span>
           </h2>
 
           {isLoading ? (
-            <div className="bg-gray-100 rounded-lg p-10 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400 mr-2" />
-              <span className="text-gray-500">Loading jobs...</span>
+            <div className="bg-white rounded-2xl p-16 flex items-center justify-center ring-1 ring-gray-100 shadow-sm">
+              <div className="relative w-10 h-10 mr-4">
+                <div className="absolute inset-0 rounded-full border-2 border-gray-100"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#0E7480] animate-spin"></div>
+              </div>
+              <span className="text-gray-500 font-medium">Loading jobs...</span>
             </div>
           ) : activeBookings.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {activeBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-2xl p-5 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-gray-100 hover:shadow-[0_8px_24px_-8px_rgba(14,116,128,0.12)] hover:ring-[#0E7480]/15 transition-all duration-300"
                 >
                   <div className="flex items-start gap-3 sm:gap-4">
                     {/* Icon */}
-                    <div className="w-10 sm:w-14 h-10 sm:h-14 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="w-12 sm:w-14 h-12 sm:h-14 bg-gradient-to-br from-[#0E7480] to-[#0a5a63] rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#0E7480]/20">
                       <Briefcase className="w-5 sm:w-7 h-5 sm:h-7 text-white" />
                     </div>
 
@@ -278,7 +322,7 @@ export default function MyJobsPage() {
                           {statusLabels[booking.status] || booking.status}
                         </span>
 
-                        {/* Payment Status */}
+                        {/* Payment Status - only show "Pay Now" after proof is submitted */}
                         {booking.transactions?.some(t => t.status === 'succeeded') ? (
                           <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 flex items-center gap-1.5">
                             <CheckCircle className="w-3.5 h-3.5" />
@@ -289,14 +333,6 @@ export default function MyJobsPage() {
                             <Clock className="w-3.5 h-3.5" />
                             Funds Held
                           </span>
-                        ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') && booking.status !== 'disputed' ? (
-                          <Link
-                            href={`/checkout/${booking.id}`}
-                            className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#0E7480] text-white hover:bg-[#0a5a63] transition-colors flex items-center gap-1.5 shadow-sm"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            Pay Now
-                          </Link>
                         ) : null}
 
                         {/* Cancel button */}
@@ -365,6 +401,17 @@ export default function MyJobsPage() {
                           </>
                         )}
 
+                        {/* View Quotes - for awaiting_quotes status */}
+                        {booking.status === 'awaiting_quotes' && (
+                          <button
+                            onClick={() => handleViewQuotes(booking)}
+                            className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#0E7480] text-white hover:bg-[#0a5a63] transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <FileText className="w-4 h-4" />
+                            View Quotes
+                          </button>
+                        )}
+
                         {/* Message Pro */}
                         {(booking.status === 'accepted' || booking.status === 'in_progress' || booking.status === 'proof_submitted') && (
                           <Link
@@ -382,33 +429,33 @@ export default function MyJobsPage() {
               ))}
             </div>
           ) : (
-            /* Empty State — matches the uploaded design exactly */
-            <div className="bg-gray-100 rounded-lg p-8 flex items-start gap-6">
+            /* Empty State */
+            <div className="bg-white rounded-xl p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-6 border border-gray-100 shadow-sm">
               {/* Illustration */}
-              <div className="flex-shrink-0 w-28 h-28 relative">
+              <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 relative">
                 <Image
                   src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=200"
                   alt="No active jobs"
                   width={112}
                   height={112}
-                  className="object-cover rounded-lg opacity-70"
+                  className="object-cover rounded-xl opacity-70"
                   unoptimized
                 />
               </div>
 
-              <div className="flex-1">
-                <p className="text-gray-700 font-medium mb-1">
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-gray-800 font-semibold mb-1">
                   You don&apos;t have any jobs yet.
                 </p>
-                <p className="text-gray-500 text-sm mb-4">Let&apos;s get started.</p>
+                <p className="text-gray-500 text-sm mb-4">Book a service to get started.</p>
 
                 {/* Search Dropdown */}
                 <div className="relative max-w-xs">
                   <div
-                    className="flex items-center bg-white border border-gray-300 rounded-md px-3 py-2 cursor-pointer hover:border-gray-400 transition-colors"
+                    className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-3 cursor-pointer hover:border-[#0E7480]/30 focus-within:border-[#0E7480] focus-within:ring-2 focus-within:ring-[#0E7480]/20 transition-all"
                     onClick={() => setSearchOpen(!searchOpen)}
                   >
-                    <Search className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                    <Search className="w-4 h-4 text-gray-400 mr-2.5 flex-shrink-0" />
                     <input
                       type="text"
                       placeholder="What can we help you with?"
@@ -445,13 +492,14 @@ export default function MyJobsPage() {
 
         {/* Completed Jobs Section */}
         <div className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Completed Jobs ({completedBookings.length})
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            Completed Jobs
+            <span className="text-sm font-medium text-gray-400">({completedBookings.length})</span>
           </h2>
 
           {isLoading ? (
-            <div className="bg-gray-100 rounded-lg p-10 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400 mr-2" />
+            <div className="bg-white rounded-xl p-12 flex items-center justify-center border border-gray-100">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-[#0E7480] mr-3"></div>
               <span className="text-gray-500">Loading...</span>
             </div>
           ) : completedBookings.length > 0 ? (
@@ -551,18 +599,14 @@ export default function MyJobsPage() {
             </div>
           ) : (
             /* Empty State for Completed */
-            <div className="bg-gray-100 rounded-lg p-8 flex items-center gap-6">
-              <div className="flex-shrink-0 w-20 h-20 relative">
-                <Image
-                  src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=200"
-                  alt="No completed jobs"
-                  width={80}
-                  height={80}
-                  className="object-cover rounded-lg opacity-60"
-                  unoptimized
-                />
+            <div className="bg-white rounded-xl p-8 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 border border-gray-100 shadow-sm">
+              <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-gray-300" />
               </div>
-              <p className="text-gray-500 text-sm">You have not completed any jobs</p>
+              <div className="text-center sm:text-left">
+                <p className="text-gray-700 font-medium">No completed jobs yet</p>
+                <p className="text-gray-400 text-sm mt-0.5">Your completed jobs will appear here</p>
+              </div>
             </div>
           )}
         </div>
@@ -745,6 +789,150 @@ export default function MyJobsPage() {
                 >
                   {actionLoading ? 'Submitting...' : 'Submit Dispute'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quotations Modal - View and Accept Quotes */}
+        {quotesModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setQuotesModal(null); setQuotations([]); }}>
+            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-[#0E7480]" />
+                    Quotes for {quotesModal.booking?.service_name}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Review quotes from professionals and select one to proceed
+                  </p>
+                </div>
+                <button onClick={() => { setQuotesModal(null); setQuotations([]); }} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-5">
+                {quotesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mr-2" />
+                    <span className="text-gray-500">Loading quotes...</span>
+                  </div>
+                ) : quotations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-700 mb-2">No Quotes Yet</h4>
+                    <p className="text-sm text-gray-500">
+                      Professionals are reviewing your request. You'll be notified when quotes are available.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {quotations.filter(q => q.status === 'pending').map((quote) => (
+                      <div key={quote.id} className="border border-gray-200 rounded-xl p-4 hover:border-[#0E7480]/30 hover:shadow-md transition-all">
+                        {/* Pro Info */}
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="w-12 h-12 bg-[#0E7480] rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                            {quote.pro_profiles?.business_name?.charAt(0) || 'P'}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">
+                              {quote.pro_profiles?.business_name || 'Professional'}
+                            </h4>
+                            <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                              {quote.pro_profiles?.years_experience && (
+                                <span>{quote.pro_profiles.years_experience} years exp.</span>
+                              )}
+                              {quote.pro_profiles?.rating && (
+                                <span className="flex items-center gap-1">
+                                  <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                                  {parseFloat(quote.pro_profiles.rating).toFixed(1)}
+                                  {quote.pro_profiles.total_reviews > 0 && (
+                                    <span className="text-gray-400">({quote.pro_profiles.total_reviews})</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-[#0E7480]">
+                              ${parseFloat(quote.quoted_price).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">+ tax</p>
+                          </div>
+                        </div>
+
+                        {/* Quote Details */}
+                        {quote.description && (
+                          <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-gray-700">{quote.description}</p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-3 text-sm text-gray-600 mb-4">
+                          {quote.estimated_duration && (
+                            <span className="flex items-center gap-1.5 bg-gray-100 px-2.5 py-1 rounded-lg">
+                              <Clock className="w-3.5 h-3.5" />
+                              {quote.estimated_duration} min
+                            </span>
+                          )}
+                          {quote.materials_included && (
+                            <span className="flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1 rounded-lg">
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Materials included
+                            </span>
+                          )}
+                          {quote.warranty_info && (
+                            <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              {quote.warranty_info}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Accept Button */}
+                        <button
+                          onClick={() => handleAcceptQuote(quote.id)}
+                          disabled={acceptingQuoteId === quote.id}
+                          className="w-full py-2.5 bg-[#0E7480] text-white font-semibold rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {acceptingQuoteId === quote.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Accepting...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Accept This Quote
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Show message if all quotes are not pending */}
+                    {quotations.filter(q => q.status === 'pending').length === 0 && quotations.length > 0 && (
+                      <div className="text-center py-8">
+                        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-700 mb-2">Quote Already Accepted</h4>
+                        <p className="text-sm text-gray-500">
+                          You've already selected a pro for this job.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <p className="text-xs text-gray-500 text-center">
+                  By accepting a quote, you agree to proceed with the selected professional. You'll pay after the job is completed.
+                </p>
               </div>
             </div>
           </div>

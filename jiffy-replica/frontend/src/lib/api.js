@@ -106,6 +106,10 @@ export const bookingsAPI = {
   getAllProofs: () => api.get('/bookings/admin/proofs'),
   getAllDisputes: () => api.get('/bookings/admin/disputes'),
   getDisputeDetails: (bookingId) => api.get(`/bookings/admin/disputes/${bookingId}`),
+  
+  // Homeowner: Quotation acceptance
+  getBookingQuotations: (bookingId) => api.get(`/bookings/${bookingId}/quotations`),
+  acceptQuotation: (bookingId, quotationId) => api.post(`/bookings/${bookingId}/quotations/${quotationId}/accept`),
 };
 
 export const prosAPI = {

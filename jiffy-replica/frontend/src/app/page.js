@@ -201,19 +201,19 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative min-h-[400px] sm:min-h-[500px] lg:h-[600px] flex items-center justify-center overflow-hidden py-8 sm:py-0">
+      <section className="relative min-h-[480px] sm:min-h-[560px] lg:min-h-[640px] flex items-center justify-center overflow-hidden py-12 sm:py-0">
         {/* Background Image with Overlay */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1556911220-bff31c812dba?q=80&w=2000"
             alt="Kitchen background"
             fill
-            className="object-cover"
+            className="object-cover scale-105"
             priority
           />
-          {/* Brand-tinted overlay (keeps original hero intact, looks more premium) */}
-          <div className="absolute inset-0 bg-black/35" />
-          <div className="absolute inset-0 bg-[#0E7480]/20 mix-blend-multiply" />
+          {/* Premium gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0E7480]/25 via-transparent to-[#142841]/20" />
         </div>
 
         {/* Content */}
@@ -223,7 +223,7 @@ export default function HomePage() {
             initial="hidden"
             animate="visible"
             transition={{ duration: 0.55, ease: 'easeOut' }}
-            className="mx-auto max-w-3xl rounded-2xl sm:rounded-3xl bg-white/10 backdrop-blur-md ring-1 ring-white/20 shadow-[0_30px_80px_rgba(0,0,0,0.30)] px-4 sm:px-6 lg:px-10 py-6 sm:py-8 lg:py-10"
+            className="mx-auto max-w-3xl rounded-3xl bg-white/[0.08] backdrop-blur-xl ring-1 ring-white/25 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.4)] px-5 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12"
           >
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold tracking-wide text-white/90 ring-1 ring-white/15 mb-3 sm:mb-5">
               <span className="h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full bg-[#0E7480]" />
@@ -231,13 +231,13 @@ export default function HomePage() {
               <span className="sm:hidden">Fast matching. Trusted pros.</span>
             </div>
 
-            <h1 className="font-brand text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 sm:mb-6 leading-[1.1] sm:leading-[1.05] tracking-tight drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]">
+            <h1 className="font-brand text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 sm:mb-7 leading-[1.08] tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
               Home services booked when you need them.
             </h1>
 
             {/* Search Box */}
-            <div className="max-w-2xl mx-auto mb-3 sm:mb-5">
-              <div className="bg-white/95 rounded-xl sm:rounded-2xl shadow-xl flex items-center px-4 sm:px-6 py-3 sm:py-4 ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-[#0E7480]/40 transition">
+            <div className="max-w-2xl mx-auto mb-4 sm:mb-6">
+              <div className="bg-white rounded-2xl shadow-2xl shadow-black/20 flex items-center px-5 sm:px-6 py-4 sm:py-5 ring-1 ring-white/50 focus-within:ring-2 focus-within:ring-[#0E7480] transition-all duration-200">
                 <Search className="w-5 sm:w-6 h-5 sm:h-6 text-gray-400 mr-3 sm:mr-4 flex-shrink-0" />
                 <input
                   type="text"
@@ -263,16 +263,16 @@ export default function HomePage() {
             </p>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <button
                 onClick={() => router.push('/services?type=residential')}
-                className="btn-brand px-8 py-3 rounded-xl font-brand tracking-tight"
+                className="btn-brand w-full sm:w-auto px-8 py-3.5 sm:py-3 rounded-xl font-brand tracking-tight text-base"
               >
                 Residential
               </button>
               <button
                 onClick={() => router.push('/services?type=commercial')}
-                className="px-8 py-3 rounded-xl font-brand tracking-tight text-white border border-white/30 hover:bg-white/10 transition-all duration-200"
+                className="w-full sm:w-auto px-8 py-3.5 sm:py-3 rounded-xl font-brand tracking-tight text-base text-white border border-white/30 hover:bg-white/10 transition-all duration-200"
               >
                 Commercial
               </button>
@@ -282,11 +282,11 @@ export default function HomePage() {
       </section>
 
       {/* Stats and Social Proof Section */}
-      <section className="py-10 sm:py-12 lg:py-16 bg-white/60 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-14 sm:py-16 lg:py-24 bg-gradient-to-b from-gray-50/80 to-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
           {/* Description Text */}
-          <div className="max-w-4xl mx-auto text-center mb-6 sm:mb-8 lg:mb-10">
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 leading-relaxed">
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 leading-relaxed sm:leading-loose">
               Small jobs around the house are as good as done, with no shopping around. 
               BridgeWork connects you with certified Ottawa pros who are already in your area and will complete your job at 
               transparent rates you can feel good about.
@@ -297,7 +297,7 @@ export default function HomePage() {
           <div className="text-center">
             <button
               onClick={() => router.push('/services')}
-              className="btn-brand px-6 sm:px-8 lg:px-10 py-3 sm:py-4 text-sm sm:text-base lg:text-lg font-brand tracking-tight"
+              className="btn-brand w-full sm:w-auto px-8 sm:px-10 py-4 text-base sm:text-lg font-brand tracking-tight"
             >
               Book Now
             </button>
@@ -337,11 +337,11 @@ export default function HomePage() {
       </section>
 
       {/* Section 2: Get a Confirmed Appointment */}
-      <section className="py-20 bg-blue-50">
+      <section className="py-14 sm:py-16 lg:py-20 bg-blue-50">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-center">
             {/* Left: Card Image */}
-            <div className="flex justify-center">
+            <div className="flex justify-center order-2 md:order-1">
               <motion.div
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -441,22 +441,22 @@ export default function HomePage() {
             </div>
 
             {/* Right: Text Content */}
-            <div>
-              <h2 className="font-brand text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight">
+            <div className="order-1 md:order-2">
+              <h2 className="font-brand text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 tracking-tight">
                 Get a confirmed appointment in minutes.
               </h2>
               <div className="flex items-start gap-3 mb-6">
                 <Clock className="w-6 h-6 text-[#0E7480] mt-1 flex-shrink-0" />
                 <div>
                   <p className="text-[#0E7480] font-semibold mb-2">Average 10 minute response time</p>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 leading-relaxed">
                     Your request instantly goes out to our network of pros who are nearby, available, and ready to take on your job.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => router.push('/services')}
-                className="btn-brand px-8 py-4 text-lg font-brand tracking-tight"
+                className="btn-brand w-full sm:w-auto px-8 py-4 text-lg font-brand tracking-tight"
               >
                 Find me a pro
               </button>
@@ -466,26 +466,26 @@ export default function HomePage() {
       </section>
 
       {/* Section 3: Guaranteed Jobs by Certified Professionals */}
-      <section className="py-20 bg-transparent">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+      <section className="py-14 sm:py-16 lg:py-20 bg-transparent">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-center">
             {/* Left: Text Content */}
             <div>
-              <h2 className="font-brand text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight">
+              <h2 className="font-brand text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 sm:mb-6 tracking-tight">
                 Guaranteed jobs by certified professionals.
               </h2>
               <div className="flex items-start gap-3 mb-6">
                 <CheckCircle className="w-6 h-6 text-yellow-500 mt-1 flex-shrink-0" />
                 <div>
                   <p className="text-[#0E7480] font-semibold mb-2">Homeowner Protection Promise</p>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 leading-relaxed">
                     Professionals on BridgeWork are licensed, well-rated, and background-checked. If your experience isn't perfect, we'll make it right.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => router.push('/services')}
-                className="btn-brand px-8 py-4 text-lg font-brand tracking-tight"
+                className="btn-brand w-full sm:w-auto px-8 py-4 text-lg font-brand tracking-tight"
               >
                 Learn more
               </button>
@@ -585,20 +585,20 @@ export default function HomePage() {
       </section>
 
       {/* Section 4: How It Works */}
-      <section className="py-20 bg-white/60 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-16 sm:py-20 lg:py-28 bg-gradient-to-b from-white via-gray-50/50 to-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <motion.h2
             variants={fadeUp}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.6 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="font-brand text-4xl md:text-5xl font-extrabold text-gray-900 text-center mb-16 tracking-tight"
+            className="font-brand text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 text-center mb-10 sm:mb-14 lg:mb-16 tracking-tight"
           >
             How it works
           </motion.h2>
 
-          <div className="grid md:grid-cols-4 gap-6 lg:gap-8 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-10 sm:mb-12">
             {howItWorksSteps.map((step, idx) => {
               const Icon = step.icon;
               return (
@@ -609,8 +609,8 @@ export default function HomePage() {
                   whileInView="visible"
                   viewport={{ once: true, amount: 0.65 }}
                   transition={{ duration: 0.45, ease: 'easeOut', delay: idx * 0.08 }}
-                  whileHover={{ y: -4 }}
-                  className="group relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 hover:shadow-xl hover:shadow-black/10 transition-shadow"
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  className="group relative rounded-2xl bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-gray-100 hover:shadow-[0_20px_40px_-12px_rgba(14,116,128,0.15)] hover:ring-[#0E7480]/20 transition-all duration-300"
                 >
                   <div className="flex items-center justify-between mb-5">
                     <div className="h-12 w-12 rounded-2xl grid place-items-center bg-[#0E7480] shadow-sm">
@@ -639,7 +639,7 @@ export default function HomePage() {
           <div className="text-center">
             <button
               onClick={() => router.push('/services')}
-              className="btn-brand px-10 py-4 text-lg font-brand tracking-tight gap-2"
+              className="btn-brand w-full sm:w-auto px-10 py-4 text-base sm:text-lg font-brand tracking-tight gap-2"
             >
               Start booking my service <ArrowRight className="w-5 h-5 opacity-90" />
             </button>
@@ -648,15 +648,15 @@ export default function HomePage() {
       </section>
 
       {/* Section 5: What People in Boston Are Doing Now */}
-      <section className="py-20 bg-transparent">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-14 sm:py-16 lg:py-20 bg-transparent">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <motion.h2
             variants={fadeUp}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.6 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="font-brand text-4xl md:text-5xl font-extrabold text-gray-900 text-center tracking-tight"
+            className="font-brand text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 text-center tracking-tight"
           >
             What people in Ottawa are doing now
           </motion.h2>
@@ -672,7 +672,7 @@ export default function HomePage() {
             Pick a popular service, see a pro preview, and book in minutes.
           </motion.p>
 
-          <div className="rounded-3xl bg-white/60 backdrop-blur-sm ring-1 ring-black/5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] p-6 sm:p-8">
+          <div className="rounded-3xl bg-white ring-1 ring-gray-100 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.1)] p-6 sm:p-10">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#042E5C] ring-1 ring-black/5">
@@ -686,14 +686,14 @@ export default function HomePage() {
 
               <button
                 onClick={() => router.push('/services')}
-                className="btn-brand px-7 py-3 rounded-2xl font-brand tracking-tight inline-flex items-center gap-2 self-start md:self-auto"
+                className="btn-brand w-full sm:w-auto px-7 py-3 rounded-2xl font-brand tracking-tight inline-flex items-center justify-center gap-2 self-start md:self-auto"
               >
                 Browse all services <ArrowRight className="w-5 h-5 opacity-90" />
               </button>
             </div>
 
             {/* Services grid */}
-            <div className="grid md:grid-cols-2 gap-4 lg:gap-6">
+            <div className="grid sm:grid-cols-2 gap-4 lg:gap-6">
                 {[
                   { title: 'Painting', subtitle: 'Touch-ups to full rooms', icon: Paintbrush, chip: 'Same‑week availability' },
                   { title: 'Electrical', subtitle: 'Fixtures & installs', icon: Zap, chip: 'Licensed pros' },
@@ -710,8 +710,8 @@ export default function HomePage() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, amount: 0.4 }}
                       transition={{ duration: 0.45, ease: 'easeOut', delay: idx * 0.05 }}
-                      whileHover={{ y: -4 }}
-                      className="text-left group relative rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 hover:shadow-xl hover:shadow-black/10 transition-shadow"
+                      whileHover={{ y: -6, scale: 1.01 }}
+                      className="text-left group relative rounded-2xl bg-gradient-to-br from-white to-gray-50/50 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-gray-100 hover:shadow-[0_20px_40px_-12px_rgba(14,116,128,0.15)] hover:ring-[#0E7480]/20 transition-all duration-300"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 min-w-0">

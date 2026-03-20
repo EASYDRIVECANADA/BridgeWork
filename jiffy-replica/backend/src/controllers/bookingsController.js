@@ -312,6 +312,13 @@ exports.getBookingById = async (req, res) => {
             .select(`
                 *,
                 services (id, name, slug, description),
+                profiles:user_id (
+                    id,
+                    full_name,
+                    email,
+                    phone,
+                    avatar_url
+                ),
                 pro_profiles (
                     id,
                     business_name,
@@ -1085,7 +1092,7 @@ exports.submitQuotation = async (req, res) => {
             })
             : notes || null;
 
-        // Create quotation with 'selected' status (auto-approved)
+        // Create quotation with 'pending' status - awaiting homeowner acceptance
         const { data: quotation, error: quotationError } = await supabaseAdmin
             .from('booking_quotations')
             .insert({
@@ -1097,8 +1104,7 @@ exports.submitQuotation = async (req, res) => {
                 materials_included: materials_included || false,
                 warranty_info: warranty_info || null,
                 notes: extendedNotes,
-                status: 'selected',  // Auto-approve - goes directly to customer
-                selected_at: new Date().toISOString()
+                status: 'pending'  // Awaiting homeowner review and acceptance
             })
             .select()
             .single();
@@ -1111,49 +1117,34 @@ exports.submitQuotation = async (req, res) => {
             });
         }
 
-        // Calculate final price with tax
+        // Calculate final price with tax (for notification purposes)
         const price = parseFloat(quoted_price);
         const taxRateDecimal = await getTaxRate('quote');
         const tax = price * taxRateDecimal;
         const finalPrice = price + tax;
 
-        // Update booking with quotation details - job is now accepted, waiting for pro to complete work
-        const { error: updateError } = await supabaseAdmin
-            .from('bookings')
-            .update({
-                status: 'accepted',  // Job accepted - pro will do work and submit proof
-                selected_quotation_id: quotation.id,
-                pro_id: proProfile.id,
-                base_price: price,
-                tax: tax,
-                total_price: finalPrice,
-                quote_set_at: new Date().toISOString()
-            })
-            .eq('id', id);
+        // DO NOT update booking status yet - homeowner needs to accept the quote first
+        // Booking stays in 'awaiting_quotes' status
 
-        if (updateError) {
-            logger.error('Update booking with quotation error', { error: updateError.message });
-        }
-
-        // Notify customer - quote accepted, pro will do the job and submit proof
+        // Notify customer - new quote available for review
         await createNotification(booking.user_id, {
             type: 'booking',
-            title: 'Quote Accepted - Job Started! �',
-            message: `${proProfile.business_name || 'A pro'} will complete your ${booking.service_name} (Total: $${finalPrice.toFixed(2)}). You'll pay after reviewing their proof of work.`,
+            title: 'New Quote Received! 📋',
+            message: `${proProfile.business_name || 'A pro'} submitted a quote of $${finalPrice.toFixed(2)} for your ${booking.service_name}. Review and accept to proceed.`,
             link: `/my-jobs`,
             data: { booking_id: id, quotation_id: quotation.id }
         });
 
-        // Notify pro - they can start the job
+        // Notify pro - quote submitted, awaiting customer decision
         await createNotification(proProfile.user_id, {
             type: 'booking',
-            title: 'Job Confirmed! Start Working 🎉',
-            message: `Your quote of $${price.toFixed(2)} for ${booking.service_name} has been accepted. Complete the job and submit proof of work.`,
-            link: `/pro-dashboard/jobs`,
+            title: 'Quote Submitted! ⏳',
+            message: `Your quote of $${price.toFixed(2)} for ${booking.service_name} has been sent to the customer. Waiting for their acceptance.`,
+            link: `/pro-dashboard/quote-requests`,
             data: { booking_id: id, quotation_id: quotation.id }
         });
 
-        // Notify admin about new quotation (for their records/copy)
+        // Notify admin about new quotation
         const { data: admins } = await supabaseAdmin
             .from('profiles')
             .select('id')
@@ -1162,14 +1153,14 @@ exports.submitQuotation = async (req, res) => {
         for (const admin of admins || []) {
             await createNotification(admin.id, {
                 type: 'system',
-                title: 'Quote Sent to Customer',
-                message: `${proProfile.business_name || 'A pro'} submitted a quote of $${quoted_price} for ${booking.service_name}. Sent directly to customer.`,
+                title: 'New Quote Submitted',
+                message: `${proProfile.business_name || 'A pro'} submitted a quote of $${quoted_price} for ${booking.service_name}. Awaiting customer acceptance.`,
                 link: `/admin/quotations`,
                 data: { booking_id: id, quotation_id: quotation.id }
             });
         }
 
-        logger.info('Quotation submitted and auto-approved', { 
+        logger.info('Quotation submitted - awaiting customer acceptance', { 
             quotationId: quotation.id, 
             bookingId: id, 
             proId: proProfile.id,
@@ -1179,7 +1170,7 @@ exports.submitQuotation = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Quotation submitted successfully! Customer has been notified and can proceed to payment.',
+            message: 'Quotation submitted successfully! Customer has been notified to review and accept.',
             data: { quotation }
         });
     } catch (error) {
@@ -1248,6 +1239,264 @@ exports.getMyQuotations = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch quotations'
+        });
+    }
+};
+
+// ==================== HOMEOWNER: QUOTATION ACCEPTANCE ====================
+
+/**
+ * Homeowner: Get pending quotations for a booking
+ * GET /api/bookings/:id/quotations
+ */
+exports.getBookingQuotations = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verify booking belongs to user
+        const { data: booking, error: bookingError } = await supabaseAdmin
+            .from('bookings')
+            .select('id, user_id, status, service_name')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (bookingError || !booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        // Get all quotations for this booking with pro details
+        const { data: quotations, error } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name,
+                    bio,
+                    years_experience,
+                    rating,
+                    total_reviews,
+                    profile_photo_url
+                )
+            `)
+            .eq('booking_id', id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            logger.error('Get booking quotations error', { error: error.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch quotations'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { 
+                booking,
+                quotations: quotations || []
+            }
+        });
+    } catch (error) {
+        logger.error('Get booking quotations controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch quotations'
+        });
+    }
+};
+
+/**
+ * Homeowner: Accept a quotation
+ * POST /api/bookings/:bookingId/quotations/:quotationId/accept
+ */
+exports.acceptQuotation = async (req, res) => {
+    try {
+        const { bookingId, quotationId } = req.params;
+
+        // Verify booking belongs to user and is in awaiting_quotes status
+        const { data: booking, error: bookingError } = await supabaseAdmin
+            .from('bookings')
+            .select('*, services (name)')
+            .eq('id', bookingId)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (bookingError || !booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        if (booking.status !== 'awaiting_quotes') {
+            return res.status(400).json({
+                success: false,
+                message: 'This booking is no longer accepting quotes'
+            });
+        }
+
+        // Get the quotation
+        const { data: quotation, error: quotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                )
+            `)
+            .eq('id', quotationId)
+            .eq('booking_id', bookingId)
+            .single();
+
+        if (quotationError || !quotation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quotation not found'
+            });
+        }
+
+        if (quotation.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'This quotation is no longer available'
+            });
+        }
+
+        // Calculate final price with tax
+        const price = parseFloat(quotation.quoted_price);
+        const taxRateDecimal = await getTaxRate('quote');
+        const tax = price * taxRateDecimal;
+        const finalPrice = price + tax;
+
+        // Update the selected quotation to 'selected'
+        const { error: updateQuotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .update({
+                status: 'selected',
+                selected_at: new Date().toISOString()
+            })
+            .eq('id', quotationId);
+
+        if (updateQuotationError) {
+            logger.error('Update quotation status error', { error: updateQuotationError.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to accept quotation'
+            });
+        }
+
+        // Reject all other pending quotations for this booking
+        await supabaseAdmin
+            .from('booking_quotations')
+            .update({ status: 'rejected' })
+            .eq('booking_id', bookingId)
+            .neq('id', quotationId)
+            .eq('status', 'pending');
+
+        // Update booking with selected quotation - job is now accepted
+        const { error: updateBookingError } = await supabaseAdmin
+            .from('bookings')
+            .update({
+                status: 'accepted',
+                selected_quotation_id: quotation.id,
+                pro_id: quotation.pro_id,
+                base_price: price,
+                tax: tax,
+                total_price: finalPrice,
+                quote_set_at: new Date().toISOString()
+            })
+            .eq('id', bookingId);
+
+        if (updateBookingError) {
+            logger.error('Update booking with quotation error', { error: updateBookingError.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to update booking'
+            });
+        }
+
+        // Notify the selected pro - they can start the job
+        await createNotification(quotation.pro_profiles.user_id, {
+            type: 'booking',
+            title: 'Quote Accepted! Start Working 🎉',
+            message: `Your quote of $${price.toFixed(2)} for ${booking.service_name} has been accepted by the customer. Complete the job and submit proof of work.`,
+            link: `/pro-dashboard`,
+            data: { booking_id: bookingId, quotation_id: quotationId }
+        });
+
+        // Notify the homeowner - confirmation
+        await createNotification(req.user.id, {
+            type: 'booking',
+            title: 'Quote Accepted - Job Started! ✅',
+            message: `You've accepted ${quotation.pro_profiles.business_name || 'the pro'}'s quote for ${booking.service_name}. Total: $${finalPrice.toFixed(2)}. You'll pay after reviewing their proof of work.`,
+            link: `/my-jobs`,
+            data: { booking_id: bookingId, quotation_id: quotationId }
+        });
+
+        // Notify rejected pros
+        const { data: rejectedQuotations } = await supabaseAdmin
+            .from('booking_quotations')
+            .select('pro_profiles (user_id, business_name)')
+            .eq('booking_id', bookingId)
+            .eq('status', 'rejected');
+
+        for (const rejected of rejectedQuotations || []) {
+            if (rejected.pro_profiles?.user_id) {
+                await createNotification(rejected.pro_profiles.user_id, {
+                    type: 'booking',
+                    title: 'Quote Not Selected',
+                    message: `The customer chose another pro for ${booking.service_name}. Keep submitting quotes for other jobs!`,
+                    link: `/pro-dashboard/quote-requests`,
+                    data: { booking_id: bookingId }
+                });
+            }
+        }
+
+        // Notify admins
+        const { data: admins } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('role', 'admin');
+
+        for (const admin of admins || []) {
+            await createNotification(admin.id, {
+                type: 'system',
+                title: 'Quote Accepted by Customer',
+                message: `Customer accepted ${quotation.pro_profiles.business_name || 'a pro'}'s quote of $${price.toFixed(2)} for ${booking.service_name}.`,
+                link: `/admin/quotations`,
+                data: { booking_id: bookingId, quotation_id: quotationId }
+            });
+        }
+
+        logger.info('Quotation accepted by homeowner', {
+            bookingId,
+            quotationId,
+            proId: quotation.pro_id,
+            price,
+            finalPrice
+        });
+
+        res.json({
+            success: true,
+            message: 'Quote accepted successfully! The pro has been notified to start the job.',
+            data: { 
+                quotation: { ...quotation, status: 'selected' },
+                booking: { ...booking, status: 'accepted', total_price: finalPrice }
+            }
+        });
+    } catch (error) {
+        logger.error('Accept quotation controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to accept quotation'
         });
     }
 };

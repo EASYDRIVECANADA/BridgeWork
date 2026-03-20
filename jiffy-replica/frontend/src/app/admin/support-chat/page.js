@@ -196,15 +196,15 @@ export default function AdminSupportChatPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Support Chat</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Support Chat</h1>
           <p className="text-sm text-gray-500 mt-1">Respond to user help requests</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm ring-1 ring-black/5 overflow-hidden h-[calc(100vh-200px)] flex">
+        <div className="bg-white rounded-2xl shadow-sm ring-1 ring-black/5 overflow-hidden h-[calc(100vh-180px)] sm:h-[calc(100vh-200px)] flex flex-col sm:flex-row">
           {/* Sidebar: Conversations */}
-          <div className="w-[360px] border-r border-gray-100 flex flex-col">
+          <div className={`${selectedConv ? 'hidden sm:flex' : 'flex'} w-full sm:w-[320px] lg:w-[360px] border-r border-gray-100 flex-col`}>
             {/* Filter tabs */}
             <div className="px-4 py-3 border-b border-gray-100 flex gap-2">
               {['open', 'closed', 'all'].map((s) => (
@@ -282,7 +282,7 @@ export default function AdminSupportChatPage() {
           </div>
 
           {/* Chat area */}
-          <div className="flex-1 flex flex-col">
+          <div className={`${selectedConv ? 'flex' : 'hidden sm:flex'} flex-1 flex-col`}>
             {!selectedConv ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
                 <div className="w-16 h-16 rounded-full bg-[#0E7480]/10 grid place-items-center mb-4">

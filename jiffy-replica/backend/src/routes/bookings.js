@@ -188,6 +188,29 @@ router.delete('/admin/quote-requests/:id',
     bookingsController.cancelQuoteRequest
 );
 
+// ==================== HOMEOWNER: QUOTATION ACCEPTANCE ====================
+
+// Get quotations for a booking (homeowner)
+router.get('/:id/quotations',
+    authenticate,
+    [
+        param('id').isUUID(),
+        validate
+    ],
+    bookingsController.getBookingQuotations
+);
+
+// Accept a quotation (homeowner)
+router.post('/:bookingId/quotations/:quotationId/accept',
+    authenticate,
+    [
+        param('bookingId').isUUID(),
+        param('quotationId').isUUID(),
+        validate
+    ],
+    bookingsController.acceptQuotation
+);
+
 // ==================== USER BOOKINGS ====================
 
 router.post('/', authenticate,

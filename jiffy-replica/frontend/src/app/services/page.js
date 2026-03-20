@@ -101,44 +101,54 @@ function ServicesPageContent() {
   const fallbackImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=400';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-gray-50/50">
       {/* Header Section */}
-      <div className="bg-gradient-to-b from-blue-50 to-blue-100 py-6 sm:py-8 lg:py-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8">
+      <div className="relative bg-gradient-to-br from-[#0E7480]/5 via-blue-50/80 to-slate-50 py-10 sm:py-12 lg:py-16 overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#0E7480]/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-100/50 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 tracking-tight">
             {serviceType === 'commercial'
               ? 'Professional commercial services for your business.'
               : 'BridgeWork keeps your home in great shape, inside and out.'}
           </h1>
+          <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">
+            {serviceType === 'commercial'
+              ? 'Find trusted commercial service providers for your business needs.'
+              : 'Browse our services and book a certified pro in minutes.'}
+          </p>
 
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-4 sm:mb-6 lg:mb-8">
-            <div className="relative">
-              <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 sm:w-6 h-5 sm:h-6" />
+          <div className="max-w-2xl mx-auto mb-6 sm:mb-8">
+            <div className="relative group">
+              <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-[#0E7480] transition-colors" />
               <input
                 type="text"
                 placeholder="Search services..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 sm:pl-14 pr-4 py-3 sm:py-4 text-base sm:text-lg border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#0E7480] transition-colors"
+                className="w-full pl-14 pr-5 py-4 sm:py-5 text-base bg-white rounded-2xl shadow-lg shadow-gray-200/50 border-0 ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0E7480] transition-all duration-200"
               />
             </div>
           </div>
 
           {/* Category Pills (Residential only) - Scrollable on mobile */}
           {serviceType === 'residential' && categories.length > 0 && (
-            <div className="flex overflow-x-auto pb-2 sm:flex-wrap sm:justify-center gap-2 sm:gap-3 mb-4 sm:mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex overflow-x-auto pb-2 sm:flex-wrap sm:justify-center gap-2.5 sm:gap-3 mb-6 sm:mb-8 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategoryId(category.id)}
-                  className={`flex-shrink-0 px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-base font-medium transition-all ${
+                  className={`flex-shrink-0 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-sm sm:text-base font-medium transition-all duration-300 ${
                     selectedCategoryId === category.id
-                      ? 'bg-black text-white shadow-lg'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
+                      ? 'bg-gradient-to-r from-[#0E7480] to-[#0a5a63] text-white shadow-lg shadow-[#0E7480]/30 scale-[1.02]'
+                      : 'bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white shadow-sm ring-1 ring-gray-200/80 hover:ring-[#0E7480]/30 hover:shadow-md'
                   }`}
                 >
-                  <span className="mr-1 sm:mr-2">{category.icon_url || '📁'}</span>
+                  <span className="mr-1.5 sm:mr-2">{category.icon_url || '📁'}</span>
                   {category.name}
                 </button>
               ))}
@@ -156,43 +166,60 @@ function ServicesPageContent() {
       </div>
 
       {/* Services Grid */}
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 lg:py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 lg:py-14">
         {loading ? (
-          <div className="flex items-center justify-center py-12 sm:py-20">
+          <div className="flex items-center justify-center py-20 sm:py-24">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 sm:h-10 w-8 sm:w-10 border-b-2 border-[#0E7480] mx-auto"></div>
-              <p className="mt-3 sm:mt-4 text-gray-500 text-sm sm:text-base">Loading services...</p>
+              <div className="relative w-12 h-12 mx-auto">
+                <div className="absolute inset-0 rounded-full border-2 border-gray-100"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#0E7480] animate-spin"></div>
+              </div>
+              <p className="mt-5 text-gray-500 text-sm font-medium">Loading services...</p>
             </div>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
               {filteredServices.map((service) => (
                 <div
                   key={service.id}
                   onClick={(e) => handleServiceClick(e, service)}
-                  className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden group cursor-pointer"
+                  className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_32px_-8px_rgba(14,116,128,0.18)] ring-1 ring-gray-100 hover:ring-[#0E7480]/25 transition-all duration-300 overflow-hidden group cursor-pointer hover:-translate-y-1"
                 >
-                  <div className="flex items-center gap-4 p-4">
-                    <div className="relative w-16 h-16 flex-shrink-0">
+                  <div className="flex items-center gap-4 p-5 sm:p-6">
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-gray-100">
                       <Image
                         src={service.image_url || fallbackImage}
                         alt={service.name}
                         fill
-                        className="object-cover rounded-lg"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#0E7480] transition-colors">
-                      {service.name}
-                    </h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 group-hover:text-[#0E7480] transition-colors truncate">
+                        {service.name}
+                      </h3>
+                      {service.short_description && (
+                        <p className="text-sm text-gray-500 mt-1 line-clamp-1">{service.short_description}</p>
+                      )}
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-[#0E7480]/10 flex items-center justify-center transition-colors flex-shrink-0">
+                      <svg className="w-4 h-4 text-gray-400 group-hover:text-[#0E7480] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
             {filteredServices.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No services found{searchQuery ? ' matching your search' : ' in this category'}.</p>
+              <div className="text-center py-20">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                  <Search className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-800 text-lg font-semibold">No services found</p>
+                <p className="text-gray-500 text-sm mt-2 max-w-sm mx-auto">{searchQuery ? 'Try a different search term or browse all categories' : 'No services in this category yet'}</p>
               </div>
             )}
           </>

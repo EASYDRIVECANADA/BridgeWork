@@ -53,7 +53,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-14 bg-gradient-to-br from-[#E7F6F7] via-white to-[#EEF2FF]">
+    <div className="min-h-screen px-4 sm:px-6 py-10 sm:py-14 bg-gradient-to-br from-[#E7F6F7] via-white to-[#EEF2FF] relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#0E7480]/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-100/60 rounded-full blur-3xl" />
+      </div>
       <div className="max-w-md w-full mx-auto">
         {/* Top bar (replaces navbar for /login) */}
         <div className="flex items-center justify-between mb-6">
@@ -74,8 +79,8 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div className="relative rounded-2xl sm:rounded-3xl p-[1px] bg-[linear-gradient(90deg,rgba(14,116,128,1)_0%,rgba(2,75,90,1)_30%,rgba(20,40,65,1)_60%)] shadow-xl shadow-black/10">
-          <div className="relative bg-white/90 backdrop-blur rounded-2xl sm:rounded-3xl p-5 sm:p-8 ring-1 ring-black/5">
+        <div className="relative rounded-2xl sm:rounded-3xl p-[2px] bg-gradient-to-br from-[#0E7480] via-[#024B5A] to-[#142841] shadow-2xl shadow-[#0E7480]/20">
+          <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-6 sm:p-10">
             {/* Heading */}
             <div className="text-center mb-5 sm:mb-7">
               <div className="inline-flex items-center justify-center mb-2 sm:mb-3">
@@ -106,14 +111,14 @@ export default function LoginPage() {
               </Link>
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-800 mb-2">
                   Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0E7480]" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0E7480]" />
                   <input
                     id="email"
                     name="email"
@@ -122,7 +127,7 @@ export default function LoginPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0E7480]/35 focus:border-transparent transition"
+                    className="w-full pl-11 pr-4 py-4 border-0 rounded-xl bg-gray-50/80 ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:bg-white transition-all duration-200 text-base"
                     placeholder="Email"
                   />
                 </div>
@@ -139,7 +144,7 @@ export default function LoginPage() {
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0E7480]" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0E7480]" />
                   <input
                     id="password"
                     name="password"
@@ -148,13 +153,13 @@ export default function LoginPage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0E7480]/35 focus:border-transparent transition"
+                    className="w-full pl-11 pr-12 py-4 border-0 rounded-xl bg-gray-50/80 ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:bg-white transition-all duration-200 text-base"
                     placeholder="Password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 transition rounded-md"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -164,7 +169,7 @@ export default function LoginPage() {
 
               {/* Remember Me Checkbox */}
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer select-none">
                   <input
                     id="rememberMe"
                     name="rememberMe"
@@ -179,8 +184,9 @@ export default function LoginPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm ring-1 ring-red-200">
-                  {error}
+                <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm ring-1 ring-red-200 flex items-start gap-2">
+                  <span className="text-red-500 mt-0.5 flex-shrink-0">&#9888;</span>
+                  <span>{error}</span>
                 </div>
               )}
 
@@ -188,7 +194,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-brand w-full py-3 rounded-2xl font-brand tracking-tight disabled:opacity-60 disabled:cursor-not-allowed"
+                className="btn-brand w-full py-4 rounded-xl font-brand tracking-tight text-base shadow-lg shadow-[#0E7480]/25 hover:shadow-xl hover:shadow-[#0E7480]/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {isLoading ? 'Logging in...' : 'Continue'}
               </button>

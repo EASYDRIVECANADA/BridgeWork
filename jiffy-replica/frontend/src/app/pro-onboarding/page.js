@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,18 +12,6 @@ import { onboardingAPI, paymentsAPI, servicesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ProOnboardingPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0E7480]"></div>
-      </div>
-    }>
-      <ProOnboardingContent />
-    </Suspense>
-  );
-}
-
-function ProOnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile } = useSelector((state) => state.auth);

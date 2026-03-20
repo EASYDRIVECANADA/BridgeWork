@@ -106,14 +106,14 @@ export default function AdminProfileUpdatesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Pro Profile Updates</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Pro Profile Updates</h1>
           <p className="text-gray-500 text-sm">Review and approve changes made by Pros to their business info and insurance</p>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {[
             { key: 'pending', label: 'Pending', icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
             { key: 'approved', label: 'Approved', icon: CheckCircle, color: 'text-green-600 bg-green-50 border-green-200' },
