@@ -355,13 +355,24 @@ export default function MyJobsPage() {
                               <Eye className="w-4 h-4" />
                               View Proof
                             </button>
-                            <Link
-                              href={`/checkout/${booking.id}`}
-                              className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-sm"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                              Approve & Pay
-                            </Link>
+                            {booking.transactions?.some(t => t.status === 'held') ? (
+                              <button
+                                onClick={() => handleConfirmJob(booking.id)}
+                                disabled={actionLoading === booking.id}
+                                className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                              >
+                                <ShieldCheck className="w-4 h-4" />
+                                {actionLoading === booking.id ? 'Processing...' : 'Approve & Pay'}
+                              </button>
+                            ) : (
+                              <Link
+                                href={`/checkout/${booking.id}`}
+                                className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                              >
+                                <CreditCard className="w-4 h-4" />
+                                Approve & Pay
+                              </Link>
+                            )}
                             <button
                               onClick={() => { setDisputeModal(booking.id); setDisputeReason(''); }}
                               className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-1.5"
