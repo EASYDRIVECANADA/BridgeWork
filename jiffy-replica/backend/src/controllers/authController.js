@@ -142,6 +142,16 @@ exports.login = async (req, res) => {
 
         logger.info('Profile fetched during login', { userId: data.user.id, profile });
 
+        // Block deactivated accounts before issuing a session
+        if (profile && !profile.is_active) {
+            logger.warn('Login attempt by deactivated account', { userId: data.user.id });
+            await supabase.auth.signOut();
+            return res.status(403).json({
+                success: false,
+                message: 'Your account has been deactivated. Please contact support.'
+            });
+        }
+
         await supabaseAdmin
             .from('profiles')
             .update({ last_login_at: new Date().toISOString() })

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { 
   FileText, 
   MapPin, 
@@ -25,6 +26,7 @@ import { toast } from 'react-toastify';
 export default function AdminQuotationsPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
+  useAdminPermission('quotations');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedBooking, setExpandedBooking] = useState(null);

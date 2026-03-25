@@ -90,6 +90,7 @@ export const bookingsAPI = {
   getPendingAssignments: () => api.get('/bookings/admin/pending-assignments'),
   getAvailableProsForQuote: (bookingId) => api.get(`/bookings/admin/available-pros/${bookingId}`),
   assignProsToQuote: (data) => api.post('/bookings/admin/assign-pros', data),
+  directOfferToPro: (data) => api.post('/bookings/admin/direct-offer', data),
   getBookingAssignments: (bookingId) => api.get(`/bookings/admin/assignments/${bookingId}`),
   removeProAssignment: (bookingId, proId) => api.delete(`/bookings/admin/assignments/${bookingId}/${proId}`),
   
@@ -246,12 +247,34 @@ export const supportChatAPI = {
   closeConversation: (conversationId) => api.patch(`/support-chat/admin/${conversationId}/close`),
 };
 
+export const payoutsAPI = {
+  // Pro endpoints
+  getMyEarnings: () => api.get('/payouts/my-earnings'),
+  updatePayoutMethod: (data) => api.put('/payouts/payout-method', data),
+  // Admin endpoints
+  getPendingPayouts: () => api.get('/payouts/admin/pending'),
+  getPayoutHistory: () => api.get('/payouts/admin/history'),
+  getProDetail: (proProfileId) => api.get(`/payouts/admin/pro/${proProfileId}`),
+  recordPayout: (data) => api.post('/payouts/admin/record-payout', data),
+};
+
 export const settingsAPI = {
   // Tax settings (Admin)
   getTaxSettings: () => api.get('/settings/tax'),
   updateTaxSetting: (serviceType, data) => api.put(`/settings/tax/${serviceType}`, data),
   // Public tax rate
   getTaxRate: (serviceType) => api.get(`/settings/tax/${serviceType}`),
+};
+
+export const invoiceAPI = {
+  createInvoice: (bookingId, data) => api.post(`/bookings/${bookingId}/invoice`, data),
+  getInvoice: (bookingId) => api.get(`/bookings/${bookingId}/invoice`)
+};
+
+export const adminManageAPI = {
+  listAdmins: () => api.get('/admin/manage-admins/admins'),
+  updatePermissions: (id, permissions) => api.patch(`/admin/manage-admins/admins/${id}/permissions`, { admin_permissions: permissions }),
+  toggleActive: (id) => api.patch(`/admin/manage-admins/admins/${id}/toggle-active`),
 };
 
 export default api;

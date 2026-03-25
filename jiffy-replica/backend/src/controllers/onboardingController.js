@@ -117,6 +117,8 @@ exports.getOnboardingStatus = async (req, res) => {
                     stripe_account_id: proProfile.stripe_account_id,
                     commission_rate: proProfile.commission_rate,
                     admin_approved: proProfile.admin_approved,
+                    payout_method: proProfile.payout_method || 'e_transfer',
+                    etransfer_email: proProfile.etransfer_email,
                 }
             }
         });
@@ -426,7 +428,7 @@ exports.completeStripeStep = async (req, res) => {
 exports.getServiceAgreement = async (req, res) => {
     try {
         // Get the pro's commission rate (or platform default)
-        let commissionRate = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15');
+        let commissionRate = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
 
         if (req.user) {
             const { data: proProfile } = await supabaseAdmin
@@ -462,7 +464,7 @@ exports.getServiceAgreement = async (req, res) => {
                         },
                         {
                             title: '3. Payment Terms',
-                            content: 'When a homeowner books and pays for a service, funds are held in escrow until the job is completed and confirmed. Upon job confirmation, your share (service amount minus platform commission) will be transferred to your connected Stripe account. Payouts are processed according to Stripe\'s standard payout schedule (typically 2-3 business days). BridgeWork does not withhold taxes — you are solely responsible for reporting and paying all applicable taxes.'
+                            content: 'When a homeowner books and pays for a service, funds are held in escrow until the job is completed and confirmed. Upon job confirmation, your share (service amount minus platform commission) will be paid out via your chosen payout method: (a) Interac e-Transfer — payouts are sent weekly by a BridgeWork administrator to your registered email; or (b) Stripe Connect — payouts are transferred automatically to your connected bank account (typically 2-3 business days). You may change your payout method at any time from your account settings. BridgeWork does not withhold taxes — you are solely responsible for reporting and paying all applicable taxes.'
                         },
                         {
                             title: '4. Insurance and Liability',
@@ -763,7 +765,7 @@ exports.adminCreatePro = async (req, res) => {
             reference_2_phone: reference_2_phone || null,
             reference_2_email: reference_2_email || null,
             reference_2_relationship: reference_2_relationship || null,
-            commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15'),
+            commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13'),
             bio: bio || null,
             hourly_rate: hourly_rate || null,
             service_radius: service_radius || 25,

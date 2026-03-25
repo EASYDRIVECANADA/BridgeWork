@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, ChevronDown, LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, User, MessageSquare, ClipboardList, UserCheck, Shield, Receipt, Bell } from 'lucide-react';
+import { Menu, X, ChevronDown, LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, User, MessageSquare, ClipboardList, UserCheck, Shield, Receipt, Bell, DollarSign, Crown } from 'lucide-react';
 import { signOut } from '@/store/slices/authSlice';
 import { proProfileUpdatesAPI } from '@/lib/api';
 
@@ -42,6 +42,7 @@ export default function Navbar() {
   const isAuthenticated = !!user;
   const isPro = profile?.role === 'pro';
   const isAdmin = profile?.role === 'admin';
+  const isSuperAdmin = profile?.role === 'admin' && profile?.is_superadmin === true;
   const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
 
   useEffect(() => {
@@ -240,6 +241,19 @@ export default function Navbar() {
                             <Shield className="w-4 h-4" />
                             Admin Users
                           </Link>
+                          <Link href="/admin/payouts" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
+                            <DollarSign className="w-4 h-4" />
+                            Pro Payouts
+                          </Link>
+                          {isSuperAdmin && (
+                            <>
+                              <div className="h-px bg-gray-100 my-1" />
+                              <Link href="/admin/manage-admins" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors" onClick={() => setActiveDropdown(null)}>
+                                <Crown className="w-4 h-4" />
+                                Manage Admins
+                              </Link>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -265,7 +279,7 @@ export default function Navbar() {
                       </button>
                       {activeDropdown === 'user' && (
                         <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-                          <Link href="/dashboard" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
+                          <Link href="/admin/profile" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
                             <User className="w-4 h-4" />
                             My Profile
                           </Link>
@@ -454,6 +468,16 @@ export default function Navbar() {
                     <Shield className="w-5 h-5" />
                     Admin Users
                   </Link>
+                  <Link href="/admin/payouts" className="flex items-center gap-3 px-4 py-2.5 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <DollarSign className="w-5 h-5" />
+                    Pro Payouts
+                  </Link>
+                  {isSuperAdmin && (
+                    <Link href="/admin/manage-admins" className="flex items-center gap-3 px-4 py-2.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                      <Crown className="w-5 h-5" />
+                      Manage Admins
+                    </Link>
+                  )}
                   
                   {/* Sign Out */}
                   <div className="border-t border-white/10 mt-3 pt-3">

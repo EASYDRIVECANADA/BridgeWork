@@ -1,5 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const emailService = require('../services/emailService');
+const notificationService = require('../services/notificationService');
 
 // Fields that require admin approval when changed
 const APPROVAL_REQUIRED_FIELDS = [
@@ -353,10 +355,20 @@ exports.adminRejectRequest = async (req, res) => {
         const { id } = req.params;
         const { reason } = req.body;
 
-        // Get the request
+        // Get the request with pro contact info
         const { data: request, error: fetchError } = await supabaseAdmin
             .from('pro_profile_update_requests')
-            .select('id')
+            .select(`
+                id,
+                requested_changes,
+                pro_profile:pro_profiles!pro_profile_update_requests_pro_profile_id_fkey (
+                    user_id,
+                    profiles:profiles!pro_profiles_user_id_fkey (
+                        full_name,
+                        email
+                    )
+                )
+            `)
             .eq('id', id)
             .eq('status', 'pending')
             .single();
@@ -385,6 +397,28 @@ exports.adminRejectRequest = async (req, res) => {
                 success: false,
                 message: 'Failed to reject update request'
             });
+        }
+
+        // Send rejection email and in-app notification to the pro
+        const proEmail = request.pro_profile?.profiles?.email;
+        const proName = request.pro_profile?.profiles?.full_name || 'Pro';
+        const proUserId = request.pro_profile?.user_id;
+        const changedFields = Object.keys(request.requested_changes || {});
+        const rejectionReason = reason || 'No reason provided';
+
+        if (proEmail) {
+            emailService.sendProProfileUpdateRejectedEmail(proEmail, proName, changedFields, rejectionReason)
+                .catch(err => logger.error('Failed to send profile update rejection email', { error: err.message }));
+        }
+
+        if (proUserId) {
+            notificationService.createNotification(proUserId, {
+                type: 'profile_update_rejected',
+                title: 'Profile Update Not Approved',
+                message: `Your profile update request was not approved. Reason: ${rejectionReason}`,
+                link: '/pro-dashboard',
+                data: { changedFields, reason: rejectionReason }
+            }).catch(err => logger.error('Failed to create rejection notification', { error: err.message }));
         }
 
         logger.info('Pro profile update rejected', {
@@ -420,7 +454,7 @@ exports.adminUpdateProProfile = async (req, res) => {
         const allowedFields = [
             'business_name', 'business_address', 'business_unit', 'gst_number', 'website',
             'insurance_provider', 'insurance_policy_number', 'insurance_expiry', 'insurance_document_url',
-            'bio', 'hourly_rate', 'service_radius', 'service_categories', 'is_verified',
+            'bio', 'hourly_rate', 'service_radius', 'service_categories', 'services_offered', 'is_verified',
             'is_available', 'certifications', 'portfolio_images', 'commission_rate'
         ];
 

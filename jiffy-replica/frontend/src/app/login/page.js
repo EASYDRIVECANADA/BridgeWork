@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (isAuthenticated) {
       toast.success('Login successful!');
       // If profile is already loaded, route by role; otherwise default to /dashboard
-      const dest = profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard';
+      const dest = profile?.role === 'admin' ? '/admin/revenue' : profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard';
       console.log('[LOGIN PAGE] Redirecting to:', dest);
       router.push(dest);
     }

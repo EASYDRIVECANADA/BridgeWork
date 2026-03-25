@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Link as LinkIcon, Coins, Calendar, MessageSquare, Edit, Loader2, Clock, Briefcase, CreditCard, CheckCircle, Star, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Calendar, MessageSquare, Edit, Loader2, Clock, Briefcase, CreditCard, CheckCircle, Star, FileText } from 'lucide-react';
 import { fetchBookings } from '@/store/slices/bookingsSlice';
 import ReviewModal from '@/components/ReviewModal';
 
@@ -15,6 +15,9 @@ const statusColors = {
   in_progress: 'bg-purple-100 text-purple-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
+  awaiting_quotes: 'bg-orange-100 text-orange-700',
+  quote_pending: 'bg-orange-100 text-orange-700',
+  proof_submitted: 'bg-indigo-100 text-indigo-700',
 };
 
 const statusLabels = {
@@ -23,6 +26,9 @@ const statusLabels = {
   in_progress: 'In Progress',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  awaiting_quotes: 'Getting Quotes',
+  quote_pending: 'Quote Pending',
+  proof_submitted: 'Review & Pay',
 };
 
 export default function DashboardPage() {
@@ -40,8 +46,12 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
+    if (profile?.role === 'admin') {
+      router.push('/admin/revenue');
+      return;
+    }
     dispatch(fetchBookings());
-  }, [user, router, dispatch]);
+  }, [user, profile, router, dispatch]);
 
   // Check which bookings already have reviews
   useEffect(() => {
@@ -134,34 +144,10 @@ export default function DashboardPage() {
 
               {/* Navigation Menu */}
               <nav>
-                <Link href="/insurance" className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <LinkIcon className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm text-gray-700">Link my insurance perks</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </Link>
-
-                <Link href="/credits" className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Coins className="w-5 h-5 text-yellow-500" />
-                    <span className="text-sm text-gray-700">0 credits</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </Link>
-
                 <Link href="/my-jobs" className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100">
                   <div className="flex items-center gap-3">
                     <Calendar className="w-5 h-5 text-gray-500" />
                     <span className="text-sm text-gray-700">My Jobs</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </Link>
-
-                <Link href="/schedule-save" className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors group border-t border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm text-gray-700">Schedule & Save</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
                 </Link>
@@ -313,7 +299,12 @@ export default function DashboardPage() {
                           <Clock className="w-3 h-3" />
                           Funds Held
                         </span>
-                      ) : !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') ? (
+                      ) : (booking.status === 'awaiting_quotes' || booking.status === 'quote_pending') ? (
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-orange-50 text-orange-600 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Awaiting Your Approval
+                        </span>
+                      ) : booking.status === 'accepted' && !booking.transactions?.some(t => t.status === 'held' || t.status === 'succeeded') ? (
                         <Link
                           href={`/checkout/${booking.id}`}
                           className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
@@ -437,41 +428,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* How BridgeWork Works */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">How BridgeWork Works</h2>
-              <div className="bg-gradient-to-r from-[#1e5bb8] via-[#0E7480] to-[#1e5bb8] rounded-2xl p-12 flex items-center justify-center">
-                <div className="relative w-full max-w-2xl aspect-video bg-white rounded-lg shadow-2xl overflow-hidden">
-                  {/* Video Player */}
-                  <iframe
-                    className="w-full h-full"
-                    src="https://www.youtube.com/embed/dQw4w9WgXcQ?controls=1&modestbranding=1&rel=0"
-                    title="How BridgeWork Works"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                  
-                  {/* Alternative: Custom Video Player UI Overlay (if using custom video) */}
-                  {/* <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                    <div className="text-center p-8">
-                      <div className="mb-4">
-                        <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">Request Job</h3>
-                      <p className="text-gray-600 mb-4">What do you need done?</p>
-                      <p className="text-sm text-gray-500">My dishwasher stopped working.</p>
-                      <button className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Upload Photos & Videos
-                      </button>
-                    </div>
-                  </div> */}
-                </div>
-              </div>
-            </div>
-
             {/* Info Cards Grid */}
             <div className="grid grid-cols-2 gap-6 mb-12">
               <Link href="/faq" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
@@ -565,134 +521,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Ways to Save with BridgeWork */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Ways to Save with BridgeWork</h2>
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                {/* Schedule & Save Card */}
-                <div className="bg-gradient-to-br from-purple-600 to-purple-400 rounded-2xl p-8 text-white">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4">
-                      <Calendar className="w-10 h-10" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">SCHEDULE & SAVE</h3>
-                    <p className="mb-6">Schedule a reminder and save $15 on repeat jobs.</p>
-                    <button className="bg-white text-purple-600 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-colors">
-                      Learn more
-                    </button>
-                  </div>
-                </div>
 
-                {/* Share & Save Card */}
-                <div className="bg-gradient-to-br from-orange-200 to-orange-100 rounded-2xl p-8">
-                  <div className="flex flex-col items-center text-center">
-                    <h3 className="text-2xl font-bold text-orange-500 mb-4">SHARE<br/>& SAVE</h3>
-                    <p className="text-gray-700 mb-6">Give a friend $25 and get $25 when they finish their first job.</p>
-                    <button className="bg-[#2c3e50] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#1a252f] transition-colors">
-                      Share
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* BridgeWork+ Spending Account Card */}
-              <div className="bg-[#2c3e50] rounded-2xl p-8 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <div>
-                      <h3 className="text-yellow-400 text-3xl font-bold mb-2">BridgeWork+</h3>
-                      <h4 className="text-white text-2xl font-bold mb-4">spending account</h4>
-                    </div>
-                    <div className="relative w-32 h-32">
-                      <Image
-                        src="https://images.unsplash.com/photo-1607863680198-23d4b2565df0?q=80&w=200"
-                        alt="Gold coins"
-                        fill
-                        className="object-contain"
-                        unoptimized
-                      />
-                    </div>
-                  </div>
-                  <div className="border-2 border-yellow-400 rounded-xl p-6">
-                    <div className="grid grid-cols-2 gap-8">
-                      <div>
-                        <p className="text-gray-400 text-sm mb-1">For</p>
-                        <p className="text-white text-2xl font-bold">$75/month</p>
-                        <p className="text-gray-400 text-xs mt-1">Billed monthly for 12 months<br/>$900/year</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 text-sm mb-1">You get</p>
-                        <p className="text-white text-2xl font-bold">$1,200/year</p>
-                        <p className="text-gray-400 text-xs mt-1">to spend on all BridgeWork<br/>services</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6 flex items-center justify-between">
-                  <button className="bg-yellow-400 text-gray-900 px-8 py-3 rounded-lg font-bold hover:bg-yellow-300 transition-colors">
-                    Learn More
-                  </button>
-                  <p className="text-orange-400 text-sm">
-                    Includes BridgeWork+ Membership benefit with $25 off every job!
-                  </p>
-                </div>
-              </div>
-
-              {/* BridgeWork+ Member Upgrade Card */}
-              <div className="bg-gradient-to-r from-[#3d5a80] to-[#2c4563] rounded-2xl p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-yellow-400 text-2xl font-bold mb-6">BridgeWork+ MEMBER</h3>
-                    <div className="border-2 border-orange-400 rounded-lg p-6 inline-block">
-                      <p className="text-white text-3xl font-bold mb-1">Save $25</p>
-                      <p className="text-white text-sm">on every BridgeWork job</p>
-                      <p className="text-orange-400 text-xs mt-2">For just $10/month</p>
-                    </div>
-                  </div>
-                  <div className="flex-1 px-8">
-                    <button className="bg-[#0E7480] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors w-full mb-4">
-                      Upgrade to BridgeWork+ for $10/month
-                    </button>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="text"
-                        placeholder="Enter Your Membership Code"
-                        className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-white placeholder-gray-400 border border-gray-500"
-                      />
-                      <button className="bg-[#0E7480] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1e5bb8] transition-colors">
-                        Join
-                      </button>
-                    </div>
-                    <p className="text-gray-400 text-xs mt-4">
-                      The $25 discount applies once per job. BridgeWork+ Member continues for $10/month until cancelled.{' '}
-                      <Link href="/bridgework-terms" className="text-[#0E7480] hover:underline">
-                        See BridgeWork+ Terms & Conditions
-                      </Link>
-                    </p>
-                  </div>
-                  <div className="flex-1 flex flex-col gap-3">
-                    <div className="flex items-center gap-3 text-white">
-                      <div className="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">💰</span>
-                      </div>
-                      <span className="text-sm">Save $25 on every BridgeWork Job</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-white">
-                      <div className="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">🛡️</span>
-                      </div>
-                      <span className="text-sm">Warranty Extension from 30 to 60 days</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-white">
-                      <div className="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">❌</span>
-                      </div>
-                      <span className="text-sm">Cancel membership anytime (no fee or penalty)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

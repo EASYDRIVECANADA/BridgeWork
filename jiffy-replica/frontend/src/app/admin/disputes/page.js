@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import Image from 'next/image';
 import {
   AlertTriangle,
@@ -26,6 +27,7 @@ import { toast } from 'react-toastify';
 export default function AdminDisputesPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
+  useAdminPermission('disputes');
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedDispute, setExpandedDispute] = useState(null);

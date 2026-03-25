@@ -3,7 +3,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "skipLibCheck": true,
+    "types": ["node", "react", "react-dom", "jest"]
   },
   "exclude": ["node_modules", ".next"]
 }

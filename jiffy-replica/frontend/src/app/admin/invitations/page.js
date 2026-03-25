@@ -3,27 +3,47 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { Plus, Mail, X, Clock, CheckCircle, XCircle, RefreshCw, UserPlus } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function AdminInvitationsPage() {
   const router = useRouter();
   const { profile } = useSelector((state) => state.auth);
+  useAdminPermission('invitations');
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDirectCreateModal, setShowDirectCreateModal] = useState(false);
+  const ALL_PERMISSIONS = [
+    { key: 'revenue', label: 'Revenue Dashboard' },
+    { key: 'services', label: 'Services Management' },
+    { key: 'categories', label: 'Categories Management' },
+    { key: 'pro_applications', label: 'Pro Applications' },
+    { key: 'profile_updates', label: 'Profile Update Requests' },
+    { key: 'invitations', label: 'Admin Invitations' },
+    { key: 'payouts', label: 'Payouts Management' },
+    { key: 'quotations', label: 'Quotations' },
+    { key: 'quote_assignments', label: 'Quote Assignments' },
+    { key: 'quote_requests', label: 'Quote Requests' },
+    { key: 'proofs', label: 'Job Proofs' },
+    { key: 'support_chat', label: 'Support Chat' },
+    { key: 'disputes', label: 'Disputes' },
+  ];
+
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
-    phone: ''
+    phone: '',
+    admin_permissions: {}
   });
   const [directFormData, setDirectFormData] = useState({
     email: '',
     full_name: '',
     phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    admin_permissions: {}
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +81,7 @@ export default function AdminInvitationsPage() {
       const response = await api.post('/admin/invitations', formData);
       if (response.data.success) {
         setSuccess('Invitation sent successfully!');
-        setFormData({ email: '', full_name: '', phone: '' });
+        setFormData({ email: '', full_name: '', phone: '', admin_permissions: {} });
         setShowCreateModal(false);
         fetchInvitations();
       }
@@ -115,11 +135,12 @@ export default function AdminInvitationsPage() {
         email: directFormData.email,
         full_name: directFormData.full_name,
         phone: directFormData.phone,
-        password: directFormData.password
+        password: directFormData.password,
+        admin_permissions: directFormData.admin_permissions
       });
       if (response.data.success) {
         setSuccess('Admin account created successfully!');
-        setDirectFormData({ email: '', full_name: '', phone: '', password: '', confirmPassword: '' });
+        setDirectFormData({ email: '', full_name: '', phone: '', password: '', confirmPassword: '', admin_permissions: {} });
         setShowDirectCreateModal(false);
         alert('Admin account created successfully! They can now log in.');
       }
@@ -380,6 +401,45 @@ export default function AdminInvitationsPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Permissions
+                </label>
+                <div className="border border-gray-200 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {ALL_PERMISSIONS.map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.admin_permissions[key]}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          admin_permissions: { ...formData.admin_permissions, [key]: e.target.checked }
+                        })}
+                        className="rounded border-gray-300 text-[#0E7480] focus:ring-[#0E7480]"
+                      />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, admin_permissions: Object.fromEntries(ALL_PERMISSIONS.map(p => [p.key, true])) })}
+                    className="text-xs text-[#0E7480] hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-xs text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, admin_permissions: {} })}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -495,6 +555,45 @@ export default function AdminInvitationsPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                   placeholder="Confirm password"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Permissions
+                </label>
+                <div className="border border-gray-200 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {ALL_PERMISSIONS.map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!directFormData.admin_permissions[key]}
+                        onChange={(e) => setDirectFormData({
+                          ...directFormData,
+                          admin_permissions: { ...directFormData.admin_permissions, [key]: e.target.checked }
+                        })}
+                        className="rounded border-gray-300 text-[#0E7480] focus:ring-[#0E7480]"
+                      />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDirectFormData({ ...directFormData, admin_permissions: Object.fromEntries(ALL_PERMISSIONS.map(p => [p.key, true])) })}
+                    className="text-xs text-[#0E7480] hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-xs text-gray-400">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setDirectFormData({ ...directFormData, admin_permissions: {} })}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

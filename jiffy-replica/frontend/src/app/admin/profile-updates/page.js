@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import {
   CheckCircle, XCircle, Clock, User, ArrowRight, Loader2,
   FileText, ExternalLink, X, Shield, Building2
@@ -26,6 +27,7 @@ const FIELD_LABELS = {
 export default function AdminProfileUpdatesPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
+  useAdminPermission('profile_updates');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');

@@ -31,10 +31,11 @@ function AuthProvider({ children }) {
         });
         const profile = response.data?.data?.profile;
         console.log('[AUTH PROVIDER] fetchProfile result:', !!profile);
-        return profile || null;
+        return { profile: profile || null, deactivated: false };
       } catch (err) {
         console.error('[AUTH PROVIDER] fetchProfile error:', err?.response?.status, err?.message);
-        return null;
+        const deactivated = err?.response?.status === 403;
+        return { profile: null, deactivated };
       }
     };
 
@@ -72,7 +73,14 @@ function AuthProvider({ children }) {
           return;
         }
         lastFetchedUserRef.current = userId;
-        const profile = await fetchProfile(session.access_token);
+        const { profile, deactivated } = await fetchProfile(session.access_token);
+        if (deactivated) {
+          console.log('[AUTH PROVIDER] Account deactivated — forcing sign out');
+          lastFetchedUserRef.current = null;
+          await supabase.auth.signOut();
+          dispatch(clearAuth());
+          return;
+        }
         console.log(`[AUTH PROVIDER] Dispatching setUser (${source}), profile:`, !!profile);
         dispatch(setUser({
           user: session.user,

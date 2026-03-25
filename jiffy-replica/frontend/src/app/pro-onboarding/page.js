@@ -8,7 +8,7 @@ import {
   CheckCircle, Circle, ChevronRight, Building2, FileText,
   Shield, CreditCard, Clock, Loader2, AlertTriangle, ChevronDown, ChevronUp, X
 } from 'lucide-react';
-import { onboardingAPI, paymentsAPI, servicesAPI } from '@/lib/api';
+import { onboardingAPI, paymentsAPI, payoutsAPI, servicesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ProOnboardingPage() {
@@ -49,8 +49,11 @@ export default function ProOnboardingPage() {
   const [ref2Email, setRef2Email] = useState('');
   const [ref2Relationship, setRef2Relationship] = useState('');
 
-  // Step 4: Stripe
+  // Step 4: Payout Method
   const [connectLoading, setConnectLoading] = useState(false);
+  const [payoutMethod, setPayoutMethod] = useState('e_transfer');
+  const [etransferEmail, setEtransferEmail] = useState('');
+  const [payoutSaving, setPayoutSaving] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -104,6 +107,8 @@ export default function ProOnboardingPage() {
         setRef2Email(p.reference_2_email || '');
         setRef2Relationship(p.reference_2_relationship || '');
         setAgreementAccepted(p.service_agreement_accepted || false);
+        setPayoutMethod(p.payout_method || 'e_transfer');
+        setEtransferEmail(p.etransfer_email || '');
       }
 
       // If onboarding is complete and approved, redirect to dashboard
@@ -279,6 +284,31 @@ export default function ProOnboardingPage() {
     }
   };
 
+  const handleSavePayoutMethod = async () => {
+    if (payoutMethod === 'e_transfer' && !etransferEmail.trim()) {
+      toast.error('Please enter your Interac e-Transfer email');
+      return;
+    }
+    setPayoutSaving(true);
+    try {
+      await payoutsAPI.updatePayoutMethod({
+        payout_method: payoutMethod,
+        etransfer_email: payoutMethod === 'e_transfer' ? etransferEmail.trim() : undefined,
+      });
+      toast.success(payoutMethod === 'e_transfer'
+        ? 'e-Transfer payout method saved!'
+        : 'Stripe Connect selected — complete Stripe setup below.');
+      await loadOnboardingStatus();
+      if (payoutMethod === 'e_transfer') {
+        setCurrentStep(0);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save payout method');
+    } finally {
+      setPayoutSaving(false);
+    }
+  };
+
   const toggleService = (id) => {
     setSelectedServices(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
@@ -378,10 +408,10 @@ export default function ProOnboardingPage() {
                   </ul>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-700 mb-1">Setup Direct Payment <span className="text-xs font-normal text-gray-400">(optional — can be done later)</span></p>
+                  <p className="text-sm font-bold text-gray-700 mb-1">Setup Payout Method <span className="text-xs font-normal text-gray-400">(optional — can be done later)</span></p>
                   <ul className="text-xs text-gray-500 list-disc ml-4 space-y-0.5">
-                    <li>Bank Routing & Account Number</li>
-                    <li>Government ID for verification</li>
+                    <li><strong>Interac e-Transfer</strong> — just your email (recommended)</li>
+                    <li><strong>Stripe Connect</strong> — automatic payouts (requires bank info & ID)</li>
                   </ul>
                 </div>
               </div>
@@ -695,7 +725,7 @@ export default function ProOnboardingPage() {
           </div>
         )}
 
-        {/* ─── STEP 4: Stripe Connect ─── */}
+        {/* ─── STEP 4: Payout Method ─── */}
         {currentStep === 4 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center gap-2 mb-1">
@@ -704,49 +734,138 @@ export default function ProOnboardingPage() {
               </button>
               <span className="text-xs text-gray-300 mx-2">|</span>
               <span className="text-xs bg-[#0E7480] text-white px-2 py-0.5 rounded-full">4</span>
-              <span className="text-sm font-semibold text-gray-700">Set up direct payment</span>
+              <span className="text-sm font-semibold text-gray-700">Set up your payout method</span>
             </div>
-            <h2 className="text-xl font-bold text-[#0E7480] mt-4 mb-2">Set up direct payment</h2>
+            <h2 className="text-xl font-bold text-[#0E7480] mt-4 mb-2">How would you like to get paid?</h2>
             <p className="text-sm text-gray-500 mb-6">
-              You'll be redirected to a secure page on Stripe, BridgeWork's payment processor. This is where you'll set up
-              your bank account for receiving payouts.
+              Choose how you'd like to receive your earnings from completed jobs. You can change this anytime from your dashboard settings.
             </p>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-sm font-semibold text-gray-700 mb-2">What info should I have ready?</p>
-              <ul className="text-xs text-gray-500 list-disc ml-4 space-y-1">
-                <li>Bank routing number & account number</li>
-                <li>Government-issued ID (for identity verification)</li>
-                <li>Business information (if applicable)</li>
-              </ul>
+            {/* Payout Method Selection */}
+            <div className="space-y-3 mb-6">
+              {/* e-Transfer Option */}
+              <div
+                onClick={() => setPayoutMethod('e_transfer')}
+                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                  payoutMethod === 'e_transfer'
+                    ? 'border-[#0E7480] bg-[#0E7480]/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                    payoutMethod === 'e_transfer' ? 'border-[#0E7480]' : 'border-gray-300'
+                  }`}>
+                    {payoutMethod === 'e_transfer' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900 text-sm">Interac e-Transfer</p>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Recommended</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Receive your earnings via Interac e-Transfer to your email. Admin sends payouts weekly.
+                      No ID verification or bank info required — just your email!
+                    </p>
+                    {payoutMethod === 'e_transfer' && (
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          e-Transfer Email <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={etransferEmail}
+                          onChange={e => setEtransferEmail(e.target.value)}
+                          placeholder="your@email.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">This is the email where you'll receive your Interac e-Transfer payments.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Stripe Connect Option */}
+              <div
+                onClick={() => setPayoutMethod('stripe_connect')}
+                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                  payoutMethod === 'stripe_connect'
+                    ? 'border-[#0E7480] bg-[#0E7480]/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                    payoutMethod === 'stripe_connect' ? 'border-[#0E7480]' : 'border-gray-300'
+                  }`}>
+                    {payoutMethod === 'stripe_connect' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 text-sm">Stripe Connect (Automatic)</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Automatic payouts directly to your bank account via Stripe. Requires identity verification
+                      (government ID, bank details). Earnings are transferred automatically after each completed job.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {onboardingData?.profile?.stripe_account_id ? (
-              <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <p className="text-sm font-semibold text-green-700">Stripe account connected</p>
-                  </div>
-                  <p className="text-xs text-green-600 mt-1">Account ID: {onboardingData.profile.stripe_account_id}</p>
-                </div>
-                <button onClick={handleCompleteStripe} disabled={submitting}
-                  className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50">
-                  {submitting ? 'Verifying...' : 'Complete Onboarding'}
-                </button>
-              </div>
-            ) : (
-              <button onClick={handleStripeOnboard} disabled={connectLoading}
-                className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {connectLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Connecting to Stripe...
-                  </>
-                ) : (
-                  'Start Stripe Setup'
-                )}
+            {/* Save payout method */}
+            {payoutMethod === 'e_transfer' && (
+              <button onClick={handleSavePayoutMethod} disabled={payoutSaving}
+                className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50">
+                {payoutSaving ? 'Saving...' : 'Save & Continue'}
               </button>
+            )}
+
+            {/* Stripe Connect flow */}
+            {payoutMethod === 'stripe_connect' && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">What info should I have ready?</p>
+                  <ul className="text-xs text-gray-500 list-disc ml-4 space-y-1">
+                    <li>Bank routing number & account number</li>
+                    <li>Government-issued ID (for identity verification)</li>
+                    <li>Business information (if applicable)</li>
+                  </ul>
+                </div>
+
+                {onboardingData?.profile?.stripe_account_id ? (
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                        <p className="text-sm font-semibold text-green-700">Stripe account connected</p>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">Account ID: {onboardingData.profile.stripe_account_id}</p>
+                    </div>
+                    <button onClick={async () => { await handleSavePayoutMethod(); await handleCompleteStripe(); }} disabled={submitting || payoutSaving}
+                      className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50">
+                      {submitting ? 'Verifying...' : 'Save & Complete'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <button onClick={async () => { await handleSavePayoutMethod(); handleStripeOnboard(); }} disabled={connectLoading || payoutSaving}
+                      className="w-full bg-[#0E7480] text-white py-3 rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                      {connectLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Connecting to Stripe...
+                        </>
+                      ) : (
+                        'Save & Start Stripe Setup'
+                      )}
+                    </button>
+                    <button onClick={() => { setPayoutMethod('e_transfer'); }}
+                      className="w-full text-sm text-gray-500 hover:text-gray-700 py-2">
+                      I'll use Interac e-Transfer instead
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

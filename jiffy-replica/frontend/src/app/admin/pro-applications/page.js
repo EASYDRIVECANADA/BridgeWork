@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import {
   CheckCircle, XCircle, Clock, User, Building2, Shield, Mail, Phone,
   MapPin, FileText, Star, Loader2, ChevronDown, ChevronUp, AlertTriangle,
@@ -14,6 +15,7 @@ import { toast } from 'react-toastify';
 export default function AdminProApplicationsPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
+  useAdminPermission('pro_applications');
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -332,7 +334,7 @@ export default function AdminProApplicationsPage() {
                             </p>
                             <p className="flex items-center gap-2">
                               <DollarSign className="w-4 h-4 text-gray-400" />
-                              Current Commission: {app.commission_rate !== null && app.commission_rate !== undefined ? `${Math.round(app.commission_rate * 100)}%` : 'Platform default (15%)'}
+                              Current Commission: {app.commission_rate !== null && app.commission_rate !== undefined ? `${Math.round(app.commission_rate * 100)}%` : 'Platform default (13%)'}
                             </p>
                           </div>
                         </div>

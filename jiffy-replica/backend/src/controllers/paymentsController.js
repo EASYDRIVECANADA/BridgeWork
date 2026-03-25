@@ -3,7 +3,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
 // Platform commission rate (15% default)
-const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15');
+const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
 
 exports.createPaymentIntent = async (req, res) => {
     try {
@@ -496,18 +496,17 @@ exports.capturePayment = async (req, res) => {
         // --- From here on, Stripe has captured. All DB updates are best-effort. ---
         // --- We must NOT return a 500 after Stripe capture succeeds. ---
 
-        // If the PI was created WITHOUT transfer_data (homeowner paid before pro accepted),
-        // create a separate Transfer to send the pro's share to their Connect account.
+        // Pay the pro: either via Stripe Connect transfer or record in e-Transfer ledger
         let transferId = null;
-        if (booking.pro_id && !paymentIntent.transfer_data) {
+        if (booking.pro_id) {
             try {
                 const { data: proProfile } = await supabaseAdmin
                     .from('pro_profiles')
-                    .select('stripe_account_id, commission_rate')
+                    .select('id, user_id, stripe_account_id, commission_rate, payout_method, etransfer_email')
                     .eq('id', booking.pro_id)
                     .single();
 
-                if (proProfile?.stripe_account_id) {
+                if (proProfile) {
                     const commissionRate = proProfile.commission_rate != null
                         ? parseFloat(proProfile.commission_rate)
                         : PLATFORM_COMMISSION_RATE;
@@ -515,7 +514,12 @@ exports.capturePayment = async (req, res) => {
                     const platformFee = Math.round(capturedAmount * commissionRate);
                     const proShare = capturedAmount - platformFee;
 
-                    if (proShare > 0) {
+                    const useStripeConnect = proProfile.payout_method === 'stripe_connect'
+                        && proProfile.stripe_account_id
+                        && !paymentIntent.transfer_data;
+
+                    if (proShare > 0 && useStripeConnect) {
+                        // Stripe Connect: automated transfer
                         const transfer = await stripe.transfers.create({
                             amount: proShare,
                             currency: paymentIntent.currency,
@@ -530,7 +534,23 @@ exports.capturePayment = async (req, res) => {
                         });
                         transferId = transfer.id;
 
-                        logger.info('Pro payout transfer created', {
+                        // Also record in ledger for tracking
+                        await supabaseAdmin.from('pro_payouts').insert({
+                            pro_profile_id: proProfile.id,
+                            user_id: proProfile.user_id,
+                            type: 'earning',
+                            booking_id: booking.id,
+                            transaction_id: heldTx.id,
+                            amount: proShare / 100,
+                            platform_fee: platformFee / 100,
+                            commission_rate: commissionRate,
+                            payout_method: 'stripe_transfer',
+                            payout_reference: transfer.id,
+                            paid_at: new Date().toISOString(),
+                            status: 'completed',
+                        });
+
+                        logger.info('Pro payout via Stripe Connect', {
                             bookingId: booking.id,
                             transferId: transfer.id,
                             proShare: proShare / 100,
@@ -538,10 +558,31 @@ exports.capturePayment = async (req, res) => {
                             commissionRate,
                             destination: proProfile.stripe_account_id,
                         });
+                    } else if (proShare > 0) {
+                        // e-Transfer (or no Stripe account): record earning in ledger for admin to pay out manually
+                        await supabaseAdmin.from('pro_payouts').insert({
+                            pro_profile_id: proProfile.id,
+                            user_id: proProfile.user_id,
+                            type: 'earning',
+                            booking_id: booking.id,
+                            transaction_id: heldTx.id,
+                            amount: proShare / 100,
+                            platform_fee: platformFee / 100,
+                            commission_rate: commissionRate,
+                            status: 'completed',
+                        });
+
+                        logger.info('Pro earning recorded for manual payout', {
+                            bookingId: booking.id,
+                            proShare: proShare / 100,
+                            platformFee: platformFee / 100,
+                            commissionRate,
+                            payoutMethod: proProfile.payout_method || 'e_transfer',
+                        });
                     }
                 }
             } catch (transferErr) {
-                logger.error('capturePayment: pro transfer failed (non-fatal)', {
+                logger.error('capturePayment: pro payout/earning failed (non-fatal)', {
                     error: transferErr.message,
                     type: transferErr.type,
                     code: transferErr.code,

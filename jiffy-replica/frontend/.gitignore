@@ -34,3 +34,9 @@ next-env.d.ts
 
 # windsurf
 windsurf_deployment.yaml
+
+# PWA generated files
+public/sw.js
+public/workbox-*.js
+public/sw.js.map
+public/workbox-*.js.map

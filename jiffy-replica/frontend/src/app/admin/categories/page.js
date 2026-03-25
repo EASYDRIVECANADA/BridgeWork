@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { Plus, Edit, Trash2, Upload, FolderOpen, GripVertical, Home, Package } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
   const { profile } = useSelector((state) => state.auth);
+  useAdminPermission('categories');
   const [categories, setCategories] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);

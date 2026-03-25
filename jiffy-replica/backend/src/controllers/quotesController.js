@@ -1432,8 +1432,14 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
     try {
         const { status, limit = 50, offset = 0 } = req.query;
 
+        // Get all booking IDs that went through the admin assignment flow
+        const { data: assignedRows } = await supabaseAdmin
+            .from('quote_assignments')
+            .select('booking_id');
+        const assignedIds = [...new Set((assignedRows || []).map(r => r.booking_id).filter(Boolean))];
+
         // Get bookings that have quotations (free quote flow)
-        // Fetch without booking_quotations to avoid ambiguous relationship error
+        // Include: (a) bookings directly assigned via quote_assignments, (b) bookings where customer selected a quotation
         let query = supabaseAdmin
             .from('bookings')
             .select(`
@@ -1456,8 +1462,13 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
                     created_at
                 )
             `, { count: 'exact' })
-            .not('selected_quotation_id', 'is', null)
             .order('created_at', { ascending: false });
+
+        if (assignedIds.length > 0) {
+            query = query.or(`id.in.(${assignedIds.join(',')}),selected_quotation_id.not.is.null`);
+        } else {
+            query = query.not('selected_quotation_id', 'is', null);
+        }
 
         // Filter by status if provided
         if (status === 'pending') {
@@ -1496,8 +1507,9 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
 
         // Transform bookings to invoice-like format
         const quoteInvoices = (bookings || []).map(booking => {
-            // Get quotation from the map using selected_quotation_id
+            // Get quotation from the map using selected_quotation_id (may be null for direct-assigned jobs)
             const quotation = quotationsMap[booking.selected_quotation_id] || {};
+            const isDirect = !booking.selected_quotation_id;
             const transaction = booking.transactions?.find(t => t.status === 'succeeded' || t.status === 'held');
             
             // Parse extended data from notes (materials_list, your_price, etc.)
@@ -1513,8 +1525,8 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
                 }
             }
 
-            // Calculate totals
-            const workPrice = extendedData.your_price || quotation.quoted_price || 0;
+            // Calculate totals — for direct assignments use booking's total_price if no quotation
+            const workPrice = extendedData.your_price || quotation.quoted_price || booking.total_price || 0;
             const materialsList = extendedData.materials_list || [];
             const materialsTotal = materialsList.reduce((sum, m) => sum + (parseFloat(m.price) || 0), 0);
             const subtotal = parseFloat(workPrice) + materialsTotal;
@@ -1523,13 +1535,15 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
             const total = subtotal + taxAmount;
 
             // Determine invoice status
-            let invoiceStatus = 'pending';
+            let invoiceStatus = isDirect ? 'direct_assigned' : 'pending';
             if (booking.status === 'completed') {
                 invoiceStatus = 'paid';
             } else if (transaction?.status === 'held') {
                 invoiceStatus = 'held';
             } else if (booking.proof_submitted_at) {
                 invoiceStatus = 'awaiting_approval';
+            } else if (booking.status === 'accepted' || booking.status === 'in_progress') {
+                invoiceStatus = isDirect ? 'direct_assigned' : 'pending';
             }
 
             return {

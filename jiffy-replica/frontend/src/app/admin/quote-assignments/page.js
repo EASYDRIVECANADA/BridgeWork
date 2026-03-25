@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { bookingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 import { 
@@ -23,6 +24,7 @@ import {
 export default function AdminQuoteAssignmentsPage() {
   const { user, profile } = useSelector((state) => state.auth);
   const router = useRouter();
+  useAdminPermission('quote_assignments');
   const [pendingBookings, setPendingBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedBooking, setExpandedBooking] = useState(null);
@@ -79,7 +81,7 @@ export default function AdminQuoteAssignmentsPage() {
     setSelectedPro(proId);
   };
 
-  const handleAssignPro = async (bookingId) => {
+  const handleOfferToPro = async (bookingId) => {
     if (!selectedPro) {
       toast.error('Please select a pro');
       return;
@@ -87,18 +89,18 @@ export default function AdminQuoteAssignmentsPage() {
 
     setAssigning(true);
     try {
-      await bookingsAPI.assignProsToQuote({
+      await bookingsAPI.directOfferToPro({
         bookingId,
-        proIds: [selectedPro]
+        proId: selectedPro
       });
-      toast.success('Pro assigned successfully!');
+      toast.success('Booking offered to pro successfully!');
       setExpandedBooking(null);
       setSelectedPro(null);
       setAvailablePros([]);
       fetchPendingAssignments();
     } catch (err) {
-      console.error('Failed to assign pros:', err);
-      toast.error(err.response?.data?.message || 'Failed to assign pros');
+      console.error('Failed to offer booking to pro:', err);
+      toast.error(err.response?.data?.message || 'Failed to offer booking to pro');
     } finally {
       setAssigning(false);
     }
@@ -139,7 +141,7 @@ export default function AdminQuoteAssignmentsPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quote Assignments</h1>
               <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                Assign pros to quote requests from customers
+                Select a pro to offer each free quote booking to
               </p>
             </div>
             <button
@@ -231,9 +233,9 @@ export default function AdminQuoteAssignmentsPage() {
                   <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                       <h4 className="text-base sm:text-lg font-medium text-gray-900">
-                        Select a Pro to Assign
+                        Select a Pro to Offer This Job To
                       </h4>
-                      <p className="text-xs sm:text-sm text-gray-500">Choose one pro for this job</p>
+                      <p className="text-xs sm:text-sm text-gray-500">The selected pro will be assigned directly and notified</p>
                     </div>
 
                     {loadingPros ? (
@@ -330,25 +332,25 @@ export default function AdminQuoteAssignmentsPage() {
                         {/* Assign Button */}
                         <div className="flex justify-center sm:justify-end">
                           <button
-                            onClick={() => handleAssignPro(booking.id)}
+                            onClick={() => handleOfferToPro(booking.id)}
                             disabled={!selectedPro || assigning}
                             className={`
                               flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-all
                               ${!selectedPro || assigning
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-[#0E7480] text-white hover:bg-[#0c6570]'
                               }
                             `}
                           >
                             {assigning ? (
                               <>
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                Assigning...
+                                Offering...
                               </>
                             ) : (
                               <>
                                 <Send className="h-5 w-5 mr-2" />
-                                Assign Pro to Quote
+                                Offer to Pro
                               </>
                             )}
                           </button>

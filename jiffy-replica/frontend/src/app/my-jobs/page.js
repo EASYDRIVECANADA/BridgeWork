@@ -7,8 +7,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign } from 'lucide-react';
 import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
-import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI, bookingsAPI } from '@/lib/api';
+import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI, bookingsAPI, invoiceAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
+import InvoiceViewModal from '@/components/InvoiceViewModal';
 import { toast } from 'react-toastify';
 
 const statusColors = {
@@ -44,7 +45,6 @@ export default function MyJobsPage() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { bookings, isLoading } = useSelector((state) => state.bookings);
-  const [showBanner, setShowBanner] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [services, setServices] = useState([]);
@@ -63,6 +63,10 @@ export default function MyJobsPage() {
   const [quotations, setQuotations] = useState([]);
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [acceptingQuoteId, setAcceptingQuoteId] = useState(null);
+  
+  // Invoice viewing state
+  const [invoiceModal, setInvoiceModal] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -172,6 +176,23 @@ export default function MyJobsPage() {
     }
   };
 
+  // View invoice for a booking
+  const handleViewInvoice = async (bookingId) => {
+    setInvoiceLoading(bookingId);
+    try {
+      const res = await invoiceAPI.getInvoice(bookingId);
+      setInvoiceModal(res.data?.data?.invoice || null);
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        toast.info('No invoice available for this job yet.');
+      } else {
+        toast.error('Could not load invoice.');
+      }
+    } finally {
+      setInvoiceLoading(null);
+    }
+  };
+
   const handleDispute = async () => {
     if (!disputeModal || disputeReason.trim().length < 10) {
       toast.error('Please provide a detailed reason (at least 10 characters).');
@@ -211,28 +232,6 @@ export default function MyJobsPage() {
         {/* Page Title */}
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 tracking-tight">My Jobs</h1>
         <p className="text-sm text-gray-500 mb-6 sm:mb-8">Track your bookings and manage active jobs</p>
-
-        {/* Promo Banner */}
-        {showBanner && (
-          <div className="relative rounded-2xl overflow-hidden mb-6 sm:mb-8 shadow-lg shadow-purple-500/10">
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-              <p className="text-white text-xs sm:text-sm font-medium">
-                Get $40 off your next 2 jobs if you pay $25 now
-              </p>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button className="bg-white text-gray-900 text-xs font-semibold px-4 sm:px-5 py-2 rounded-full hover:bg-gray-100 transition-all shadow-sm">
-                  See Offer
-                </button>
-                <button
-                  onClick={() => setShowBanner(false)}
-                  className="text-white hover:text-gray-200 transition-colors"
-                >
-                  <X className="w-4 sm:w-5 h-4 sm:h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Active Jobs Section */}
         <div className="mb-8 sm:mb-10">
@@ -421,6 +420,22 @@ export default function MyJobsPage() {
                             <MessageSquare className="w-4 h-4" />
                             Message
                           </Link>
+                        )}
+
+                        {/* View Invoice - show for accepted, in_progress, proof_submitted, completed */}
+                        {(booking.status === 'accepted' || booking.status === 'in_progress' || booking.status === 'proof_submitted' || booking.status === 'completed') && (
+                          <button
+                            onClick={() => handleViewInvoice(booking.id)}
+                            disabled={invoiceLoading === booking.id}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg text-blue-600 hover:bg-blue-50 border border-blue-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            {invoiceLoading === booking.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <FileText className="w-4 h-4" />
+                            )}
+                            View Invoice
+                          </button>
                         )}
                       </div>
                     </div>
@@ -937,6 +952,13 @@ export default function MyJobsPage() {
             </div>
           </div>
         )}
+
+        {/* Invoice View Modal */}
+        <InvoiceViewModal
+          isOpen={!!invoiceModal}
+          onClose={() => setInvoiceModal(null)}
+          invoice={invoiceModal}
+        />
       </div>
     </div>
   );

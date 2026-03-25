@@ -15,7 +15,8 @@ import { signOut, updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
 import { fetchProJobs, acceptJob, declineJob, fetchProStatistics, updateProProfile } from '@/store/slices/prosSlice';
 import { fetchConversations, fetchMessages, sendMessage } from '@/store/slices/messagesSlice';
-import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI, payoutsAPI, invoiceAPI } from '@/lib/api';
+import InvoiceModal from '@/components/InvoiceModal';
 import { toast } from 'react-toastify';
 
 // Helper: format a booking from the API into a display-friendly job object
@@ -93,6 +94,12 @@ export default function ProDashboardPage() {
   const insuranceInputRef = useRef(null);
   const [pendingUpdateRequest, setPendingUpdateRequest] = useState(null);
   const [submitReviewLoading, setSubmitReviewLoading] = useState(false);
+  // Invoice modal state
+  const [invoiceModalBooking, setInvoiceModalBooking] = useState(null);
+  // Payout method
+  const [settingsPayoutMethod, setSettingsPayoutMethod] = useState('e_transfer');
+  const [settingsEtransferEmail, setSettingsEtransferEmail] = useState('');
+  const [payoutMethodSaving, setPayoutMethodSaving] = useState(false);
 
   // Available service categories (from DB)
   const SERVICE_CATEGORIES = [
@@ -256,6 +263,8 @@ export default function ProDashboardPage() {
           setSettingsInsurancePolicyNumber(pp.insurance_policy_number || '');
           setSettingsInsuranceExpiry(pp.insurance_expiry || '');
           setSettingsInsuranceDocUrl(pp.insurance_document_url || '');
+          setSettingsPayoutMethod(pp.payout_method || 'e_transfer');
+          setSettingsEtransferEmail(pp.etransfer_email || '');
           // Check for pending update request
           try {
             const pendingRes = await proProfileUpdatesAPI.getMyPending();
@@ -356,8 +365,8 @@ export default function ProDashboardPage() {
       })).unwrap();
 
       // Update pro_profiles table (bio, services, portfolio, etc.)
+      // Note: business_name requires admin review — use "Submit Changes for Review" below
       await dispatch(updateProProfile({
-        business_name: settingsBusinessName,
         bio: settingsBio,
         service_categories: settingsServiceCategories,
         service_radius: parseInt(settingsServiceRadius) || 25,
@@ -426,13 +435,48 @@ export default function ProDashboardPage() {
     setSubmitReviewLoading(false);
   };
 
-  const handleAcceptJob = async (jobId) => {
+  // Save payout method
+  const handleSavePayoutMethod = async () => {
+    if (settingsPayoutMethod === 'e_transfer' && !settingsEtransferEmail.trim()) {
+      toast.error('Please enter your e-Transfer email');
+      return;
+    }
+    if (settingsPayoutMethod === 'stripe_connect' && !connectStatus?.connected) {
+      toast.error('You need to set up Stripe Connect first');
+      return;
+    }
+    setPayoutMethodSaving(true);
     try {
-      const result = await dispatch(acceptJob(jobId)).unwrap();
-      const customerName = result?.profiles?.full_name || 'the customer';
-      toast.success(`Job accepted! Contact ${customerName} to confirm details.`);
+      await payoutsAPI.updatePayoutMethod({
+        payout_method: settingsPayoutMethod,
+        etransfer_email: settingsPayoutMethod === 'e_transfer' ? settingsEtransferEmail.trim() : undefined,
+      });
+      toast.success(settingsPayoutMethod === 'e_transfer'
+        ? 'Payout method updated to Interac e-Transfer'
+        : 'Payout method updated to Stripe Connect');
     } catch (err) {
-      toast.error(err || 'Failed to accept job');
+      toast.error(err?.response?.data?.message || 'Failed to update payout method');
+    }
+    setPayoutMethodSaving(false);
+  };
+
+  const handleAcceptJob = (job) => {
+    // Open invoice modal first - invoice is required before accepting
+    setInvoiceModalBooking(job);
+  };
+
+  const handleInvoiceSubmit = async (invoiceData) => {
+    if (!invoiceModalBooking) return;
+    try {
+      // Create invoice first
+      await invoiceAPI.createInvoice(invoiceModalBooking.id, invoiceData);
+      // Then accept the job
+      const result = await dispatch(acceptJob(invoiceModalBooking.id)).unwrap();
+      const customerName = result?.profiles?.full_name || 'the customer';
+      toast.success(`Invoice created and job accepted! Contact ${customerName} to confirm details.`);
+      setInvoiceModalBooking(null);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err || 'Failed to create invoice or accept job');
     }
   };
 
@@ -970,7 +1014,7 @@ export default function ProDashboardPage() {
                           {/* Actions */}
                           <div className="flex flex-col justify-center gap-2 p-4 border-l border-gray-100">
                             <button
-                              onClick={() => handleAcceptJob(job.id)}
+                              onClick={() => handleAcceptJob(job)}
                               className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -1725,13 +1769,14 @@ export default function ProDashboardPage() {
                       {/* Form Fields */}
                       <div className="flex-1 grid grid-cols-2 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Business / Display Name</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
                           <input
                             type="text"
                             value={settingsBusinessName}
                             onChange={(e) => setSettingsBusinessName(e.target.value)}
                             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
                           />
+                          <p className="text-xs text-gray-400 mt-1">To change your official business name, use the Business Info section below.</p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -1812,6 +1857,17 @@ export default function ProDashboardPage() {
                     )}
 
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                        <input
+                          type="text"
+                          value={settingsBusinessName}
+                          onChange={(e) => setSettingsBusinessName(e.target.value)}
+                          disabled={!!pendingUpdateRequest}
+                          placeholder="e.g. Smith Plumbing"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
+                      </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Business Address</label>
                         <input
@@ -1935,6 +1991,94 @@ export default function ProDashboardPage() {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* Payout Method */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Payout Method</h3>
+                    <p className="text-sm text-gray-500 mb-4">Choose how you receive your earnings from completed jobs.</p>
+
+                    <div className="space-y-3 mb-4">
+                      {/* e-Transfer Option */}
+                      <div
+                        onClick={() => setSettingsPayoutMethod('e_transfer')}
+                        className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                          settingsPayoutMethod === 'e_transfer'
+                            ? 'border-[#0E7480] bg-[#0E7480]/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                            settingsPayoutMethod === 'e_transfer' ? 'border-[#0E7480]' : 'border-gray-300'
+                          }`}>
+                            {settingsPayoutMethod === 'e_transfer' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-gray-900 text-sm">Interac e-Transfer</p>
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Recommended</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Admin sends payouts weekly via Interac e-Transfer. No ID verification needed.</p>
+                            {settingsPayoutMethod === 'e_transfer' && (
+                              <div className="mt-3">
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">e-Transfer Email *</label>
+                                <input
+                                  type="email"
+                                  value={settingsEtransferEmail}
+                                  onChange={e => setSettingsEtransferEmail(e.target.value)}
+                                  placeholder="your@email.com"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Stripe Connect Option */}
+                      <div
+                        onClick={() => setSettingsPayoutMethod('stripe_connect')}
+                        className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                          settingsPayoutMethod === 'stripe_connect'
+                            ? 'border-[#0E7480] bg-[#0E7480]/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                            settingsPayoutMethod === 'stripe_connect' ? 'border-[#0E7480]' : 'border-gray-300'
+                          }`}>
+                            {settingsPayoutMethod === 'stripe_connect' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 text-sm">Stripe Connect (Automatic)</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Automatic payouts to your bank account after each job. Requires ID verification.
+                            </p>
+                            {settingsPayoutMethod === 'stripe_connect' && !connectStatus?.connected && (
+                              <p className="text-xs text-amber-600 mt-2 font-medium">
+                                ⚠ You need to set up Stripe Connect first. Go to the Earnings tab to connect your account.
+                              </p>
+                            )}
+                            {settingsPayoutMethod === 'stripe_connect' && connectStatus?.connected && connectStatus?.payouts_enabled && (
+                              <p className="text-xs text-green-600 mt-2 font-medium">✓ Stripe account connected and payouts active</p>
+                            )}
+                            {settingsPayoutMethod === 'stripe_connect' && connectStatus?.connected && !connectStatus?.payouts_enabled && (
+                              <p className="text-xs text-amber-600 mt-2 font-medium">⚠ Stripe connected but payouts paused — complete verification in Earnings tab</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSavePayoutMethod}
+                      disabled={payoutMethodSaving}
+                      className="px-6 py-2.5 bg-[#0E7480] text-white rounded-lg text-sm font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50"
+                    >
+                      {payoutMethodSaving ? 'Saving...' : 'Save Payout Method'}
+                    </button>
                   </div>
 
                   {/* Bio / About Me */}
@@ -2418,6 +2562,14 @@ export default function ProDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Invoice Modal */}
+      <InvoiceModal
+        isOpen={!!invoiceModalBooking}
+        onClose={() => setInvoiceModalBooking(null)}
+        booking={invoiceModalBooking}
+        onSubmit={handleInvoiceSubmit}
+      />
     </div>
   );
 }

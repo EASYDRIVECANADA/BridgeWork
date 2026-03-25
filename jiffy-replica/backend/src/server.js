@@ -26,6 +26,9 @@ const adminInvitationsPublicRoutes = require('./routes/adminInvitationsPublic');
 const adminServicesRoutes = require('./routes/adminServices');
 const settingsRoutes = require('./routes/settings');
 const proProfileUpdatesRoutes = require('./routes/proProfileUpdates');
+const payoutsRoutes = require('./routes/payouts');
+const invoiceRoutes = require('./routes/invoice');
+const adminManageRoutes = require('./routes/adminManage');
 
 const app = express();
 
@@ -226,8 +229,11 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/admin/invitations', adminInvitationsRoutes);
 app.use('/api/admin-invitations', adminInvitationsPublicRoutes);
 app.use('/api/admin/manage', adminServicesRoutes);
+app.use('/api/admin/manage-admins', adminManageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/pro-profile-updates', proProfileUpdatesRoutes);
+app.use('/api/payouts', payoutsRoutes);
+app.use('/api', invoiceRoutes);
 
 // Serve uploaded images
 app.use('/uploads', express.static('uploads'));

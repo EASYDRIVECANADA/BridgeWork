@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import {
   FileText, Clock, User, MapPin, Calendar, DollarSign, Loader2,
   ChevronDown, ChevronUp, CheckCircle, XCircle, Send, AlertTriangle
@@ -31,6 +32,7 @@ function formatTime(timeStr) {
 export default function AdminQuoteRequestsPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
+  useAdminPermission('quote_requests');
   const [quoteRequests, setQuoteRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);

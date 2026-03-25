@@ -463,15 +463,12 @@ export default function ServiceDetailPage() {
                   {/* Service Type Selection Cards - Dynamic based on admin settings */}
                   {(() => {
                     // Determine available options from service settings
-                    const hasFreeQuote = apiService?.rate === 'quote' || apiService?.pricing_type === 'custom';
-                    const hasRate = apiService?.rate === 'yes';
+                    const hasFreeQuote = apiService?.rate === 'quote' || apiService?.rate === 'both' || apiService?.pricing_type === 'custom';
+const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                     const hasEmergency = apiService?.emergency === 'yes';
                     
                     // Count how many options are available
                     const optionCount = [hasFreeQuote, hasRate, hasEmergency].filter(Boolean).length;
-                    
-                    // Only show selection cards if there are multiple options
-                    if (optionCount <= 1) return null;
                     
                     // Determine grid columns based on option count
                     const gridCols = optionCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
@@ -640,7 +637,7 @@ export default function ServiceDetailPage() {
                           <input
                             type="tel"
                             required
-                            placeholder="(416) 555-0123"
+                            placeholder="(613) 555-0123"
                             value={bookingForm.phone_number}
                             onChange={(e) => setBookingForm(prev => ({ ...prev, phone_number: e.target.value }))}
                             className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
@@ -656,7 +653,7 @@ export default function ServiceDetailPage() {
                         <input
                           type="text"
                           required
-                          placeholder="e.g. 36 Treyon Street"
+                          placeholder="e.g. 36 Sparks Street"
                           value={bookingForm.address}
                           onChange={(e) => setBookingForm(prev => ({ ...prev, address: e.target.value }))}
                           className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
@@ -670,7 +667,7 @@ export default function ServiceDetailPage() {
                           <input
                             type="text"
                             required
-                            placeholder="Toronto"
+                            placeholder="Ottawa"
                             value={bookingForm.city}
                             onChange={(e) => setBookingForm(prev => ({ ...prev, city: e.target.value }))}
                             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
@@ -695,7 +692,7 @@ export default function ServiceDetailPage() {
                         <input
                           type="text"
                           required
-                          placeholder="M5V 2T6"
+                          placeholder="K1P 5G8"
                           value={bookingForm.zip_code}
                           onChange={(e) => setBookingForm(prev => ({ ...prev, zip_code: e.target.value }))}
                           className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"

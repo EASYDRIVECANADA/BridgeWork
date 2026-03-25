@@ -11,7 +11,7 @@ const generateInvitationToken = () => {
 // Create and send admin invitation
 exports.createInvitation = async (req, res) => {
     try {
-        const { email, full_name, phone } = req.body;
+        const { email, full_name, phone, admin_permissions } = req.body;
         const invitedBy = req.profile.id;
 
         // Validate admin role
@@ -68,7 +68,8 @@ exports.createInvitation = async (req, res) => {
                 invited_by: invitedBy,
                 token,
                 expires_at: expiresAt.toISOString(),
-                status: 'pending'
+                status: 'pending',
+                admin_permissions: admin_permissions || null
             })
             .select()
             .single();
@@ -286,7 +287,8 @@ exports.acceptInvitation = async (req, res) => {
                 email: invitation.email,
                 full_name: invitation.full_name,
                 phone: invitation.phone,
-                role: 'admin'
+                role: 'admin',
+                admin_permissions: invitation.admin_permissions || null
             });
 
         if (profileError) {
@@ -376,7 +378,7 @@ exports.cancelInvitation = async (req, res) => {
 // Directly create admin account (bypass email invitation)
 exports.directCreateAdmin = async (req, res) => {
     try {
-        const { email, full_name, phone, password } = req.body;
+        const { email, full_name, phone, password, admin_permissions } = req.body;
 
         if (req.profile.role !== 'admin') {
             return res.status(403).json({
@@ -443,7 +445,8 @@ exports.directCreateAdmin = async (req, res) => {
                 email: email.toLowerCase(),
                 full_name,
                 phone: phone || null,
-                role: 'admin'
+                role: 'admin',
+                admin_permissions: admin_permissions || null
             });
 
         if (profileError) {

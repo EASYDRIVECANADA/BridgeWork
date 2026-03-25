@@ -77,6 +77,24 @@ const authorize = (...roles) => {
     };
 };
 
+const requireSuperAdmin = (req, res, next) => {
+    if (!req.profile) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+
+    if (req.profile.role !== 'admin' || !req.profile.is_superadmin) {
+        return res.status(403).json({
+            success: false,
+            message: 'SuperAdmin access required'
+        });
+    }
+
+    next();
+};
+
 const optionalAuth = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -109,5 +127,6 @@ const optionalAuth = async (req, res, next) => {
 module.exports = {
     authenticate,
     authorize,
+    requireSuperAdmin,
     optionalAuth
 };

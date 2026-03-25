@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { MessageCircle, Send, X, ArrowLeft, Loader2, Clock, User, CheckCircle } from 'lucide-react';
 import { supportChatAPI } from '@/lib/api';
 import io from 'socket.io-client';
@@ -10,6 +11,7 @@ import io from 'socket.io-client';
 export default function AdminSupportChatPage() {
   const { user, profile } = useSelector((state) => state.auth);
   const router = useRouter();
+  useAdminPermission('support_chat');
 
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);

@@ -2,6 +2,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { findNearbyPros } = require('../services/proMatchingService');
 const { createNotification } = require('../services/notificationService');
+const { sendNewBookingAdminEmail, sendProJobAlertEmail, sendProQuoteAssignmentEmail, sendHomeownerQuoteReceivedEmail, sendProQuoteAcceptedEmail, sendHomeownerQuoteAcceptedConfirmationEmail } = require('../services/emailService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
 
@@ -140,6 +141,28 @@ exports.createBooking = async (req, res) => {
             });
         }
 
+        // Email all admins about the new booking
+        try {
+            const { data: adminProfiles } = await supabaseAdmin
+                .from('profiles')
+                .select('email')
+                .eq('role', 'admin')
+                .eq('is_active', true);
+
+            const adminEmails = (adminProfiles || []).map(a => a.email).filter(Boolean);
+            if (adminEmails.length > 0) {
+                await sendNewBookingAdminEmail(
+                    adminEmails,
+                    booking,
+                    req.profile.full_name || 'Unknown',
+                    req.profile.email || '',
+                    req.profile.phone || ''
+                );
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send admin booking notification email', { error: emailErr.message, bookingId: booking.id });
+        }
+
         // For Free Quote services: notify admins only (admin will assign pros)
         // For rate-based bookings: notify nearby pros (they can accept/decline)
         if (isFreeQuote) {
@@ -175,6 +198,20 @@ exports.createBooking = async (req, res) => {
                         link: `/pro-dashboard/jobs/${booking.id}`,
                         data: { booking_id: booking.id }
                     });
+
+                    // Email the pro about the new job
+                    try {
+                        const { data: proUser } = await supabaseAdmin
+                            .from('profiles')
+                            .select('email, full_name')
+                            .eq('id', pro.user_id)
+                            .single();
+                        if (proUser?.email) {
+                            await sendProJobAlertEmail(proUser.email, proUser.full_name || 'Pro', booking);
+                        }
+                    } catch (emailErr) {
+                        logger.error('Failed to send pro job alert email', { error: emailErr.message, proUserId: pro.user_id });
+                    }
                 }
                 
                 logger.info('Job alerts sent to nearby pros', { 
@@ -312,19 +349,19 @@ exports.getBookingById = async (req, res) => {
             .select(`
                 *,
                 services (id, name, slug, description),
-                profiles:user_id (
+                profiles!bookings_user_id_fkey (
                     id,
                     full_name,
                     email,
                     phone,
                     avatar_url
                 ),
-                pro_profiles (
+                pro_profiles!bookings_pro_id_fkey (
                     id,
                     business_name,
                     rating,
                     hourly_rate,
-                    profiles (
+                    profiles!pro_profiles_user_id_fkey (
                         id,
                         full_name,
                         email,
@@ -557,7 +594,7 @@ exports.getQuoteRequests = async (req, res) => {
             .select(`
                 *,
                 services (id, name, slug, category_id, image_url),
-                profiles:user_id (
+                profiles!bookings_user_id_fkey (
                     id,
                     full_name,
                     email,
@@ -1135,6 +1172,27 @@ exports.submitQuotation = async (req, res) => {
             data: { booking_id: id, quotation_id: quotation.id }
         });
 
+        // Email homeowner about the new quote
+        try {
+            const { data: homeowner } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', booking.user_id)
+                .single();
+            if (homeowner?.email) {
+                await sendHomeownerQuoteReceivedEmail(
+                    homeowner.email,
+                    homeowner.full_name || 'Homeowner',
+                    booking,
+                    proProfile.business_name || 'A pro',
+                    price,
+                    finalPrice
+                );
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send homeowner quote received email', { error: emailErr.message, bookingId: id });
+        }
+
         // Notify pro - quote submitted, awaiting customer decision
         await createNotification(proProfile.user_id, {
             type: 'booking',
@@ -1278,10 +1336,8 @@ exports.getBookingQuotations = async (req, res) => {
                     user_id,
                     business_name,
                     bio,
-                    years_experience,
                     rating,
-                    total_reviews,
-                    profile_photo_url
+                    total_reviews
                 )
             `)
             .eq('booking_id', id)
@@ -1440,6 +1496,45 @@ exports.acceptQuotation = async (req, res) => {
             link: `/my-jobs`,
             data: { booking_id: bookingId, quotation_id: quotationId }
         });
+
+        // Email the selected pro — quote accepted
+        try {
+            const { data: proUser } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', quotation.pro_profiles.user_id)
+                .single();
+            if (proUser?.email) {
+                await sendProQuoteAcceptedEmail(
+                    proUser.email,
+                    proUser.full_name || quotation.pro_profiles.business_name || 'Pro',
+                    booking,
+                    price
+                );
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send pro quote accepted email', { error: emailErr.message, bookingId });
+        }
+
+        // Email the homeowner — confirmation of acceptance
+        try {
+            const { data: homeowner } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', req.user.id)
+                .single();
+            if (homeowner?.email) {
+                await sendHomeownerQuoteAcceptedConfirmationEmail(
+                    homeowner.email,
+                    homeowner.full_name || 'Homeowner',
+                    booking,
+                    quotation.pro_profiles.business_name || 'Your pro',
+                    finalPrice
+                );
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send homeowner quote accepted confirmation email', { error: emailErr.message, bookingId });
+        }
 
         // Notify rejected pros
         const { data: rejectedQuotations } = await supabaseAdmin
@@ -1991,7 +2086,7 @@ exports.assignProsToQuote = async (req, res) => {
             .select('id, user_id, business_name')
             .in('id', proIds);
 
-        // Notify assigned pros
+        // Notify assigned pros (in-app + email)
         for (const pro of (proProfiles || [])) {
             await createNotification(pro.user_id, {
                 type: 'booking',
@@ -2000,6 +2095,20 @@ exports.assignProsToQuote = async (req, res) => {
                 link: `/pro-dashboard/quote-requests/${bookingId}`,
                 data: { booking_id: bookingId, type: 'quote_assignment' }
             });
+
+            // Email the pro about the quote assignment
+            try {
+                const { data: proUser } = await supabaseAdmin
+                    .from('profiles')
+                    .select('email, full_name')
+                    .eq('id', pro.user_id)
+                    .single();
+                if (proUser?.email) {
+                    await sendProQuoteAssignmentEmail(proUser.email, proUser.full_name || pro.business_name || 'Pro', booking);
+                }
+            } catch (emailErr) {
+                logger.error('Failed to send pro quote assignment email', { error: emailErr.message, proUserId: pro.user_id });
+            }
         }
 
         logger.info('Pros assigned to quote', { 
@@ -2019,6 +2128,122 @@ exports.assignProsToQuote = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to assign pros'
+        });
+    }
+};
+
+/**
+ * Admin: Directly offer a free quote booking to a single pro
+ * POST /api/bookings/admin/direct-offer
+ */
+exports.directOfferToPro = async (req, res) => {
+    try {
+        const { bookingId, proId } = req.body;
+
+        if (!bookingId || !proId) {
+            return res.status(400).json({
+                success: false,
+                message: 'bookingId and proId are required'
+            });
+        }
+
+        // Verify booking exists and is awaiting_quotes
+        const { data: booking, error: bookingError } = await supabaseAdmin
+            .from('bookings')
+            .select('*, services (name), profiles!bookings_user_id_fkey (full_name, id)')
+            .eq('id', bookingId)
+            .eq('status', 'awaiting_quotes')
+            .single();
+
+        if (bookingError || !booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found or not in awaiting_quotes status'
+            });
+        }
+
+        // Verify pro exists and is approved
+        const { data: pro, error: proError } = await supabaseAdmin
+            .from('pro_profiles')
+            .select('id, user_id, business_name')
+            .eq('id', proId)
+            .eq('admin_approved', true)
+            .single();
+
+        if (proError || !pro) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pro not found or not approved'
+            });
+        }
+
+        // Update booking: assign pro and move to accepted
+        const { error: updateError } = await supabaseAdmin
+            .from('bookings')
+            .update({
+                pro_id: proId,
+                status: 'accepted',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', bookingId);
+
+        if (updateError) {
+            logger.error('Direct offer update error', { error: updateError.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to assign pro to booking'
+            });
+        }
+
+        // Record the assignment for tracking
+        await supabaseAdmin
+            .from('quote_assignments')
+            .upsert({
+                id: uuidv4(),
+                booking_id: bookingId,
+                pro_id: proId,
+                assigned_by: req.user.id,
+                status: 'invited'
+            }, { onConflict: 'booking_id,pro_id' });
+
+        const serviceName = booking.services?.name || booking.service_name || 'the requested service';
+
+        // Notify the pro
+        await createNotification(pro.user_id, {
+            type: 'booking',
+            title: 'New Job Offered to You',
+            message: `You have been selected for a free quote job: ${serviceName} in ${booking.city}, ${booking.state}. Please contact the customer and get started.`,
+            link: `/pro-dashboard/quote-requests/${bookingId}`,
+            data: { booking_id: bookingId, type: 'direct_offer' }
+        });
+
+        // Notify the customer
+        if (booking.profiles?.id) {
+            await createNotification(booking.profiles.id, {
+                type: 'booking',
+                title: 'Pro Assigned to Your Request',
+                message: `${pro.business_name || 'A professional'} has been assigned to your free quote request for ${serviceName}. They will be in touch with you shortly.`,
+                link: `/dashboard`,
+                data: { booking_id: bookingId, type: 'pro_offered' }
+            });
+        }
+
+        logger.info('Direct offer to pro', {
+            bookingId,
+            proId,
+            adminId: req.user.id
+        });
+
+        res.json({
+            success: true,
+            message: `Booking successfully offered to ${pro.business_name || 'the selected pro'}`,
+            data: { booking_id: bookingId, pro_id: proId }
+        });
+    } catch (error) {
+        logger.error('Direct offer controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to offer booking to pro'
         });
     }
 };

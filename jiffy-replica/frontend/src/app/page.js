@@ -232,7 +232,7 @@ export default function HomePage() {
             </div>
 
             <h1 className="font-brand text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 sm:mb-7 leading-[1.08] tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
-              Home services booked when you need them.
+              Find Trusted Pros For Any Project
             </h1>
 
             {/* Search Box */}
@@ -287,9 +287,9 @@ export default function HomePage() {
           {/* Description Text */}
           <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10">
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 leading-relaxed sm:leading-loose">
-              Small jobs around the house are as good as done, with no shopping around. 
-              BridgeWork connects you with certified Ottawa pros who are already in your area and will complete your job at 
-              transparent rates you can feel good about.
+              Bridgework Services connects homeowners and businesses with trusted local professionals for residential and commercial services.
+              From small repairs to large-scale projects, simply describe what you need and get matched with the right pro quickly, easily, and with confidence.
+              Serving Ottawa and surrounding areas.
             </p>
           </div>
 
@@ -302,37 +302,6 @@ export default function HomePage() {
               Book Now
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Section 1: Video Showcase */}
-      <section className="py-10 sm:py-12 lg:py-16 bg-transparent">
-        <div className="max-w-5xl mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.5 }}
-            transition={{ duration: 0.55, ease: 'easeOut' }}
-            whileHover={{ y: -4 }}
-            className="relative rounded-3xl p-[2px] bg-[linear-gradient(90deg,#0E7480,#142841,#024B5A)] shadow-2xl shadow-black/10"
-          >
-            <div className="relative rounded-[22px] bg-black/5 overflow-hidden ring-1 ring-black/10">
-              <div className="absolute top-4 left-4 z-10">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1 text-xs font-semibold text-[#042E5C] ring-1 ring-black/5">
-                  <span className="h-2 w-2 rounded-full bg-[#0E7480]" />
-                  See how it works
-                </span>
-              </div>
-              <video 
-                className="w-full aspect-video object-cover"
-                controls
-                poster="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=2000"
-              >
-                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          </motion.div>
         </div>
       </section>
 

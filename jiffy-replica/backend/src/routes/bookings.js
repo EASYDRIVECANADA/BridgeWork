@@ -82,6 +82,18 @@ router.post('/admin/assign-pros',
     bookingsController.assignProsToQuote
 );
 
+// Directly offer a free quote booking to a single pro (skips bidding)
+router.post('/admin/direct-offer',
+    authenticate,
+    authorize('admin'),
+    [
+        body('bookingId').isUUID(),
+        body('proId').isUUID(),
+        validate
+    ],
+    bookingsController.directOfferToPro
+);
+
 // Get assignment details for a booking
 router.get('/admin/assignments/:bookingId',
     authenticate,

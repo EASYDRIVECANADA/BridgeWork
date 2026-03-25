@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { paymentsAPI, prosAPI, quotesAPI, settingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 import {
@@ -32,6 +33,7 @@ import {
   Calculator,
   Download,
   X,
+  UserCog,
 } from 'lucide-react';
 import { generateInvoicePDF } from '@/utils/generateInvoicePDF';
 
@@ -45,6 +47,7 @@ const txStatusConfig = {
 export default function AdminRevenuePage() {
   const router = useRouter();
   const { user, profile, authInitialized } = useSelector((state) => state.auth);
+  useAdminPermission('revenue');
   const [revenue, setRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refundingId, setRefundingId] = useState(null);
@@ -282,12 +285,6 @@ export default function AdminRevenuePage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button
-              onClick={() => router.back()}
-              className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors flex-shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4 text-gray-600" />
-            </button>
             <div>
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">Revenue Dashboard</h1>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
@@ -360,7 +357,7 @@ export default function AdminRevenuePage() {
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Service Professionals</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Set custom commission rates per pro. Default platform rate: 15%</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Set custom commission rates per pro. Default platform rate: 13%</p>
                 </div>
                 <span className="text-xs text-gray-400">{pros.length} pros</span>
               </div>
@@ -412,7 +409,7 @@ export default function AdminRevenuePage() {
                         <span className="text-gray-600">{pro.completed_jobs || 0} jobs</span>
                         <span className="text-gray-300">|</span>
                         <span className={`font-semibold ${pro.commission_rate != null ? 'text-[#0E7480]' : 'text-gray-600'}`}>
-                          {pro.commission_rate != null ? `${(pro.commission_rate * 100).toFixed(0)}%` : '15%'} comm.
+                          {pro.commission_rate != null ? `${(pro.commission_rate * 100).toFixed(0)}%` : '13%'} comm.
                         </span>
                       </div>
                     </div>
@@ -464,7 +461,7 @@ export default function AdminRevenuePage() {
                       ) : (
                         <div>
                           <span className={`text-sm font-semibold ${pro.commission_rate != null ? 'text-[#0E7480]' : 'text-gray-600'}`}>
-                            {pro.commission_rate != null ? `${(pro.commission_rate * 100).toFixed(0)}%` : '15%'}
+                            {pro.commission_rate != null ? `${(pro.commission_rate * 100).toFixed(0)}%` : '13%'}
                           </span>
                           {pro.commission_rate != null ? (
                             <p className="text-xs text-[#0E7480]">Custom</p>
@@ -494,6 +491,14 @@ export default function AdminRevenuePage() {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => router.push(`/admin/pros/${pro.id}/edit`)}
+                            className="px-3 py-1.5 border border-[#0E7480] rounded-lg text-xs font-medium text-[#0E7480] hover:bg-[#0E7480] hover:text-white transition-colors flex items-center gap-1"
+                            title="Edit Pro Profile"
+                          >
+                            <UserCog className="w-3 h-3" />
+                            Edit
+                          </button>
                           <button
                             onClick={() => {
                               setEditingProId(pro.id);
@@ -814,8 +819,9 @@ export default function AdminRevenuePage() {
                                 inv.status === 'held' ? 'bg-blue-50 text-blue-600' :
                                 inv.status === 'awaiting_approval' ? 'bg-yellow-50 text-yellow-600' :
                                 inv.status === 'pending' ? 'bg-orange-50 text-orange-600' :
+                                inv.status === 'direct_assigned' ? 'bg-teal-50 text-teal-600' :
                                 'bg-gray-100 text-gray-600'
-                              }`}>{inv.status?.replace('_', ' ')}</span>
+                              }`}>{inv.status === 'direct_assigned' ? 'Direct Assigned' : inv.status?.replace(/_/g, ' ')}</span>
                             </div>
                             <div className="col-span-1 text-right font-semibold">${parseFloat(inv.total || 0).toFixed(2)}</div>
                             <div className="col-span-2 flex items-center justify-center gap-1">

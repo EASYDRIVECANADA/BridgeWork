@@ -7,7 +7,7 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').repla
 const STRIPE_REDIRECT_URL = (process.env.STRIPE_REDIRECT_URL || FRONTEND_URL).replace(/\/+$/, '');
 
 // Platform commission rate (15%)
-const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.15');
+const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
 
 /**
  * Create a Stripe Connect account for a pro and return the onboarding link.

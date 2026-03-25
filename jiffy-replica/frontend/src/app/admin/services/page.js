@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { Plus, Edit, Trash2, Upload, Image as ImageIcon, Search, Home, Building2 } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function AdminServicesPage() {
   const router = useRouter();
   const { profile } = useSelector((state) => state.auth);
+  useAdminPermission('services');
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -428,7 +430,7 @@ export default function AdminServicesPage() {
 
             <form id="service-form" onSubmit={handleSubmit} className="space-y-6">
                 {/* SECTION 1: Service Type */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">1</div>
                     <div>
@@ -470,7 +472,7 @@ export default function AdminServicesPage() {
                 </div>
 
                 {/* SECTION 2: Basic Information */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">2</div>
                     <div>
@@ -531,7 +533,7 @@ export default function AdminServicesPage() {
 
                 {/* SECTION 3: Pricing Configuration */}
                 {formData.sales_channel === 'residential' && (
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">3</div>
                     <div>
@@ -541,15 +543,39 @@ export default function AdminServicesPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Mode</label>
-                      <select
-                        value={formData.rate}
-                        onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                      >
-                        <option value="quote">Free Quote</option>
-                        <option value="yes">Rate-Based (shows price)</option>
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Modes</label>
+<div className="flex flex-col gap-2">
+  <label className="inline-flex items-center">
+    <input
+      type="checkbox"
+      checked={formData.rate === 'quote' || formData.rate === 'both'}
+      onChange={e => {
+        if (e.target.checked) {
+          setFormData(f => ({ ...f, rate: f.rate === 'yes' ? 'both' : 'quote' }));
+        } else {
+          setFormData(f => ({ ...f, rate: f.rate === 'both' ? 'yes' : '' }));
+        }
+      }}
+      className="form-checkbox h-4 w-4 text-[#0E7480] border-gray-300 rounded"
+    />
+    <span className="ml-2">Enable Free Quote</span>
+  </label>
+  <label className="inline-flex items-center">
+    <input
+      type="checkbox"
+      checked={formData.rate === 'yes' || formData.rate === 'both'}
+      onChange={e => {
+        if (e.target.checked) {
+          setFormData(f => ({ ...f, rate: f.rate === 'quote' ? 'both' : 'yes' }));
+        } else {
+          setFormData(f => ({ ...f, rate: f.rate === 'both' ? 'quote' : '' }));
+        }
+      }}
+      className="form-checkbox h-4 w-4 text-[#0E7480] border-gray-300 rounded"
+    />
+    <span className="ml-2">Enable Rate-Based (shows price)</span>
+  </label>
+</div>
                     </div>
 
                     {/* Additional Hourly Rate - shown when rate is 'yes' (Rate-Based) */}
@@ -595,7 +621,7 @@ export default function AdminServicesPage() {
                 )}
 
                 {/* SECTION 4: Pricing Details */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">{formData.sales_channel === 'residential' ? '4' : '3'}</div>
                     <div>
@@ -686,7 +712,7 @@ export default function AdminServicesPage() {
                 </div>
 
                 {/* SECTION 5: Service Description */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-[#0E7480] rounded-lg flex items-center justify-center text-white font-bold text-sm">{formData.sales_channel === 'residential' ? '5' : '4'}</div>
                     <div>

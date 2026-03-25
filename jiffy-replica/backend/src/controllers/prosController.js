@@ -1,5 +1,6 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { sendHomeownerProAcceptedEmail } = require('../services/emailService');
 
 exports.getNearbyPros = async (req, res) => {
     try {
@@ -365,6 +366,27 @@ exports.acceptJob = async (req, res) => {
                 link: `/bookings/${booking.id}`,
                 data: { booking_id: booking.id }
             });
+
+        // Email the homeowner that a pro accepted their booking
+        try {
+            const homeownerProfile = data.profiles;
+            if (homeownerProfile?.email) {
+                // Get pro business name
+                const { data: proInfo } = await supabaseAdmin
+                    .from('pro_profiles')
+                    .select('business_name')
+                    .eq('id', proProfile.id)
+                    .single();
+                await sendHomeownerProAcceptedEmail(
+                    homeownerProfile.email,
+                    homeownerProfile.full_name || 'Homeowner',
+                    booking,
+                    proInfo?.business_name || 'Your assigned pro'
+                );
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send homeowner pro-accepted email', { error: emailErr.message, bookingId: id });
+        }
 
         logger.info('Job accepted', { bookingId: id, proId: proProfile.id });
 
