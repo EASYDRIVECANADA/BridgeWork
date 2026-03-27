@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { body, param } = require('express-validator');
 const bookingsController = require('../controllers/bookingsController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
@@ -48,6 +48,18 @@ router.get('/pro/my-quotations',
     authenticate,
     authorize('pro'),
     bookingsController.getMyQuotations
+);
+
+// Pro: Respond to a counter-offer (accept or decline)
+router.post('/pro/quotations/:quotationId/respond-counter-offer',
+    authenticate,
+    authorize('pro'),
+    [
+        param('quotationId').isUUID(),
+        body('action').isIn(['accept', 'decline']).withMessage('Action must be "accept" or "decline"'),
+        validate
+    ],
+    bookingsController.respondToCounterOffer
 );
 
 // ==================== ADMIN: QUOTE ASSIGNMENT MANAGEMENT ====================
@@ -223,12 +235,31 @@ router.post('/:bookingId/quotations/:quotationId/accept',
     bookingsController.acceptQuotation
 );
 
+// Counter-offer a quotation (homeowner)
+router.post('/:bookingId/quotations/:quotationId/counter-offer',
+    authenticate,
+    [
+        param('bookingId').isUUID(),
+        param('quotationId').isUUID(),
+        body('price').isFloat({ gt: 0 }).withMessage('Counter-offer price must be greater than 0'),
+        body('message').optional().trim().isLength({ max: 500 }),
+        validate
+    ],
+    bookingsController.counterOfferQuotation
+);
+
 // ==================== USER BOOKINGS ====================
 
 router.post('/', authenticate,
     [
         body('service_id').notEmpty().withMessage('service_id is required'),
-        body('scheduled_date').isDate().withMessage('valid date required'),
+        body('scheduled_date').isDate().withMessage('valid date required')
+            .custom((value) => {
+                if (new Date(value) < new Date(new Date().toDateString())) {
+                    throw new Error('Scheduled date must not be in the past');
+                }
+                return true;
+            }),
         body('scheduled_time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('valid time required'),
         body('address').trim().notEmpty().withMessage('address is required'),
         body('city').trim().notEmpty().withMessage('city is required'),

@@ -5,11 +5,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign } from 'lucide-react';
+import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign, Receipt } from 'lucide-react';
 import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
 import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI, bookingsAPI, invoiceAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
 import InvoiceViewModal from '@/components/InvoiceViewModal';
+import { generateReceiptPDF } from '@/utils/generateReceiptPDF';
 import { toast } from 'react-toastify';
 
 const statusColors = {
@@ -44,7 +45,8 @@ export default function MyJobsPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { bookings, isLoading } = useSelector((state) => state.bookings);
+  const { bookings, isLoading, pagination } = useSelector((state) => state.bookings);
+  const [currentOffset, setCurrentOffset] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [services, setServices] = useState([]);
@@ -63,18 +65,23 @@ export default function MyJobsPage() {
   const [quotations, setQuotations] = useState([]);
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [acceptingQuoteId, setAcceptingQuoteId] = useState(null);
+  const [counterOfferQuoteId, setCounterOfferQuoteId] = useState(null);
+  const [counterOfferPrice, setCounterOfferPrice] = useState('');
+  const [counterOfferMessage, setCounterOfferMessage] = useState('');
+  const [counterOfferSubmitting, setCounterOfferSubmitting] = useState(false);
   
   // Invoice viewing state
   const [invoiceModal, setInvoiceModal] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(null);
+  const [receiptLoading, setReceiptLoading] = useState(null);
 
   useEffect(() => {
     if (!user) {
       router.push('/login');
       return;
     }
-    dispatch(fetchBookings());
-  }, [user, router, dispatch]);
+    dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
+  }, [user, router, dispatch, currentOffset]);
 
   // Check which completed bookings already have reviews
   useEffect(() => {
@@ -94,7 +101,7 @@ export default function MyJobsPage() {
         const res = await servicesAPI.getAll();
         setServices(res.data?.data?.services || []);
       } catch (err) {
-        console.log('[MY-JOBS] Could not load services for search');
+        // Silently handle — search is a convenience feature
       }
     };
     loadServices();
@@ -108,7 +115,7 @@ export default function MyJobsPage() {
       toast.success('Booking cancelled. Any held funds will be released back to your card.');
       setCancelModal(null);
       setCancelReason('');
-      dispatch(fetchBookings());
+      dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
     } catch (err) {
       toast.error(err || 'Failed to cancel booking.');
     } finally {
@@ -129,12 +136,52 @@ export default function MyJobsPage() {
     }
   };
 
+  const handleViewReceipt = async (booking) => {
+    setReceiptLoading(booking.id);
+    try {
+      const receiptBlob = await generateReceiptPDF({
+        bookingId: booking.id,
+        bookingNumber: booking.booking_number,
+        customerName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Customer',
+        customerEmail: user?.email || '',
+        serviceName: booking.service_name,
+        address: booking.address,
+        city: booking.city,
+        state: booking.state,
+        zipCode: booking.zip_code,
+        scheduledDate: booking.scheduled_date,
+        scheduledTime: booking.scheduled_time,
+        issuedAt: booking.completed_at || booking.updated_at || booking.created_at || new Date().toISOString(),
+        paymentMethodLabel: 'Card payment via Stripe',
+        paymentStatus: 'paid',
+        statusLabel: 'Paid Receipt',
+        statusDescription: 'This payment was captured after the completed job was approved.',
+        baseAmount: booking.base_price || booking.total_price || 0,
+        discountAmount: booking.discount || 0,
+        taxAmount: booking.tax || 0,
+        taxLabel: booking.tax ? 'HST' : 'Included',
+        totalAmount: booking.updated_total_price || booking.total_price || 0,
+        nextStepTitle: 'Receipt archived',
+        nextStepDescription: 'This receipt is now part of your completed job history and can be saved for your records.',
+      }, {
+        download: false,
+      });
+
+      const receiptUrl = URL.createObjectURL(receiptBlob);
+      window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(receiptUrl), 60000);
+    } catch (error) {
+      toast.error('Could not open the e-receipt. Please try again.');
+    }
+    setReceiptLoading(null);
+  };
+
   const handleConfirmJob = async (bookingId) => {
     setActionLoading(bookingId);
     try {
       await paymentsAPI.capturePayment({ booking_id: bookingId });
       toast.success('Job confirmed! Payment has been released to the pro.');
-      dispatch(fetchBookings());
+      dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to confirm job.');
     } finally {
@@ -150,7 +197,6 @@ export default function MyJobsPage() {
       const res = await bookingsAPI.getBookingQuotations(booking.id);
       setQuotations(res.data?.data?.quotations || []);
     } catch (err) {
-      console.error('Failed to fetch quotations:', err);
       toast.error('Failed to load quotes');
       setQuotesModal(null);
     } finally {
@@ -169,10 +215,37 @@ export default function MyJobsPage() {
       setQuotations([]);
       dispatch(fetchBookings());
     } catch (err) {
-      console.error('Failed to accept quotation:', err);
       toast.error(err?.response?.data?.message || 'Failed to accept quote');
     } finally {
       setAcceptingQuoteId(null);
+    }
+  };
+
+  // Send a counter-offer on a quotation
+  const handleCounterOffer = async (quotationId) => {
+    if (!quotesModal || !counterOfferPrice) return;
+    const price = parseFloat(counterOfferPrice);
+    if (!price || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+    setCounterOfferSubmitting(true);
+    try {
+      await bookingsAPI.counterOfferQuotation(quotesModal.bookingId, quotationId, {
+        price,
+        message: counterOfferMessage || undefined
+      });
+      toast.success('Counter-offer sent! The pro will be notified.');
+      setCounterOfferQuoteId(null);
+      setCounterOfferPrice('');
+      setCounterOfferMessage('');
+      // Refresh quotations
+      const res = await bookingsAPI.getBookingQuotations(quotesModal.bookingId);
+      setQuotations(res.data?.data?.quotations || []);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to send counter-offer');
+    } finally {
+      setCounterOfferSubmitting(false);
     }
   };
 
@@ -583,20 +656,34 @@ export default function MyJobsPage() {
                           Paid
                         </span>
                       )}
-                      {reviewedBookingIds.has(booking.id) ? (
-                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-50 text-yellow-600 flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-yellow-500" />
-                          Reviewed
-                        </span>
-                      ) : (
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         <button
-                          onClick={() => setReviewBooking(booking)}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
+                          onClick={() => handleViewReceipt(booking)}
+                          disabled={receiptLoading === booking.id}
+                          className="px-3 py-1.5 text-xs font-semibold rounded-full bg-white border border-[#0E7480]/20 text-[#0E7480] hover:bg-[#0E7480]/5 transition-colors flex items-center gap-1 disabled:opacity-50"
                         >
-                          <Star className="w-3 h-3" />
-                          Leave a Review
+                          {receiptLoading === booking.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Receipt className="w-3 h-3" />
+                          )}
+                          View E-Receipt
                         </button>
-                      )}
+                        {reviewedBookingIds.has(booking.id) ? (
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-50 text-yellow-600 flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-yellow-500" />
+                            Reviewed
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setReviewBooking(booking)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#0E7480] text-white hover:bg-[#2570d4] transition-colors flex items-center gap-1"
+                          >
+                            <Star className="w-3 h-3" />
+                            Leave a Review
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {/* Inline review display */}
                     {review && (
@@ -636,6 +723,31 @@ export default function MyJobsPage() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {pagination && pagination.total > 20 && (
+          <div className="flex items-center justify-between mt-2 mb-8">
+            <span className="text-sm text-gray-500">
+              Showing {currentOffset + 1}–{Math.min(currentOffset + 20, pagination.total)} of {pagination.total}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentOffset(Math.max(0, currentOffset - 20))}
+                disabled={currentOffset === 0 || isLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentOffset(currentOffset + 20)}
+                disabled={currentOffset + 20 >= pagination.total || isLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Proof Modal */}
         {proofModal && (
@@ -857,7 +969,7 @@ export default function MyJobsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {quotations.filter(q => q.status === 'pending').map((quote) => (
+                    {quotations.filter(q => q.status === 'pending' || q.status === 'counter_offered').map((quote) => (
                       <div key={quote.id} className="border border-gray-200 rounded-xl p-4 hover:border-[#0E7480]/30 hover:shadow-md transition-all">
                         {/* Pro Info */}
                         <div className="flex items-start gap-4 mb-4">
@@ -891,6 +1003,19 @@ export default function MyJobsPage() {
                           </div>
                         </div>
 
+                        {/* Counter-Offer Pending Badge */}
+                        {quote.status === 'counter_offered' && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                            <p className="text-sm font-medium text-amber-800 flex items-center gap-1.5">
+                              <Clock className="w-4 h-4" />
+                              Counter-offer of ${parseFloat(quote.counter_offer_price).toFixed(2)} sent — awaiting pro response
+                            </p>
+                            {quote.counter_offer_message && (
+                              <p className="text-xs text-amber-700 mt-1">"{quote.counter_offer_message}"</p>
+                            )}
+                          </div>
+                        )}
+
                         {/* Quote Details */}
                         {quote.description && (
                           <div className="bg-gray-50 rounded-lg p-3 mb-3">
@@ -919,29 +1044,96 @@ export default function MyJobsPage() {
                           )}
                         </div>
 
-                        {/* Accept Button */}
-                        <button
-                          onClick={() => handleAcceptQuote(quote.id)}
-                          disabled={acceptingQuoteId === quote.id}
-                          className="w-full py-2.5 bg-[#0E7480] text-white font-semibold rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {acceptingQuoteId === quote.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Accepting...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4" />
-                              Accept This Quote
-                            </>
-                          )}
-                        </button>
+                        {/* Action Buttons - only show for pending quotes */}
+                        {quote.status === 'pending' && (
+                          <>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAcceptQuote(quote.id)}
+                                disabled={acceptingQuoteId === quote.id}
+                                className="flex-1 py-2.5 bg-[#0E7480] text-white font-semibold rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                              >
+                                {acceptingQuoteId === quote.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Accepting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    Accept
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCounterOfferQuoteId(counterOfferQuoteId === quote.id ? null : quote.id);
+                                  setCounterOfferPrice('');
+                                  setCounterOfferMessage('');
+                                }}
+                                className="flex-1 py-2.5 border-2 border-[#0E7480] text-[#0E7480] font-semibold rounded-lg hover:bg-[#0E7480]/5 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <DollarSign className="w-4 h-4" />
+                                Counter Offer
+                              </button>
+                            </div>
+
+                            {/* Counter-Offer Form */}
+                            {counterOfferQuoteId === quote.id && (
+                              <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <p className="text-sm font-medium text-gray-700 mb-3">
+                                  Suggest a different price (original: ${parseFloat(quote.quoted_price).toFixed(2)})
+                                </p>
+                                <div className="space-y-3">
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0.01"
+                                      value={counterOfferPrice}
+                                      onChange={(e) => setCounterOfferPrice(e.target.value)}
+                                      placeholder="Your suggested price"
+                                      className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
+                                    />
+                                  </div>
+                                  <textarea
+                                    value={counterOfferMessage}
+                                    onChange={(e) => setCounterOfferMessage(e.target.value)}
+                                    placeholder="Optional message to the pro..."
+                                    rows={2}
+                                    maxLength={500}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none resize-none text-sm"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleCounterOffer(quote.id)}
+                                      disabled={counterOfferSubmitting || !counterOfferPrice}
+                                      className="flex-1 py-2 bg-[#0E7480] text-white font-medium rounded-lg hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                                    >
+                                      {counterOfferSubmitting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        'Send Counter-Offer'
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => setCounterOfferQuoteId(null)}
+                                      className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     ))}
 
                     {/* Show message if all quotes are not pending */}
-                    {quotations.filter(q => q.status === 'pending').length === 0 && quotations.length > 0 && (
+                    {quotations.filter(q => q.status === 'pending' || q.status === 'counter_offered').length === 0 && quotations.length > 0 && (
                       <div className="text-center py-8">
                         <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
                         <h4 className="text-lg font-semibold text-gray-700 mb-2">Quote Already Accepted</h4>

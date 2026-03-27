@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { supabase } from '@/lib/supabase';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -16,15 +17,21 @@ export const getSocket = () => {
   return socket;
 };
 
-export const connectSocket = (userId) => {
+export const connectSocket = async (userId) => {
   const s = getSocket();
+
+  // Get current auth token for Socket.IO JWT auth
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      s.auth = { token: session.access_token };
+    }
+  } catch (err) {
+    // Fall back to connecting without token; server will reject if required
+  }
+
   if (!s.connected) {
     s.connect();
-    s.on('connect', () => {
-      s.emit('authenticate', userId);
-    });
-  } else {
-    s.emit('authenticate', userId);
   }
   return s;
 };

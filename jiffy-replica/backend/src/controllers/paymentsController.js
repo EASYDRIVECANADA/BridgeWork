@@ -1,6 +1,8 @@
 const stripe = require('../config/stripe');
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { writeAuditLog } = require('../services/auditService');
+const { sendDisputeOpenedEmail, sendDisputeResolvedEmail } = require('../services/emailService');
 
 // Platform commission rate (15% default)
 const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
@@ -177,6 +179,23 @@ exports.handleWebhook = async (req, res) => {
             return res.status(400).send(`Webhook Error: ${err.message}`);
         }
 
+        // Idempotency check — skip already-processed events (BUG-005 fix)
+        const { data: existingEvent } = await supabaseAdmin
+            .from('stripe_webhook_events')
+            .select('id')
+            .eq('id', event.id)
+            .single();
+
+        if (existingEvent) {
+            logger.info('Duplicate webhook event skipped', { eventId: event.id, type: event.type });
+            return res.json({ received: true });
+        }
+
+        // Record event as processed before handling (prevent race on retries)
+        await supabaseAdmin
+            .from('stripe_webhook_events')
+            .insert({ id: event.id, event_type: event.type });
+
         switch (event.type) {
             case 'payment_intent.amount_capturable_updated':
                 // Fires when manual-capture hold is confirmed on the card
@@ -308,9 +327,11 @@ async function handlePaymentFailure(paymentIntent) {
     }
 }
 
-// Webhook: payment intent canceled (hold released / refunded)
+// Webhook: payment intent canceled (hold released / refunded / expired)
 async function handlePaymentCanceled(paymentIntent) {
     try {
+        const isExpired = paymentIntent.cancellation_reason === 'automatic';
+
         const { data: transaction } = await supabaseAdmin
             .from('transactions')
             .update({ status: 'refunded' })
@@ -319,9 +340,15 @@ async function handlePaymentCanceled(paymentIntent) {
             .single();
 
         if (transaction) {
+            // If Stripe auto-cancelled (7-day hold expired), also cancel the booking
+            const bookingUpdate = { refunded_at: new Date().toISOString() };
+            if (isExpired) {
+                bookingUpdate.status = 'cancelled';
+            }
+
             await supabaseAdmin
                 .from('bookings')
-                .update({ refunded_at: new Date().toISOString() })
+                .update(bookingUpdate)
                 .eq('id', transaction.booking_id);
 
             await supabaseAdmin
@@ -329,14 +356,37 @@ async function handlePaymentCanceled(paymentIntent) {
                 .insert({
                     user_id: transaction.user_id,
                     type: 'payment',
-                    title: 'Payment Refunded',
-                    message: 'Your held payment has been released back to your card.',
-                    link: `/bookings/${transaction.booking_id}`
+                    title: isExpired ? 'Payment Hold Expired' : 'Payment Refunded',
+                    message: isExpired
+                        ? 'Your payment hold has expired after 7 days and was automatically released. No charges were made to your card.'
+                        : 'Your held payment has been released back to your card.',
+                    link: `/my-jobs`
                 });
 
-            logger.info('Payment canceled/refunded', {
+            // Notify admins about expired holds
+            if (isExpired) {
+                const { data: admins } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .eq('role', 'admin')
+                    .eq('is_active', true);
+
+                if (admins && admins.length > 0) {
+                    const adminNotifications = admins.map(admin => ({
+                        user_id: admin.id,
+                        type: 'admin',
+                        title: 'Payment Hold Expired (Auto)',
+                        message: `A payment hold for booking ${transaction.booking_id} expired after 7 days. The hold was automatically released by Stripe.`,
+                        link: `/admin/revenue`,
+                    }));
+                    await supabaseAdmin.from('notifications').insert(adminNotifications);
+                }
+            }
+
+            logger.info(isExpired ? 'Payment hold expired (Stripe auto-cancel)' : 'Payment canceled/refunded', {
                 transactionId: transaction.id,
-                paymentIntentId: paymentIntent.id
+                paymentIntentId: paymentIntent.id,
+                isExpired,
             });
         }
     } catch (error) {
@@ -848,7 +898,35 @@ exports.disputeBooking = async (req, res) => {
                         link: `/pro-dashboard/jobs`,
                         data: { booking_id }
                     });
+
+                // Send dispute-opened email to pro
+                try {
+                    const { data: proUser } = await supabaseAdmin
+                        .from('profiles')
+                        .select('email, full_name')
+                        .eq('id', proProfile.user_id)
+                        .single();
+                    if (proUser?.email) {
+                        await sendDisputeOpenedEmail(proUser.email, proUser.full_name || 'Pro', booking, reason);
+                    }
+                } catch (emailErr) {
+                    logger.error('Failed to send dispute opened email to pro', { error: emailErr.message });
+                }
             }
+        }
+
+        // Send dispute-opened email to customer
+        try {
+            const { data: customerProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', req.user.id)
+                .single();
+            if (customerProfile?.email) {
+                await sendDisputeOpenedEmail(customerProfile.email, customerProfile.full_name || 'Customer', booking, reason);
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send dispute opened email to customer', { error: emailErr.message });
         }
 
         logger.info('Booking disputed', { bookingId: booking_id, reason });
@@ -1112,6 +1190,37 @@ exports.resolveDispute = async (req, res) => {
                     data: { booking_id }
                 });
         }
+
+        // Send dispute-resolved emails
+        try {
+            const { data: customerProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', booking.user_id)
+                .single();
+            if (customerProfile?.email) {
+                await sendDisputeResolvedEmail(customerProfile.email, customerProfile.full_name || 'Customer', booking, resolution);
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send dispute resolved email to customer', { error: emailErr.message });
+        }
+
+        if (booking.pro_profiles?.user_id) {
+            try {
+                const { data: proUser } = await supabaseAdmin
+                    .from('profiles')
+                    .select('email, full_name')
+                    .eq('id', booking.pro_profiles.user_id)
+                    .single();
+                if (proUser?.email) {
+                    await sendDisputeResolvedEmail(proUser.email, proUser.full_name || 'Pro', booking, resolution);
+                }
+            } catch (emailErr) {
+                logger.error('Failed to send dispute resolved email to pro', { error: emailErr.message });
+            }
+        }
+
+        await writeAuditLog(req.user.id, 'resolve_dispute', 'booking', booking_id, { action, resolution, new_status: newStatus });
 
         logger.info('Dispute resolved', { bookingId: booking_id, action, adminId: req.user.id });
 

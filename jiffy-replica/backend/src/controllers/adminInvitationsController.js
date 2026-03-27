@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 const emailService = require('../services/emailService');
+const { writeAuditLog } = require('../services/auditService');
 
 // Generate secure random token
 const generateInvitationToken = () => {
@@ -103,6 +104,8 @@ exports.createInvitation = async (req, res) => {
             email,
             invitedBy 
         });
+
+        await writeAuditLog(invitedBy, 'create_invitation', 'admin_invitation', invitation.id, { email, full_name });
 
         res.status(201).json({
             success: true,
@@ -229,6 +232,21 @@ exports.verifyToken = async (req, res) => {
 exports.acceptInvitation = async (req, res) => {
     try {
         const { token, password } = req.body;
+
+        if (!password || password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters'
+            });
+        }
+
+        const passwordComplexityRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+        if (!passwordComplexityRegex.test(password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must contain at least one uppercase letter, one number, and one special character'
+            });
+        }
 
         // Verify token first
         const { data: invitation, error: invError } = await supabaseAdmin
@@ -394,10 +412,18 @@ exports.directCreateAdmin = async (req, res) => {
             });
         }
 
-        if (password.length < 6) {
+        if (password.length < 8) {
             return res.status(400).json({
                 success: false,
-                message: 'Password must be at least 6 characters'
+                message: 'Password must be at least 8 characters'
+            });
+        }
+
+        const passwordComplexityRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+        if (!passwordComplexityRegex.test(password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must contain at least one uppercase letter, one number, and one special character'
             });
         }
 
@@ -464,6 +490,8 @@ exports.directCreateAdmin = async (req, res) => {
             userId: authData.user.id,
             createdBy: req.profile.id
         });
+
+        await writeAuditLog(req.profile.id, 'direct_create_admin', 'admin', authData.user.id, { email: email.toLowerCase(), full_name });
 
         res.status(201).json({
             success: true,

@@ -5,16 +5,21 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { bookingsAPI, paymentsAPI } from '@/lib/api';
+import { generateReceiptPDF } from '@/utils/generateReceiptPDF';
 import {
   CheckCircle,
   Calendar,
   Clock,
   MapPin,
-  MessageSquare,
   Home,
   Loader2,
   ArrowRight,
+  Download,
 } from 'lucide-react';
+
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(parseFloat(amount || 0));
+}
 
 export default function PaymentSuccessClient() {
   const searchParams = useSearchParams();
@@ -24,6 +29,7 @@ export default function PaymentSuccessClient() {
   const paymentIntentId = searchParams.get('payment_intent');
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   useEffect(() => {
     // Wait for auth to initialize before making any decisions
@@ -48,10 +54,8 @@ export default function PaymentSuccessClient() {
             payment_intent_id: paymentIntentId,
             booking_id: bookingId,
           });
-          console.log('[PAYMENT-SUCCESS] Payment confirmed via API');
         } catch (err) {
           // Not critical — webhook may have already handled it
-          console.log('[PAYMENT-SUCCESS] Confirm payment fallback:', err?.response?.status, err?.message);
         }
       }
 
@@ -59,7 +63,7 @@ export default function PaymentSuccessClient() {
         const res = await bookingsAPI.getById(bookingId);
         setBooking(res.data.data.booking);
       } catch (err) {
-        console.error('[PAYMENT-SUCCESS] Error fetching booking:', err);
+        // Error fetching booking
       }
       setLoading(false);
     };
@@ -74,6 +78,42 @@ export default function PaymentSuccessClient() {
       </div>
     );
   }
+
+  const handleDownloadReceipt = async () => {
+    if (!booking) return;
+
+    setDownloadingReceipt(true);
+    try {
+      await generateReceiptPDF({
+        bookingId: booking.id,
+        bookingNumber: booking.booking_number,
+        customerName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Customer',
+        customerEmail: user?.email || '',
+        serviceName: booking.service_name,
+        address: booking.address,
+        city: booking.city,
+        state: booking.state,
+        zipCode: booking.zip_code,
+        scheduledDate: booking.scheduled_date,
+        scheduledTime: booking.scheduled_time,
+        issuedAt: new Date().toISOString(),
+        paymentMethodLabel: 'Card authorization via Stripe',
+        paymentStatus: 'authorized',
+        statusLabel: 'Authorization Receipt',
+        statusDescription: 'Your payment method has been authorized and the funds are now held securely.',
+        baseAmount: booking.base_price || 0,
+        discountAmount: booking.discount || 0,
+        taxAmount: booking.tax || 0,
+        taxLabel: 'HST',
+        totalAmount: booking.updated_total_price || booking.total_price || 0,
+        nextStepTitle: 'Next step',
+        nextStepDescription: 'When you confirm the completed work, BridgeWork will capture the held payment and issue the final paid receipt to your account.',
+      });
+    } catch (error) {
+      // Receipt download failed
+    }
+    setDownloadingReceipt(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -130,7 +170,7 @@ export default function PaymentSuccessClient() {
               <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between">
                 <span className="text-sm font-semibold text-gray-900">Total Paid</span>
                 <span className="text-sm font-bold text-blue-600">
-                  ${parseFloat(booking.total_price || 0).toFixed(2)} (held)
+                  {formatCurrency(booking.updated_total_price || booking.total_price || 0)} (held)
                 </span>
               </div>
             </div>
@@ -145,6 +185,20 @@ export default function PaymentSuccessClient() {
 
           {/* Action Buttons */}
           <div className="space-y-3">
+            {booking && (
+              <button
+                onClick={handleDownloadReceipt}
+                disabled={downloadingReceipt}
+                className="w-full bg-white border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {downloadingReceipt ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Download E-Receipt PDF
+              </button>
+            )}
             {booking && (
               <Link
                 href="/my-jobs"

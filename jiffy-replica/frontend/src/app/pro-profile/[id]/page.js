@@ -7,7 +7,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   MapPin, Star, Clock, Phone, Mail, Shield, Award, CheckCircle,
-  ChevronLeft, Calendar, ThumbsUp, Edit, Loader2, ExternalLink
+  ChevronLeft, Calendar, ThumbsUp, Edit, Loader2, ExternalLink,
+  MessageSquare, Image as ImageIcon
 } from 'lucide-react';
 import { prosAPI, reviewsAPI } from '@/lib/api';
 
@@ -60,10 +61,8 @@ export default function ProProfilePage() {
         const proRes = await prosAPI.getById(params.id);
         const proData = proRes.data?.data?.proProfile || proRes.data?.data?.pro || proRes.data?.data;
         setPro(proData);
-
-        // Reviews temporarily disabled
       } catch (err) {
-        console.error('[PRO-PROFILE] Error fetching pro:', err);
+        // Error fetching pro profile
       }
       setLoading(false);
     };
@@ -120,6 +119,9 @@ export default function ProProfilePage() {
   if (proTotalJobs >= 10) badges.push({ name: 'Experienced', icon: 'award' });
   if (badges.length === 0) badges.push({ name: 'New Pro', icon: 'clock' });
 
+  // Extract reviews and portfolio from pro data
+  const reviews = pro.reviews || [];
+  const portfolioImages = pro.portfolio_images || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -185,6 +187,13 @@ export default function ProProfilePage() {
 
                 {/* Stats Row */}
                 <div className="flex items-center gap-6 mt-4 flex-wrap">
+                  {proRating > 0 && (
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <RatingStars rating={proRating} size="sm" />
+                      <span className="font-semibold text-gray-900">{proRating.toFixed(1)}</span>
+                      <span className="text-gray-500">({proTotalReviews} review{proTotalReviews !== 1 ? 's' : ''})</span>
+                    </div>
+                  )}
                   {proTotalJobs > 0 && (
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <CheckCircle className="w-4 h-4 text-green-500" />
@@ -252,6 +261,87 @@ export default function ProProfilePage() {
                       </span>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Portfolio Gallery */}
+            {portfolioImages.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-gray-400" />
+                  Portfolio
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {portfolioImages.map((img, idx) => (
+                    <div key={idx} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                      <Image
+                        src={img}
+                        alt={`Portfolio ${idx + 1}`}
+                        width={200}
+                        height={200}
+                        className="object-cover w-full h-full hover:scale-105 transition-transform"
+                        unoptimized
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reviews */}
+            {reviews.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-gray-400" />
+                  Reviews
+                </h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <RatingStars rating={proRating} size="md" />
+                  <span className="text-lg font-bold text-gray-900">{proRating.toFixed(1)}</span>
+                  <span className="text-sm text-gray-500">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+                </div>
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                          {review.profiles?.avatar_url ? (
+                            <Image
+                              src={review.profiles.avatar_url}
+                              alt={review.profiles?.full_name || 'Reviewer'}
+                              width={36}
+                              height={36}
+                              className="object-cover w-full h-full"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm font-semibold">
+                              {(review.profiles?.full_name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-900">{review.profiles?.full_name || 'Customer'}</p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <RatingStars rating={review.rating} size="sm" />
+                          {review.comment && (
+                            <p className="text-sm text-gray-600 mt-1.5">{review.comment}</p>
+                          )}
+                          {review.response && (
+                            <div className="mt-2 pl-3 border-l-2 border-[#0E7480]/30">
+                              <p className="text-xs font-semibold text-[#0E7480]">Pro Response</p>
+                              <p className="text-sm text-gray-600 mt-0.5">{review.response}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

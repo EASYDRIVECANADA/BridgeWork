@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import { signOut, updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
-import { fetchProJobs, acceptJob, declineJob, fetchProStatistics, updateProProfile } from '@/store/slices/prosSlice';
+import { fetchProJobs, fetchProJobHistory, acceptJob, declineJob, fetchProStatistics, updateProProfile } from '@/store/slices/prosSlice';
 import { fetchConversations, fetchMessages, sendMessage } from '@/store/slices/messagesSlice';
-import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI, payoutsAPI, invoiceAPI } from '@/lib/api';
+import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI, payoutsAPI, invoiceAPI, servicesAPI } from '@/lib/api';
 import InvoiceModal from '@/components/InvoiceModal';
 import { toast } from 'react-toastify';
 
@@ -40,6 +40,29 @@ function formatJob(booking) {
     proofSubmitted: !!booking.proof_submitted_at,
   };
 }
+
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+  }).format(parseFloat(amount || 0));
+}
+
+function formatDateLabel(dateString) {
+  if (!dateString) return 'Not scheduled';
+  return new Date(dateString).toLocaleDateString('en-CA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+const DEFAULT_SCHEDULE = [0, 1, 2, 3, 4, 5, 6].map((d) => ({
+  day_of_week: d,
+  is_available: d >= 1 && d <= 5,
+  start_time: '08:00',
+  end_time: '17:00',
+}));
 
 export default function ProDashboardPage() {
   const router = useRouter();
@@ -100,27 +123,52 @@ export default function ProDashboardPage() {
   const [settingsPayoutMethod, setSettingsPayoutMethod] = useState('e_transfer');
   const [settingsEtransferEmail, setSettingsEtransferEmail] = useState('');
   const [payoutMethodSaving, setPayoutMethodSaving] = useState(false);
+  const [withdrawalSettings, setWithdrawalSettings] = useState(null);
+  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalNotes, setWithdrawalNotes] = useState('');
+  const [withdrawalSubmitting, setWithdrawalSubmitting] = useState(false);
 
-  // Available service categories (from DB)
-  const SERVICE_CATEGORIES = [
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Handyman' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'Appliance Repair' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'Plumbing' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Electrical' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'HVAC' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'Lawn Care' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17', name: 'Painting' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18', name: 'Carpentry' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a19', name: 'Cleaning' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a20', name: 'Moving' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21', name: 'Gas Services' },
-    { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'Emergency' },
-  ];
+  // Available service categories (fetched from DB)
+  const [availableCategories, setAvailableCategories] = useState([]);
+
+  // Availability schedule (7-day grid)
+  const [availabilitySchedule, setAvailabilitySchedule] = useState(DEFAULT_SCHEDULE);
+  const [availabilitySaving, setAvailabilitySaving] = useState(false);
 
   // Format API data into display-friendly objects
   const jobAlerts = rawAlerts.map(formatJob);
   const activeJobs = rawActive.map(formatJob);
   const pastJobs = rawHistory.map(formatJob);
+
+  const loadPayoutData = useCallback(async () => {
+    try {
+      setEarningsLoading(true);
+      const [earningsRes, withdrawalsRes, settingsRes] = await Promise.all([
+        payoutsAPI.getMyEarnings(),
+        payoutsAPI.getMyWithdrawals(),
+        payoutsAPI.getWithdrawalSettings(),
+      ]);
+
+      const earningsData = earningsRes.data?.data || null;
+      const withdrawalsData = withdrawalsRes.data?.data?.withdrawals || [];
+      const settingsData = settingsRes.data?.data || null;
+
+      setEarnings(earningsData);
+      setWithdrawalRequests(withdrawalsData);
+      setWithdrawalSettings(settingsData);
+
+      const available = parseFloat(earningsData?.withdrawalSummary?.availableToWithdraw || 0);
+      setWithdrawalAmount(available > 0 ? available.toFixed(2) : '');
+    } catch (err) {
+      // Payout data not available
+      setEarnings(null);
+      setWithdrawalRequests([]);
+      setWithdrawalSettings(null);
+    } finally {
+      setEarningsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -138,16 +186,46 @@ export default function ProDashboardPage() {
         }
       } catch (err) {
         // If the endpoint fails (e.g. no pro_profile), let them stay for now
-        console.log('[PRO-DASH] Onboarding check skipped:', err?.response?.status);
       }
     };
     checkOnboarding();
     // Fetch jobs by status category
     dispatch(fetchProJobs({ status: 'pending' }));       // Job alerts (unassigned)
     dispatch(fetchProJobs({ status: 'accepted' }));      // Active jobs
-    dispatch(fetchProJobs({ status: 'completed' }));     // Job history
+    dispatch(fetchProJobHistory());                      // Job history
     dispatch(fetchProStatistics());
     dispatch(fetchConversations());
+
+    // Fetch service categories from DB
+    const fetchCategories = async () => {
+      try {
+        const res = await servicesAPI.getCategories();
+        setAvailableCategories(res.data?.data?.categories || []);
+      } catch (err) {
+        // Fallback silently — settings tab will show empty category list
+      }
+    };
+    fetchCategories();
+
+    // Load availability schedule
+    const fetchAvailability = async () => {
+      try {
+        const res = await prosAPI.getAvailability();
+        const rows = res.data?.data?.schedule || [];
+        if (rows.length > 0) {
+          // Merge returned rows into the default schedule (preserving missing days as defaults)
+          setAvailabilitySchedule(
+            DEFAULT_SCHEDULE.map((def) => {
+              const row = rows.find((r) => r.day_of_week === def.day_of_week);
+              return row ? { ...def, ...row } : def;
+            })
+          );
+        }
+      } catch (err) {
+        // Availability not available yet
+      }
+    };
+    fetchAvailability();
 
     // Fetch reviews for this pro
     const fetchReviews = async () => {
@@ -166,28 +244,21 @@ export default function ProDashboardPage() {
           setProReviews(revRes.data?.data?.reviews || []);
         }
       } catch (err) {
-        console.log('[PRO-DASH] Could not fetch reviews:', err?.response?.status);
+        // Reviews not available
       }
       setReviewsLoading(false);
     };
     fetchReviews();
 
-    // Fetch Stripe Connect status and earnings
+    // Fetch Stripe Connect status and payout data
     const fetchConnectData = async () => {
       try {
         const statusRes = await paymentsAPI.connectStatus();
         setConnectStatus(statusRes.data?.data || null);
       } catch (err) {
-        console.log('[PRO-DASH] Connect status not available:', err?.response?.status);
+        // Connect status not available
       }
-      try {
-        setEarningsLoading(true);
-        const earningsRes = await paymentsAPI.connectEarnings();
-        setEarnings(earningsRes.data?.data || null);
-      } catch (err) {
-        console.log('[PRO-DASH] Earnings not available:', err?.response?.status);
-      }
-      setEarningsLoading(false);
+      await loadPayoutData();
     };
     fetchConnectData();
 
@@ -198,12 +269,12 @@ export default function ProDashboardPage() {
         const res = await bookingsAPI.getQuoteRequestsForPro();
         setQuoteRequests(res.data?.data?.bookings || []);
       } catch (err) {
-        console.log('[PRO-DASH] Quote requests not available:', err?.response?.status);
+        // Quote requests not available
       }
       setQuoteRequestsLoading(false);
     };
     fetchQuoteRequests();
-  }, [user, router, dispatch]);
+  }, [user, router, dispatch, loadPayoutData]);
 
   // Handle return from Stripe onboarding (?stripe=success)
   useEffect(() => {
@@ -215,7 +286,7 @@ export default function ProDashboardPage() {
           await onboardingAPI.completeStripe();
           toast.success('Stripe account connected! Your payouts are now set up.');
         } catch (err) {
-          console.log('[PRO-DASH] Stripe step completion:', err?.response?.status);
+          // Stripe step completion failed
         }
         // Refresh connect status
         try {
@@ -278,7 +349,7 @@ export default function ProDashboardPage() {
         }
         setSettingsLoaded(true);
       } catch (err) {
-        console.log('[PRO-DASH] Could not load pro profile for settings:', err?.response?.status);
+        // Could not load pro profile for settings
         setSettingsBusinessName(profile?.full_name || '');
         setSettingsPhone(profile?.phone || '');
         setSettingsCity(profile?.city || '');
@@ -379,6 +450,31 @@ export default function ProDashboardPage() {
       toast.error(err || 'Failed to save settings');
     }
     setSettingsSaving(false);
+  };
+
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const handleAvailabilityToggle = (dayIndex) => {
+    setAvailabilitySchedule((prev) =>
+      prev.map((d) => d.day_of_week === dayIndex ? { ...d, is_available: !d.is_available } : d)
+    );
+  };
+
+  const handleAvailabilityTime = (dayIndex, field, value) => {
+    setAvailabilitySchedule((prev) =>
+      prev.map((d) => d.day_of_week === dayIndex ? { ...d, [field]: value } : d)
+    );
+  };
+
+  const handleSaveAvailability = async () => {
+    setAvailabilitySaving(true);
+    try {
+      await prosAPI.updateAvailability({ schedule: availabilitySchedule });
+      toast.success('Availability saved!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save availability.');
+    }
+    setAvailabilitySaving(false);
   };
 
   // Insurance document upload handler
@@ -569,7 +665,7 @@ export default function ProDashboardPage() {
       setInvoiceNotes('');
       
       dispatch(fetchProJobs({ status: 'accepted' }));
-      dispatch(fetchProJobs({ status: 'completed' }));
+      dispatch(fetchProJobHistory());
       dispatch(fetchProStatistics());
     } catch (err) {
       const msg = err?.response?.data?.message || 'Failed to submit proof';
@@ -615,7 +711,6 @@ export default function ProDashboardPage() {
         toast.error('Failed to get onboarding link.');
       }
     } catch (err) {
-      console.error('[PRO-DASH] Stripe onboard error:', err);
       toast.error(err?.response?.data?.message || 'Failed to start Stripe onboarding.');
     }
     setConnectLoading(false);
@@ -649,6 +744,42 @@ export default function ProDashboardPage() {
     setConnectLoading(false);
   };
 
+  const handleRequestWithdrawal = async () => {
+    const requestedAmount = parseFloat(withdrawalAmount || 0);
+    const minimumWithdrawalAmount = parseFloat(withdrawalSettings?.minimumWithdrawalAmount || 0);
+    const availableToWithdraw = parseFloat(earnings?.withdrawalSummary?.availableToWithdraw || 0);
+
+    if (!requestedAmount || requestedAmount <= 0) {
+      toast.error('Enter a valid withdrawal amount.');
+      return;
+    }
+
+    if (requestedAmount < minimumWithdrawalAmount) {
+      toast.error(`The minimum withdrawal amount is ${formatCurrency(minimumWithdrawalAmount)}.`);
+      return;
+    }
+
+    if (requestedAmount > availableToWithdraw + 0.01) {
+      toast.error(`You can request up to ${formatCurrency(availableToWithdraw)} right now.`);
+      return;
+    }
+
+    setWithdrawalSubmitting(true);
+    try {
+      await payoutsAPI.requestWithdrawal({
+        amount: requestedAmount,
+        notes: withdrawalNotes.trim() || undefined,
+      });
+      toast.success('Withdrawal request submitted successfully.');
+      setWithdrawalNotes('');
+      await loadPayoutData();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to submit withdrawal request');
+    } finally {
+      setWithdrawalSubmitting(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await dispatch(signOut());
     router.push('/');
@@ -658,6 +789,15 @@ export default function ProDashboardPage() {
   const totalEarnings = statistics?.total_earnings || pastJobs.reduce((sum, j) => sum + (j.billedAmount || 0), 0);
   const avgRating = statistics?.rating || (pastJobs.length > 0 ? (pastJobs.reduce((sum, j) => sum + (j.rating || 0), 0) / pastJobs.filter(j => j.rating).length).toFixed(1) : '0.0');
   const completedCount = statistics?.completed_jobs || pastJobs.length;
+  const earningsSummary = earnings?.summary || {};
+  const withdrawalSummary = earnings?.withdrawalSummary || {};
+  const payoutMethod = earnings?.payoutMethod || settingsPayoutMethod || 'e_transfer';
+  const isStripePayoutMode = payoutMethod === 'stripe_connect';
+  const requiresStripeSetup = isStripePayoutMode && (!connectStatus || !connectStatus.charges_enabled);
+  const minimumWithdrawalAmount = parseFloat(withdrawalSettings?.minimumWithdrawalAmount || 0);
+  const availableToWithdraw = parseFloat(withdrawalSummary.availableToWithdraw || 0);
+  const pendingRequested = parseFloat(withdrawalSummary.pendingRequested || 0);
+  const canRequestWithdrawal = !isStripePayoutMode && availableToWithdraw >= minimumWithdrawalAmount && minimumWithdrawalAmount >= 0;
 
   if (!user) return null;
 
@@ -810,7 +950,7 @@ export default function ProDashboardPage() {
                       Earnings
                     </span>
                   </div>
-                  {(!connectStatus || !connectStatus.charges_enabled) && (
+                  {requiresStripeSetup && (
                     <span className="flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full animate-pulse">
                       !
                     </span>
@@ -899,8 +1039,8 @@ export default function ProDashboardPage() {
                   </div>
                 </div>
               </div>
-              <div className={`bg-white rounded-xl p-5 shadow-sm border ${(!connectStatus || !connectStatus.charges_enabled) ? 'border-orange-300' : 'border-gray-100'} relative`}>
-                {(!connectStatus || !connectStatus.charges_enabled) && (
+              <div className={`bg-white rounded-xl p-5 shadow-sm border ${requiresStripeSetup ? 'border-orange-300' : 'border-gray-100'} relative`}>
+                {requiresStripeSetup && (
                   <div className="absolute -top-2 -right-2">
                     <span className="relative flex h-4 w-4">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
@@ -912,14 +1052,14 @@ export default function ProDashboardPage() {
                 )}
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 ${(!connectStatus || !connectStatus.charges_enabled) ? 'bg-orange-100' : 'bg-yellow-100'} rounded-lg flex items-center justify-center`}>
-                    <TrendingUp className={`w-5 h-5 ${(!connectStatus || !connectStatus.charges_enabled) ? 'text-orange-600' : 'text-yellow-600'}`} />
+                    <TrendingUp className={`w-5 h-5 ${requiresStripeSetup ? 'text-orange-600' : 'text-yellow-600'}`} />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">${Number(totalEarnings).toFixed(2)}</p>
                     <p className="text-xs text-gray-500">This Month</p>
                   </div>
                 </div>
-                {(!connectStatus || !connectStatus.charges_enabled) && (
+                {requiresStripeSetup && (
                   <Link 
                     href="#" 
                     onClick={(e) => { e.preventDefault(); setActiveTab('earnings'); }}
@@ -1440,8 +1580,7 @@ export default function ProDashboardPage() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Earnings & Payouts</h2>
 
-                {/* Stripe Connect Onboarding Banner — shows when payouts not enabled */}
-                {(!connectStatus || !connectStatus.charges_enabled) && (
+                {isStripePayoutMode && (!connectStatus || !connectStatus.charges_enabled) && (
                   <div className="mb-6 bg-gradient-to-r from-[#635bff] to-[#7c3aed] rounded-xl p-6 text-white">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -1451,8 +1590,8 @@ export default function ProDashboardPage() {
                         <h3 className="text-lg font-bold mb-1">Set Up Your Payouts</h3>
                         <p className="text-sm text-white/80 mb-3">
                           Connect your bank account through Stripe to receive automatic payouts when customers pay for your services.
-                          {earnings?.commission_rate && (
-                            <span> You earn {((1 - earnings.commission_rate) * 100).toFixed(0)}% of each job&apos;s base price.</span>
+                          {earnings?.commissionRate != null && (
+                            <span> You earn {((1 - earnings.commissionRate) * 100).toFixed(0)}% of each job&apos;s base price.</span>
                           )}
                         </p>
                         <div className="bg-white/10 rounded-lg p-3 mb-4">
@@ -1479,7 +1618,7 @@ export default function ProDashboardPage() {
                 )}
 
                 {/* Connected Badge + Dashboard Link */}
-                {connectStatus?.charges_enabled && connectStatus?.payouts_enabled && (
+                {isStripePayoutMode && connectStatus?.charges_enabled && connectStatus?.payouts_enabled && (
                   <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-green-600" />
@@ -1498,7 +1637,7 @@ export default function ProDashboardPage() {
                 )}
 
                 {/* Payouts Paused Warning — charges work but payouts are paused due to verification */}
-                {connectStatus?.charges_enabled && !connectStatus?.payouts_enabled && (
+                {isStripePayoutMode && connectStatus?.charges_enabled && !connectStatus?.payouts_enabled && (
                   <div className="mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="w-5 h-5 text-amber-600" />
@@ -1527,6 +1666,24 @@ export default function ProDashboardPage() {
                   </div>
                 )}
 
+                {!isStripePayoutMode && (
+                  <div className="mb-6 bg-gradient-to-r from-[#0E7480] to-[#142841] rounded-xl p-6 text-white">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold mb-1">Manual Withdrawal Payouts</h3>
+                        <p className="text-sm text-white/85 max-w-2xl">
+                          Your completed-job earnings stay available in BridgeWork until you request an Interac e-Transfer withdrawal. Admin reviews your request against the quota requirement and payout calendar before processing it.
+                        </p>
+                      </div>
+                      <div className="bg-white/10 rounded-lg px-4 py-3 min-w-[220px]">
+                        <p className="text-xs uppercase tracking-wide text-white/70">Next payout date</p>
+                        <p className="text-lg font-semibold">{formatDateLabel(withdrawalSettings?.nextPayoutDate)}</p>
+                        <p className="text-xs text-white/70 mt-1">Minimum withdrawal: {formatCurrency(minimumWithdrawalAmount)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Earnings Summary Cards */}
                 {earningsLoading ? (
                   <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center mb-8">
@@ -1534,7 +1691,7 @@ export default function ProDashboardPage() {
                     <p className="text-sm text-gray-500">Loading earnings...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -1543,10 +1700,10 @@ export default function ProDashboardPage() {
                         <p className="text-sm text-gray-500">Total Earned</p>
                       </div>
                       <p className="text-3xl font-bold text-gray-900">
-                        ${earnings?.total_earnings?.toFixed(2) || Number(totalEarnings).toFixed(2)}
+                        {formatCurrency(earningsSummary.totalEarned ?? totalEarnings)}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {earnings?.total_jobs_paid || completedCount} paid jobs
+                        {completedCount} completed jobs
                       </p>
                     </div>
 
@@ -1555,13 +1712,28 @@ export default function ProDashboardPage() {
                         <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
                           <Clock className="w-5 h-5 text-yellow-600" />
                         </div>
-                        <p className="text-sm text-gray-500">Pending</p>
+                        <p className="text-sm text-gray-500">Available to Withdraw</p>
                       </div>
                       <p className="text-3xl font-bold text-gray-900">
-                        ${earnings?.pending_earnings?.toFixed(2) || '0.00'}
+                        {formatCurrency(availableToWithdraw)}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {earnings?.pending_jobs || 0} pending jobs
+                        {isStripePayoutMode ? 'Auto-paid through Stripe when available' : 'Current withdrawable balance'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <p className="text-sm text-gray-500">Pending Requests</p>
+                      </div>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {formatCurrency(pendingRequested)}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {withdrawalRequests.filter((request) => ['pending', 'approved'].includes(request.status)).length} open withdrawal requests
                       </p>
                     </div>
 
@@ -1573,7 +1745,7 @@ export default function ProDashboardPage() {
                         <p className="text-sm text-gray-500">Your Rate</p>
                       </div>
                       <p className="text-3xl font-bold text-gray-900">
-                        {earnings?.commission_rate ? `${((1 - earnings.commission_rate) * 100).toFixed(0)}%` : '85%'}
+                        {earnings?.commissionRate != null ? `${((1 - earnings.commissionRate) * 100).toFixed(0)}%` : '87%'}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
                         of base service price
@@ -1582,21 +1754,168 @@ export default function ProDashboardPage() {
                   </div>
                 )}
 
+                {!isStripePayoutMode && (
+                  <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6 mb-8">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">Request Withdrawal</h3>
+                          <p className="text-sm text-gray-500 mt-1">Submit an Interac e-Transfer withdrawal for admin review.</p>
+                        </div>
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                          {earnings?.etransferEmail || 'No e-Transfer email set'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Withdrawal Amount</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={withdrawalAmount}
+                            onChange={(e) => setWithdrawalAmount(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Available now: {formatCurrency(availableToWithdraw)}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Notes for Admin</label>
+                          <textarea
+                            rows={3}
+                            value={withdrawalNotes}
+                            onChange={(e) => setWithdrawalNotes(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent resize-none"
+                            placeholder="Optional notes about this payout request"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 mb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-500">Quota requirement</p>
+                            <p className="font-semibold text-gray-900">{formatCurrency(minimumWithdrawalAmount)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Next payout date</p>
+                            <p className="font-semibold text-gray-900">{formatDateLabel(withdrawalSettings?.nextPayoutDate)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Current payout method</p>
+                            <p className="font-semibold text-gray-900">Interac e-Transfer</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-xs text-gray-500 max-w-xl">
+                          Requests below the quota requirement or above your available balance will be rejected automatically. Approved requests are processed on the next payout date unless an admin marks a holiday or event.
+                        </p>
+                        <button
+                          onClick={handleRequestWithdrawal}
+                          disabled={withdrawalSubmitting || !canRequestWithdrawal}
+                          className="px-5 py-2.5 bg-[#0E7480] text-white rounded-lg text-sm font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {withdrawalSubmitting ? 'Submitting...' : 'Request Withdrawal'}
+                        </button>
+                      </div>
+
+                      {!canRequestWithdrawal && (
+                        <p className="text-xs text-amber-600 mt-3">
+                          {availableToWithdraw <= 0
+                            ? 'You do not have any withdrawable balance yet.'
+                            : `You need at least ${formatCurrency(minimumWithdrawalAmount)} available before you can request a withdrawal.`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-3">Upcoming Payout Calendar</h3>
+                      <div className="space-y-3">
+                        {(withdrawalSettings?.upcomingCalendar || []).length > 0 ? (
+                          (withdrawalSettings?.upcomingCalendar || []).map((entry) => (
+                            <div key={entry.id} className="flex items-start justify-between gap-3 border border-gray-100 rounded-lg px-4 py-3">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{entry.title}</p>
+                                <p className="text-xs text-gray-500">{formatDateLabel(entry.entry_date)}</p>
+                                {entry.notes && <p className="text-xs text-gray-400 mt-1">{entry.notes}</p>}
+                              </div>
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                entry.entry_type === 'holiday'
+                                  ? 'bg-red-100 text-red-700'
+                                  : entry.entry_type === 'event'
+                                    ? 'bg-slate-100 text-slate-700'
+                                    : 'bg-green-100 text-green-700'
+                              }`}>
+                                {entry.entry_type}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
+                            No payout dates or holidays have been scheduled yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900">Withdrawal Requests</h3>
+                    <p className="text-sm text-gray-500 mt-1">Track every request you submit and see when it is approved or processed.</p>
+                  </div>
+                  {withdrawalRequests.length > 0 ? (
+                    <div className="divide-y divide-gray-100">
+                      {withdrawalRequests.map((request) => (
+                        <div key={request.id} className="px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{formatCurrency(request.amount)}</p>
+                            <p className="text-xs text-gray-500">
+                              Requested {formatDateLabel(request.created_at)}
+                              {request.scheduled_for_date ? ` • Scheduled ${formatDateLabel(request.scheduled_for_date)}` : ''}
+                            </p>
+                            {request.notes && <p className="text-xs text-gray-400 mt-1">{request.notes}</p>}
+                            {request.admin_notes && <p className="text-xs text-gray-500 mt-1">Admin note: {request.admin_notes}</p>}
+                          </div>
+                          <div className="text-left md:text-right">
+                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                              request.status === 'processed'
+                                ? 'bg-green-100 text-green-700'
+                                : request.status === 'approved'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : request.status === 'rejected'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {request.status}
+                            </span>
+                            {request.payout_reference && (
+                              <p className="text-xs text-gray-500 mt-2">Reference: {request.payout_reference}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-5 py-10 text-center text-sm text-gray-500">
+                      You have not submitted any withdrawal requests yet.
+                    </div>
+                  )}
+                </div>
+
                 {/* Recent Transactions */}
-                <h3 className="text-lg font-bold text-gray-900 mb-3">Recent Transactions</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Payout Ledger</h3>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  {(earnings?.transactions || pastJobs).length > 0 ? (
-                    (earnings?.transactions || pastJobs).map((item, index) => {
-                      const isTransaction = !!item.stripe_payment_intent_id;
-                      const serviceName = isTransaction ? (item.bookings?.service_name || item.description) : item.service;
-                      const date = isTransaction
-                        ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : item.date;
-                      const amount = isTransaction
-                        ? parseFloat(item.bookings?.base_price || item.amount || 0) * (1 - (earnings?.commission_rate || 0.15))
-                        : item.billedAmount;
-                      const status = isTransaction ? item.status : 'succeeded';
-                      const arr = earnings?.transactions || pastJobs;
+                  {(earnings?.records || []).length > 0 ? (
+                    earnings.records.map((item, index) => {
+                      const isPayout = item.type === 'payout';
+                      const status = item.status || 'completed';
+                      const arr = earnings.records;
 
                       return (
                         <div
@@ -1607,27 +1926,27 @@ export default function ProDashboardPage() {
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              status === 'succeeded' ? 'bg-green-100' : status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
+                              status === 'completed' ? (isPayout ? 'bg-blue-100' : 'bg-green-100') : status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
                             }`}>
                               <DollarSign className={`w-5 h-5 ${
-                                status === 'succeeded' ? 'text-green-600' : status === 'pending' ? 'text-yellow-600' : 'text-red-600'
+                                status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-600'
                               }`} />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">{serviceName}</p>
+                              <p className="text-sm font-medium text-gray-900">{isPayout ? 'Payout Sent' : 'Earning Added'}</p>
                               <p className="text-xs text-gray-500">
-                                {isTransaction ? (item.bookings?.booking_number || '') : item.booking_number} &middot; {date}
+                                {item.booking_id ? `Booking ${item.booking_id} • ` : ''}{formatDateLabel(item.created_at)}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
                             <p className={`text-sm font-bold ${
-                              status === 'succeeded' ? 'text-green-600' : status === 'pending' ? 'text-yellow-600' : 'text-red-500'
+                              status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-500'
                             }`}>
-                              {status === 'succeeded' ? '+' : ''}${parseFloat(amount || 0).toFixed(2)}
+                              {isPayout ? '-' : '+'}{formatCurrency(item.amount)}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {status === 'succeeded' ? 'Deposited' : status === 'pending' ? 'Pending' : 'Failed'}
+                              {isPayout ? 'Payout' : 'Earning'} • {status}
                             </p>
                           </div>
                         </div>
@@ -1635,7 +1954,7 @@ export default function ProDashboardPage() {
                     })
                   ) : (
                     <div className="px-5 py-8 text-center">
-                      <p className="text-sm text-gray-500">No transactions yet. Complete jobs to start earning!</p>
+                      <p className="text-sm text-gray-500">No payout ledger entries yet. Complete jobs to start earning.</p>
                     </div>
                   )}
                 </div>
@@ -1647,10 +1966,11 @@ export default function ProDashboardPage() {
                     <div>
                       <p className="text-sm font-semibold text-gray-900">How Payouts Work</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        When a customer pays for your service, the payment is automatically split.
-                        You receive {earnings?.commission_rate ? `${((1 - earnings.commission_rate) * 100).toFixed(0)}%` : '85%'} of the base service price, deposited directly to your bank account via Stripe.
-                        BridgeWork retains {earnings?.commission_rate ? `${(earnings.commission_rate * 100).toFixed(0)}%` : '15%'} as a platform fee.
-                        Payouts typically arrive within 2-4 business days.
+                        When a customer payment is captured, BridgeWork records your earning in the payout ledger.
+                        You receive {earnings?.commissionRate != null ? `${((1 - earnings.commissionRate) * 100).toFixed(0)}%` : '87%'} of the base service price and BridgeWork retains {earnings?.commissionRate != null ? `${(earnings.commissionRate * 100).toFixed(0)}%` : '13%'} as a platform fee.
+                        {isStripePayoutMode
+                          ? ' Stripe Connect pays you out automatically once your bank verification is complete.'
+                          : ' With Interac e-Transfer, submit a withdrawal request and admin will process it using the quota requirement and payout calendar.'}
                       </p>
                     </div>
                   </div>
@@ -2100,7 +2420,7 @@ export default function ProDashboardPage() {
                     <h3 className="text-lg font-bold text-gray-900 mb-2">Services Offered</h3>
                     <p className="text-sm text-gray-500 mb-4">Select the services your business provides.</p>
                     <div className="grid grid-cols-3 gap-3">
-                      {SERVICE_CATEGORIES.map((cat) => (
+                      {availableCategories.map((cat) => (
                         <label
                           key={cat.id}
                           className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -2269,6 +2589,69 @@ export default function ProDashboardPage() {
                           {proDocuments.is_verified ? 'Verified' : 'Pending'}
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Availability Schedule */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Weekly Availability</h3>
+                        <p className="text-sm text-gray-500 mt-1">Set the days and hours you&apos;re available to take jobs.</p>
+                      </div>
+                      <button
+                        onClick={handleSaveAvailability}
+                        disabled={availabilitySaving}
+                        className="bg-[#0E7480] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#0a5f69] transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {availabilitySaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {availabilitySaving ? 'Saving...' : 'Save Availability'}
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {availabilitySchedule.map((day) => (
+                        <div
+                          key={day.day_of_week}
+                          className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border transition-colors ${
+                            day.is_available ? 'border-[#0E7480]/30 bg-[#0E7480]/5' : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 sm:w-36">
+                            <button
+                              onClick={() => handleAvailabilityToggle(day.day_of_week)}
+                              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                                day.is_available ? 'bg-[#0E7480]' : 'bg-gray-300'
+                              }`}
+                            >
+                              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                                day.is_available ? 'translate-x-4' : 'translate-x-0'
+                              }`} />
+                            </button>
+                            <span className={`text-sm font-medium ${day.is_available ? 'text-gray-900' : 'text-gray-400'}`}>
+                              {DAY_NAMES[day.day_of_week]}
+                            </span>
+                          </div>
+                          {day.is_available ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <input
+                                type="time"
+                                value={day.start_time}
+                                onChange={(e) => handleAvailabilityTime(day.day_of_week, 'start_time', e.target.value)}
+                                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0E7480]/30"
+                              />
+                              <span className="text-sm text-gray-400">to</span>
+                              <input
+                                type="time"
+                                value={day.end_time}
+                                onChange={(e) => handleAvailabilityTime(day.day_of_week, 'end_time', e.target.value)}
+                                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0E7480]/30"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400 italic">Unavailable</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
 

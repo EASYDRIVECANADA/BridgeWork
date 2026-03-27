@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { bookingsAPI, paymentsAPI, settingsAPI } from '@/lib/api';
+import { generateReceiptPDF } from '@/utils/generateReceiptPDF';
 import { toast } from 'react-toastify';
 import {
   ArrowLeft,
@@ -16,15 +17,27 @@ import {
   Calendar,
   Clock,
   MapPin,
+  Mail,
   Loader2,
   CheckCircle,
   Tag,
   Receipt,
+  Download,
 } from 'lucide-react';
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder'
-);
+if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  // Stripe key not configured — payments will be unavailable
+}
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+  }).format(parseFloat(amount || 0));
+}
 
 function CheckoutForm({ booking, clientSecret, paymentIntentId }) {
   const stripe = useStripe();
@@ -125,6 +138,7 @@ export default function CheckoutClient() {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [creatingIntent, setCreatingIntent] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
   const [taxRate, setTaxRate] = useState(13); // Default 13%, fetched from API
   const fetchedRef = useRef(false);
 
@@ -149,7 +163,7 @@ export default function CheckoutClient() {
           setTaxRate(rate);
         }
       } catch (err) {
-        console.error('Failed to fetch tax rate:', err);
+        // Tax rate fetch failed, using default
       }
     };
 
@@ -185,7 +199,6 @@ export default function CheckoutClient() {
           setClientSecret(payRes.data.data.client_secret);
           setPaymentIntentId(payRes.data.data.payment_intent_id);
         } catch (payErr) {
-          console.error('[CHECKOUT] Payment intent error:', payErr.response?.data || payErr.message);
           // If booking must be accepted first, show info message
           if (payErr.response?.status === 400) {
             toast.info(payErr.response?.data?.message || 'Payment not available yet for this booking.');
@@ -196,11 +209,8 @@ export default function CheckoutClient() {
         setCreatingIntent(false);
         setLoading(false);
       } catch (err) {
-        console.error('[CHECKOUT] Fetch booking error:', err);
-        
         // Retry logic for 404 errors (database replication lag) or network errors
         if (retries > 0 && (err.response?.status === 404 || !err.response)) {
-          console.log(`[CHECKOUT] Booking not found, retrying in ${delay}ms... (${retries} retries left)`);
           await new Promise(resolve => setTimeout(resolve, delay));
           return fetchBooking(retries - 1, Math.min(delay * 1.5, 3000));
         }
@@ -227,6 +237,44 @@ export default function CheckoutClient() {
   }
 
   if (!booking) return null;
+
+  const totalAmount = booking.updated_total_price || booking.total_price || 0;
+  const baseAmount = booking.base_price || 0;
+  const receiptEmail = user?.email || 'your account email';
+
+  const handleDownloadReceipt = async () => {
+    setDownloadingReceipt(true);
+    try {
+      await generateReceiptPDF({
+        bookingId: booking.id,
+        bookingNumber: booking.booking_number,
+        customerName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Customer',
+        customerEmail: receiptEmail,
+        serviceName: booking.service_name,
+        address: booking.address,
+        city: booking.city,
+        state: booking.state,
+        zipCode: booking.zip_code,
+        scheduledDate: booking.scheduled_date,
+        scheduledTime: booking.scheduled_time,
+        issuedAt: new Date().toISOString(),
+        paymentMethodLabel: 'Card authorization via Stripe',
+        paymentStatus: 'authorized',
+        statusLabel: 'Authorization Receipt',
+        statusDescription: 'Funds will stay on hold until the job is confirmed complete.',
+        baseAmount,
+        discountAmount: booking.discount || 0,
+        taxAmount: booking.tax || 0,
+        taxLabel: `${taxRate}%`,
+        totalAmount,
+        nextStepTitle: 'Next step',
+        nextStepDescription: 'After your professional finishes the job and you approve the work, BridgeWork will capture the payment and issue a final paid receipt.',
+      });
+    } catch (error) {
+      toast.error('Failed to download receipt PDF. Please try again.');
+    }
+    setDownloadingReceipt(false);
+  };
 
   const stripeAppearance = {
     theme: 'stripe',
@@ -325,6 +373,105 @@ export default function CheckoutClient() {
               )}
             </div>
 
+            <div className="mt-4 sm:mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#0E7480]/10 flex items-center justify-center flex-shrink-0">
+                  <Receipt className="w-5 h-5 text-[#0E7480]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">E-Receipts</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    BridgeWork will send a payment confirmation to your email and keep a digital receipt available in your account.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#0E7480]/15 bg-gradient-to-br from-[#0E7480]/[0.06] to-white p-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0E7480]">Delivery Destination</p>
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 border border-[#0E7480]/15 text-sm text-gray-800">
+                      <Mail className="w-4 h-4 text-[#0E7480]" />
+                      <span className="font-medium">{receiptEmail}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 min-w-[180px]">
+                    <p className="text-xs text-gray-500">Authorization Amount</p>
+                    <p className="text-lg font-bold text-gray-900 mt-1">{formatCurrency(totalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <p className="text-sm font-semibold text-gray-900">After checkout</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    You receive an authorization receipt for this booking once Stripe confirms the hold.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <p className="text-sm font-semibold text-gray-900">After job approval</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    A final paid receipt is generated after you confirm the job is complete and the payment is captured.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-4">
+                  <p className="text-sm font-semibold text-gray-900">Always accessible</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Your receipts stay available in your dashboard so you can revisit them anytime.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Receipt Preview</p>
+                    <p className="text-xs text-gray-500">What your e-receipt will reference</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleDownloadReceipt}
+                      disabled={downloadingReceipt}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#0E7480] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0a5a63] transition-colors disabled:opacity-50"
+                    >
+                      {downloadingReceipt ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      Download PDF
+                    </button>
+                    <Link href="/dashboard/invoices" className="text-xs font-semibold text-[#0E7480] hover:underline">
+                      View receipt archive
+                    </Link>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Booking</span>
+                    <span className="font-medium text-gray-900 text-right">#{booking.booking_number}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Service</span>
+                    <span className="font-medium text-gray-900 text-right">{booking.service_name}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Service fee</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(baseAmount)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">Tax</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(booking.tax || 0)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 flex justify-between gap-4">
+                    <span className="font-semibold text-gray-900">Total</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Trust Badges */}
             <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-4">
               <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3 text-center">
@@ -412,7 +559,7 @@ export default function CheckoutClient() {
               <div className="border-t border-gray-200 pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Service Fee</span>
-                  <span className="text-gray-900">${parseFloat(booking.base_price || 0).toFixed(2)}</span>
+                  <span className="text-gray-900">{formatCurrency(baseAmount)}</span>
                 </div>
                 {parseFloat(booking.discount || 0) > 0 && (
                   <div className="flex justify-between text-sm">
@@ -420,18 +567,16 @@ export default function CheckoutClient() {
                       <Tag className="w-3 h-3" />
                       Discount
                     </span>
-                    <span className="text-green-600">-${parseFloat(booking.discount).toFixed(2)}</span>
+                    <span className="text-green-600">-{formatCurrency(booking.discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax ({taxRate}%)</span>
-                  <span className="text-gray-900">${parseFloat(booking.tax || 0).toFixed(2)}</span>
+                  <span className="text-gray-900">{formatCurrency(booking.tax || 0)}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-2 flex justify-between">
                   <span className="text-base font-bold text-gray-900">Total</span>
-                  <span className="text-base font-bold text-gray-900">
-                    ${parseFloat(booking.updated_total_price || booking.total_price || 0).toFixed(2)}
-                  </span>
+                  <span className="text-base font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
                 </div>
               </div>
 

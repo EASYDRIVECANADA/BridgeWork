@@ -13,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { isLoading, error, isAuthenticated, profile } = useSelector((state) => state.auth);
+  const [deactivationError, setDeactivationError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,26 +21,30 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
+  useEffect(() => {
+    const storedError = typeof window !== 'undefined' ? window.sessionStorage.getItem('auth_error') : null;
+    if (storedError) {
+      setDeactivationError(storedError);
+      toast.error(storedError);
+      window.sessionStorage.removeItem('auth_error');
+    }
+  }, []);
+
   // Redirect when authenticated
   useEffect(() => {
-    console.log('[LOGIN PAGE] useEffect check:', { isAuthenticated, hasProfile: !!profile, isLoading });
     if (isAuthenticated) {
       toast.success('Login successful!');
-      // If profile is already loaded, route by role; otherwise default to /dashboard
       const dest = profile?.role === 'admin' ? '/admin/revenue' : profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard';
-      console.log('[LOGIN PAGE] Redirecting to:', dest);
       router.push(dest);
     }
   }, [isAuthenticated, profile, router, isLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[LOGIN PAGE] handleSubmit called');
+    setDeactivationError('');
     try {
-      const result = await dispatch(signIn({ email: formData.email, password: formData.password })).unwrap();
-      console.log('[LOGIN PAGE] signIn thunk resolved:', result);
+      await dispatch(signIn({ email: formData.email, password: formData.password })).unwrap();
     } catch (err) {
-      console.error('[LOGIN PAGE] signIn thunk rejected:', err);
       toast.error(err || 'Login failed');
     }
   };
@@ -183,10 +188,10 @@ export default function LoginPage() {
               </div>
 
               {/* Error Message */}
-              {error && (
+              {(deactivationError || error) && (
                 <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm ring-1 ring-red-200 flex items-start gap-2">
                   <span className="text-red-500 mt-0.5 flex-shrink-0">&#9888;</span>
-                  <span>{error}</span>
+                  <span>{deactivationError || error}</span>
                 </div>
               )}
 

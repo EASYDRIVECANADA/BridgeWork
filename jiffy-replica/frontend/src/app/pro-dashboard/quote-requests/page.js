@@ -41,7 +41,6 @@ export default function ProQuoteRequestsPage() {
       const res = await bookingsAPI.getQuoteRequestsForPro();
       setQuoteRequests(res.data?.data?.bookings || []);
     } catch (err) {
-      console.error('Failed to fetch quote requests:', err);
       toast.error('Failed to load quote requests');
     } finally {
       setLoading(false);
@@ -184,6 +183,12 @@ export default function ProQuoteRequestsPage() {
                             Awaiting Your Quote
                           </span>
                         )}
+                        {request.my_quote_status === 'counter_offered' && (
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            Counter-Offer
+                          </span>
+                        )}
                         <span className="text-[10px] sm:text-xs text-gray-400">
                           {request.total_quotes} quote{request.total_quotes !== 1 ? 's' : ''} received
                         </span>
@@ -236,12 +241,14 @@ export default function ProQuoteRequestsPage() {
                     <Link
                       href={`/pro-dashboard/quote-requests/${request.id}`}
                       className={`flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-colors ${
-                        request.has_submitted_quote
+                        request.my_quote_status === 'counter_offered'
+                          ? 'bg-amber-500 text-white hover:bg-amber-600'
+                          : request.has_submitted_quote
                           ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           : 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
                       }`}
                     >
-                      {request.has_submitted_quote ? 'View Quote' : 'Submit Quote'}
+                      {request.my_quote_status === 'counter_offered' ? 'Review Counter-Offer' : request.has_submitted_quote ? 'View Quote' : 'Submit Quote'}
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                   </div>

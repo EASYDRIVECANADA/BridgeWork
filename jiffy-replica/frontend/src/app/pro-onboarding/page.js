@@ -117,7 +117,6 @@ export default function ProOnboardingPage() {
         return;
       }
     } catch (err) {
-      console.error('Failed to load onboarding status', err);
       toast.error('Failed to load onboarding status');
     } finally {
       setLoading(false);
@@ -142,7 +141,7 @@ export default function ProOnboardingPage() {
         });
         setServices(Object.values(cats));
       } catch {
-        console.log('Could not load services');
+        // Could not load services
       }
     }
   };

@@ -13,9 +13,19 @@ export default function ProLoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { isLoading, error, isAuthenticated, profile } = useSelector((state) => state.auth);
+  const [deactivationError, setDeactivationError] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    const storedError = typeof window !== 'undefined' ? window.sessionStorage.getItem('auth_error') : null;
+    if (storedError) {
+      setDeactivationError(storedError);
+      toast.error(storedError);
+      window.sessionStorage.removeItem('auth_error');
+    }
+  }, []);
 
   // Redirect when authenticated
   useEffect(() => {
@@ -32,6 +42,7 @@ export default function ProLoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setDeactivationError('');
     try {
       await dispatch(signIn({ email, password })).unwrap();
     } catch (err) {
@@ -156,9 +167,9 @@ export default function ProLoginPage() {
                 </div>
 
                 {/* Error Message */}
-                {error && (
+                {(deactivationError || error) && (
                   <div className="bg-red-500/15 border border-red-400/30 text-red-100 px-4 py-3 rounded-xl text-sm">
-                    {error}
+                    {deactivationError || error}
                   </div>
                 )}
 

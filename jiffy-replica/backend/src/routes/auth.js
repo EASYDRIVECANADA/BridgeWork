@@ -9,7 +9,10 @@ const router = express.Router();
 router.post('/signup',
     [
         body('email').isEmail().normalizeEmail(),
-        body('password').isLength({ min: 8 }),
+        body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+            .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Password must contain at least one special character'),
         body('full_name').trim().isLength({ min: 2 }),
         body('role').optional().isIn(['user', 'pro']),
         validate
@@ -54,7 +57,10 @@ router.patch('/profile', authenticate,
 router.post('/change-password', authenticate,
     [
         body('current_password').notEmpty(),
-        body('new_password').isLength({ min: 8 }),
+        body('new_password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+            .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Password must contain at least one special character'),
         validate
     ],
     authController.changePassword
@@ -71,7 +77,10 @@ router.post('/forgot-password',
 router.post('/reset-password',
     [
         body('token').notEmpty().withMessage('Reset token is required'),
-        body('new_password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+        body('new_password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+            .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Password must contain at least one special character'),
         validate
     ],
     authController.resetPassword

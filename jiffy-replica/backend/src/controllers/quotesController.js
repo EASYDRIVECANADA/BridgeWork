@@ -2,13 +2,32 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { createNotification } = require('../services/notificationService');
 
+// Helper to get tax rate from platform_settings (same as bookingsController)
+const getDefaultTaxRate = async () => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('platform_settings')
+            .select('value')
+            .eq('key', 'tax_rate')
+            .eq('service_type', 'quote')
+            .single();
+        if (error || !data) return 0.13;
+        return data.value / 100;
+    } catch (err) {
+        logger.error('Error fetching tax rate for quotes', { error: err.message });
+        return 0.13;
+    }
+};
+
+const crypto = require('crypto');
+
 // Generate quote number
 const generateQuoteNumber = () => {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const random = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
     return `BW-Q-${year}${month}${day}-${random}`;
 };
 
@@ -18,18 +37,24 @@ const generateInvoiceNumber = () => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const random = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
     return `BW-INV-${year}${month}${day}-${random}`;
 };
 
-// Calculate quote totals from items
-const calculateTotals = (items, taxRate = 0.08, discountAmount = 0) => {
-    const subtotal = items.reduce((sum, item) => {
-        return sum + (parseFloat(item.quantity) * parseFloat(item.unit_price));
+// Calculate quote totals from items (uses integer cents internally to avoid float drift)
+const calculateTotals = (items, taxRate = 0.13, discountAmount = 0) => {
+    const subtotalCents = items.reduce((sum, item) => {
+        return sum + Math.round(parseFloat(item.quantity) * parseFloat(item.unit_price) * 100);
     }, 0);
-    const taxAmount = parseFloat(((subtotal - discountAmount) * taxRate).toFixed(2));
-    const total = parseFloat((subtotal - discountAmount + taxAmount).toFixed(2));
-    return { subtotal: parseFloat(subtotal.toFixed(2)), taxAmount, total };
+    const discountCents = Math.round(parseFloat(discountAmount) * 100);
+    const taxableCents = subtotalCents - discountCents;
+    const taxAmountCents = Math.round(taxableCents * taxRate);
+    const totalCents = taxableCents + taxAmountCents;
+    return {
+        subtotal: subtotalCents / 100,
+        taxAmount: taxAmountCents / 100,
+        total: totalCents / 100
+    };
 };
 
 // ==================== QUOTES ====================
@@ -87,7 +112,8 @@ exports.createQuote = async (req, res) => {
             });
         }
 
-        const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : 0.08;
+        const defaultRate = await getDefaultTaxRate();
+        const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : defaultRate;
         const actualDiscount = discount_amount ? parseFloat(discount_amount) : 0;
         const { subtotal, taxAmount, total } = calculateTotals(items, actualTaxRate, actualDiscount);
 
@@ -914,7 +940,8 @@ exports.createInvoice = async (req, res) => {
             });
         }
 
-        const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : 0.08;
+        const defaultRate = await getDefaultTaxRate();
+        const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : defaultRate;
         const actualDiscount = discount_amount ? parseFloat(discount_amount) : 0;
         const { subtotal, taxAmount, total } = calculateTotals(items, actualTaxRate, actualDiscount);
 

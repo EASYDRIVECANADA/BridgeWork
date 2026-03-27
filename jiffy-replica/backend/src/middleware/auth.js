@@ -41,7 +41,7 @@ const authenticate = async (req, res, next) => {
         if (!profile.is_active) {
             return res.status(403).json({
                 success: false,
-                message: 'Account is deactivated'
+                message: 'Your account was deactivated'
             });
         }
 

@@ -92,7 +92,7 @@ export default function AdminSupportChatPage() {
       const res = await supportChatAPI.getAllConversations({ status: statusFilter });
       setConversations(res.data.data.conversations || []);
     } catch (err) {
-      console.error('Failed to load conversations', err);
+      // Failed to load conversations
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function AdminSupportChatPage() {
       // Refresh to update unread counts
       loadConversations();
     } catch (err) {
-      console.error('Failed to load messages', err);
+      // Failed to load messages
     } finally {
       setMessagesLoading(false);
     }
@@ -142,7 +142,6 @@ export default function AdminSupportChatPage() {
       const real = res.data.data.message;
       setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? real : m)));
     } catch (err) {
-      console.error('Failed to send', err);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setMessage(text);
     } finally {
@@ -159,7 +158,7 @@ export default function AdminSupportChatPage() {
         setMessages([]);
       }
     } catch (err) {
-      console.error('Failed to close', err);
+      // Failed to close conversation
     }
   };
 

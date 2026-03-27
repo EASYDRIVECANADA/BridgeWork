@@ -11,6 +11,7 @@ import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { fetchUnreadCount, addRealtimeMessage } from '@/store/slices/messagesSlice';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const DEACTIVATED_ACCOUNT_MESSAGE = 'Your account was deactivated';
 
 function AuthProvider({ children }) {
   const dispatch = useDispatch();
@@ -24,18 +25,19 @@ function AuthProvider({ children }) {
     // We CANNOT use the api.js interceptor here because it calls getSession()
     // which deadlocks when called inside onAuthStateChange.
     const fetchProfile = async (accessToken) => {
-      console.log('[AUTH PROVIDER] fetchProfile with explicit token');
       try {
         const response = await axios.get(`${API_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const profile = response.data?.data?.profile;
-        console.log('[AUTH PROVIDER] fetchProfile result:', !!profile);
-        return { profile: profile || null, deactivated: false };
+        return { profile: profile || null, deactivated: false, message: null };
       } catch (err) {
-        console.error('[AUTH PROVIDER] fetchProfile error:', err?.response?.status, err?.message);
         const deactivated = err?.response?.status === 403;
-        return { profile: null, deactivated };
+        return {
+          profile: null,
+          deactivated,
+          message: deactivated ? DEACTIVATED_ACCOUNT_MESSAGE : null,
+        };
       }
     };
 
@@ -48,7 +50,6 @@ function AuthProvider({ children }) {
           debounceTimerRef.current = null;
         }
         lastFetchedUserRef.current = null;
-        console.log(`[AUTH PROVIDER] No session (${source}), dispatching clearAuth`);
         dispatch(clearAuth());
         return;
       }
@@ -57,7 +58,6 @@ function AuthProvider({ children }) {
 
       // Skip if we already fetched for this exact user (e.g. TOKEN_REFRESHED after SIGNED_IN)
       if (lastFetchedUserRef.current === userId && source !== 'mount') {
-        console.log(`[AUTH PROVIDER] Skipping duplicate fetch for user ${userId} (${source})`);
         return;
       }
 
@@ -73,15 +73,19 @@ function AuthProvider({ children }) {
           return;
         }
         lastFetchedUserRef.current = userId;
-        const { profile, deactivated } = await fetchProfile(session.access_token);
+        const { profile, deactivated, message } = await fetchProfile(session.access_token);
         if (deactivated) {
-          console.log('[AUTH PROVIDER] Account deactivated — forcing sign out');
           lastFetchedUserRef.current = null;
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('auth_error', message || DEACTIVATED_ACCOUNT_MESSAGE);
+          }
           await supabase.auth.signOut();
           dispatch(clearAuth());
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.assign('/login');
+          }
           return;
         }
-        console.log(`[AUTH PROVIDER] Dispatching setUser (${source}), profile:`, !!profile);
         dispatch(setUser({
           user: session.user,
           session: session,
@@ -91,9 +95,7 @@ function AuthProvider({ children }) {
     };
 
     // Check existing session on mount
-    console.log('[AUTH PROVIDER] Checking existing session on mount');
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[AUTH PROVIDER] getSession result:', { hasSession: !!session });
       handleAuthSession(session, 'mount');
     });
 
@@ -101,7 +103,6 @@ function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AUTH PROVIDER] onAuthStateChange event:', event, 'hasSession:', !!session);
       handleAuthSession(session, event);
     });
 

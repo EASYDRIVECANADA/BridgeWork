@@ -108,7 +108,6 @@ export default function AdminProEditPage() {
         services_offered: proData.services_offered || [],
       });
     } catch (err) {
-      console.error('Failed to fetch pro:', err);
       toast.error('Failed to load pro details');
     }
     setLoading(false);
@@ -183,7 +182,6 @@ export default function AdminProEditPage() {
       toast.success('Pro profile updated successfully');
       fetchProDetails(); // Refresh data
     } catch (err) {
-      console.error('Save error:', err);
       toast.error(err?.response?.data?.message || 'Failed to save changes');
     }
     setSaving(false);

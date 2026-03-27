@@ -85,7 +85,7 @@ export default function HelpWidget() {
       setMessages(msgRes.data.data.messages || []);
       scrollToBottom();
     } catch (err) {
-      console.error('Failed to load support conversation', err);
+      // Failed to load support conversation
     } finally {
       setLoading(false);
     }
@@ -115,7 +115,6 @@ export default function HelpWidget() {
       const real = res.data.data.message;
       setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? real : m)));
     } catch (err) {
-      console.error('Failed to send message', err);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setMessage(text); // restore
     } finally {

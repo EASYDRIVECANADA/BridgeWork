@@ -60,7 +60,7 @@ export default function CustomerInvoiceDetailPage() {
     try {
       await generateInvoicePDF(invoice);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
+      // PDF generation failed
     }
     setDownloadingPDF(false);
   };

@@ -92,7 +92,6 @@ export default function ChatPage() {
           });
         }
       } catch (err) {
-        console.error('Failed to load booking:', err.message);
         setBookingError('Booking not found or access denied');
       }
       setLoadingBooking(false);

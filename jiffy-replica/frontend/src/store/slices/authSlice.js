@@ -10,16 +10,26 @@ export const signIn = createAsyncThunk(
   'auth/signIn',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      console.log('[AUTH] signIn thunk START');
-      console.log('[AUTH] Calling signInWithPassword...');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('[AUTH] signInWithPassword returned', { error: error?.message, hasSession: !!data?.session });
+      const response = await authAPI.login({ email, password });
+      const session = response.data?.data?.session;
+
+      if (!session?.access_token || !session?.refresh_token) {
+        return rejectWithValue('Login failed');
+      }
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
       if (error) return rejectWithValue(error.message);
-      console.log('[AUTH] signIn thunk SUCCESS');
-      return { user: data.user, session: data.session };
+      return {
+        user: data.user,
+        session: data.session,
+        profile: response.data?.data?.profile || null,
+      };
     } catch (error) {
-      console.error('[AUTH] signIn thunk CATCH', error);
-      return rejectWithValue(error.message || 'Login failed');
+      return rejectWithValue(error.response?.data?.message || error.message || 'Login failed');
     }
   }
 );
@@ -106,6 +116,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload.user;
         state.session = action.payload.session;
+        state.profile = action.payload.profile || state.profile;
         state.isAuthenticated = true;
       })
       .addCase(signIn.rejected, (state, action) => {

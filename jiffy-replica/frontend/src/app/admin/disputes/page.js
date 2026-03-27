@@ -54,7 +54,6 @@ export default function AdminDisputesPage() {
       const res = await bookingsAPI.getAllDisputes();
       setDisputes(res.data?.data?.disputes || []);
     } catch (err) {
-      console.error('Failed to fetch disputes:', err);
       toast.error('Failed to load disputes');
     } finally {
       setLoading(false);
@@ -74,7 +73,6 @@ export default function AdminDisputesPage() {
       const res = await paymentsAPI.getDisputeMessages(bookingId);
       setMessages(res.data?.data?.messages || []);
     } catch (err) {
-      console.error('Failed to fetch messages:', err);
       toast.error('Failed to load messages');
     } finally {
       setLoadingMessages(false);
@@ -96,7 +94,6 @@ export default function AdminDisputesPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err) {
-      console.error('Failed to send message:', err);
       toast.error('Failed to send message');
     } finally {
       setSendingMessage(false);
@@ -122,7 +119,6 @@ export default function AdminDisputesPage() {
       setExpandedDispute(null);
       fetchDisputes();
     } catch (err) {
-      console.error('Failed to resolve dispute:', err);
       toast.error(err.response?.data?.message || 'Failed to resolve dispute');
     } finally {
       setResolving(false);

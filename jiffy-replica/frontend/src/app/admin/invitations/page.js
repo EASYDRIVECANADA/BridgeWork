@@ -65,7 +65,7 @@ export default function AdminInvitationsPage() {
         setInvitations(response.data.data.invitations);
       }
     } catch (err) {
-      console.error('Failed to fetch invitations:', err);
+      // Failed to fetch invitations
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function AdminInvitationsPage() {
       await api.delete(`/admin/invitations/${id}`);
       fetchInvitations();
     } catch (err) {
-      console.error('Failed to cancel invitation:', err);
+      // Failed to cancel invitation
     }
   };
 

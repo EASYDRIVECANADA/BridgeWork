@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { Menu, X, ChevronDown, LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, User, MessageSquare, ClipboardList, UserCheck, Shield, Receipt, Bell, DollarSign, Crown } from 'lucide-react';
 import { signOut } from '@/store/slices/authSlice';
 import { proProfileUpdatesAPI } from '@/lib/api';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -261,6 +262,9 @@ export default function Navbar() {
                     {/* Divider */}
                     <div className="h-6 w-px bg-white/20 mx-2" />
 
+                    {/* Notification Bell */}
+                    <NotificationBell />
+
                     {/* User Menu */}
                     <div className="relative">
                       <button
@@ -294,6 +298,8 @@ export default function Navbar() {
                   </div>
                 ) : isPro ? (
                   <div className="flex items-center gap-2">
+                    {/* Notification Bell for Pro */}
+                    <NotificationBell />
                     {/* User Menu for Pro */}
                     <div className="relative" ref={dropdownRef}>
                       <button
@@ -327,6 +333,8 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
+                    {/* Notification Bell for Customer */}
+                    <NotificationBell />
                     <Link href="/messages" className={navLinkClass + " relative flex items-center gap-1.5"}>
                       <MessageSquare className="w-4 h-4" />
                       Messages

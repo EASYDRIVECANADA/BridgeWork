@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { writeAuditLog } = require('../services/auditService');
 
 exports.listAdmins = async (req, res) => {
     try {
@@ -22,6 +23,28 @@ exports.updateAdminPermissions = async (req, res) => {
     try {
         const { id } = req.params;
         const { admin_permissions } = req.body;
+
+        // Validate admin_permissions structure
+        const VALID_PERMISSION_KEYS = [
+            'revenue', 'services', 'categories', 'pro_applications',
+            'profile_updates', 'invitations', 'payouts', 'quotations',
+            'quote_assignments', 'quote_requests', 'proofs', 'support_chat', 'disputes'
+        ];
+
+        if (admin_permissions !== null && admin_permissions !== undefined) {
+            if (typeof admin_permissions !== 'object' || Array.isArray(admin_permissions)) {
+                return res.status(400).json({ success: false, message: 'admin_permissions must be a JSON object' });
+            }
+            const invalidKeys = Object.keys(admin_permissions).filter(k => !VALID_PERMISSION_KEYS.includes(k));
+            if (invalidKeys.length > 0) {
+                return res.status(400).json({ success: false, message: `Invalid permission keys: ${invalidKeys.join(', ')}` });
+            }
+            for (const [key, value] of Object.entries(admin_permissions)) {
+                if (typeof value !== 'boolean') {
+                    return res.status(400).json({ success: false, message: `Permission "${key}" must be a boolean` });
+                }
+            }
+        }
 
         const { data: target, error: fetchError } = await supabaseAdmin
             .from('profiles')
@@ -49,6 +72,8 @@ exports.updateAdminPermissions = async (req, res) => {
             .single();
 
         if (error) throw error;
+
+        await writeAuditLog(req.profile.id, 'update_permissions', 'admin', id, { admin_permissions });
 
         logger.info('Admin permissions updated', { adminId: id, by: req.profile.id });
         return res.json({ success: true, message: 'Permissions updated successfully', data: { admin: data } });
@@ -92,6 +117,8 @@ exports.toggleAdminActive = async (req, res) => {
             .single();
 
         if (error) throw error;
+
+        await writeAuditLog(req.profile.id, 'toggle_admin_active', 'admin', id, { is_active: data.is_active });
 
         logger.info('Admin account toggled', { adminId: id, isActive: data.is_active, by: req.profile.id });
         return res.json({

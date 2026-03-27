@@ -1,8 +1,9 @@
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { findNearbyPros } = require('../services/proMatchingService');
 const { createNotification } = require('../services/notificationService');
-const { sendNewBookingAdminEmail, sendProJobAlertEmail, sendProQuoteAssignmentEmail, sendHomeownerQuoteReceivedEmail, sendProQuoteAcceptedEmail, sendHomeownerQuoteAcceptedConfirmationEmail } = require('../services/emailService');
+const { sendNewBookingAdminEmail, sendProJobAlertEmail, sendProQuoteAssignmentEmail, sendHomeownerQuoteReceivedEmail, sendProQuoteAcceptedEmail, sendHomeownerQuoteAcceptedConfirmationEmail, sendBookingCancellationEmail } = require('../services/emailService');
+const { writeAuditLog } = require('../services/auditService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
 
@@ -61,6 +62,14 @@ exports.createBooking = async (req, res) => {
         }
 
         const scheduled_datetime = new Date(`${scheduled_date}T${scheduled_time}`);
+
+        // Validate scheduled datetime is in the future
+        if (scheduled_datetime <= new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Scheduled date and time must be in the future'
+            });
+        }
 
         // Check if this is a Free Quote service (pricing_type === 'custom')
         const isFreeQuote = service.pricing_type === 'custom';
@@ -260,13 +269,15 @@ exports.createBooking = async (req, res) => {
     }
 };
 
+const crypto = require('crypto');
+
 const generateBookingNumber = () => {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `JF-${year}${month}${day}-${random}`;
+    const random = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    return `BW-${year}${month}${day}-${random}`;
 };
 
 exports.getUserBookings = async (req, res) => {
@@ -299,7 +310,7 @@ exports.getUserBookings = async (req, res) => {
                     comment,
                     created_at
                 )
-            `)
+            `, { count: 'exact' })
             .eq('user_id', req.user.id);
 
         if (status) {
@@ -560,7 +571,35 @@ exports.cancelBooking = async (req, res) => {
                     link: `/pro/bookings/${booking.id}`,
                     data: { booking_id: booking.id }
                 });
+
+                // Send cancellation email to pro
+                try {
+                    const { data: proUser } = await supabaseAdmin
+                        .from('profiles')
+                        .select('email, full_name')
+                        .eq('id', proProfile.user_id)
+                        .single();
+                    if (proUser?.email) {
+                        await sendBookingCancellationEmail(proUser.email, proUser.full_name || 'Pro', booking, 'customer');
+                    }
+                } catch (emailErr) {
+                    logger.error('Failed to send cancellation email to pro', { error: emailErr.message });
+                }
             }
+        }
+
+        // Send cancellation email to the customer
+        try {
+            const { data: customerProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', req.user.id)
+                .single();
+            if (customerProfile?.email) {
+                await sendBookingCancellationEmail(customerProfile.email, customerProfile.full_name || 'Customer', booking, 'customer');
+            }
+        } catch (emailErr) {
+            logger.error('Failed to send cancellation email to customer', { error: emailErr.message });
         }
 
         logger.info('Booking cancelled', { bookingId: id, userId: req.user.id });
@@ -729,6 +768,8 @@ exports.setQuotePrice = async (req, res) => {
             price: finalPrice, 
             adminId: req.user.id 
         });
+
+        await writeAuditLog(req.user.id, 'set_quote_price', 'booking', id, { base_price: price, total_price: finalPrice });
 
         res.json({
             success: true,
@@ -1457,8 +1498,8 @@ exports.acceptQuotation = async (req, res) => {
             .neq('id', quotationId)
             .eq('status', 'pending');
 
-        // Update booking with selected quotation - job is now accepted
-        const { error: updateBookingError } = await supabaseAdmin
+        // Update booking with selected quotation - use optimistic lock to prevent race conditions
+        const { data: updatedBooking, error: updateBookingError } = await supabaseAdmin
             .from('bookings')
             .update({
                 status: 'accepted',
@@ -1469,13 +1510,20 @@ exports.acceptQuotation = async (req, res) => {
                 total_price: finalPrice,
                 quote_set_at: new Date().toISOString()
             })
-            .eq('id', bookingId);
+            .eq('id', bookingId)
+            .eq('status', 'awaiting_quotes')
+            .select()
+            .single();
 
-        if (updateBookingError) {
-            logger.error('Update booking with quotation error', { error: updateBookingError.message });
-            return res.status(500).json({
+        if (updateBookingError || !updatedBooking) {
+            // Another request already accepted a quotation — rollback quotation status
+            await supabaseAdmin
+                .from('booking_quotations')
+                .update({ status: 'pending', selected_at: null })
+                .eq('id', quotationId);
+            return res.status(409).json({
                 success: false,
-                message: 'Failed to update booking'
+                message: 'This booking has already been updated. Please refresh and try again.'
             });
         }
 
@@ -1596,6 +1644,282 @@ exports.acceptQuotation = async (req, res) => {
     }
 };
 
+/**
+ * Homeowner: Send a counter-offer on a quotation
+ * POST /api/bookings/:bookingId/quotations/:quotationId/counter-offer
+ */
+exports.counterOfferQuotation = async (req, res) => {
+    try {
+        const { bookingId, quotationId } = req.params;
+        const { price, message } = req.body;
+
+        const counterPrice = parseFloat(price);
+        if (!counterPrice || counterPrice <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide a valid counter-offer price'
+            });
+        }
+
+        // Verify booking belongs to user and is still accepting quotes
+        const { data: booking, error: bookingError } = await supabaseAdmin
+            .from('bookings')
+            .select('*, services (name)')
+            .eq('id', bookingId)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (bookingError || !booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        if (booking.status !== 'awaiting_quotes') {
+            return res.status(400).json({
+                success: false,
+                message: 'This booking is no longer accepting quotes'
+            });
+        }
+
+        // Get the quotation
+        const { data: quotation, error: quotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                )
+            `)
+            .eq('id', quotationId)
+            .eq('booking_id', bookingId)
+            .single();
+
+        if (quotationError || !quotation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quotation not found'
+            });
+        }
+
+        if (quotation.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Can only counter-offer on pending quotations'
+            });
+        }
+
+        // Update quotation with counter-offer
+        const { error: updateError } = await supabaseAdmin
+            .from('booking_quotations')
+            .update({
+                status: 'counter_offered',
+                counter_offer_price: counterPrice,
+                counter_offer_message: message || null,
+                counter_offered_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', quotationId);
+
+        if (updateError) {
+            logger.error('Counter-offer update error', { error: updateError.message });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send counter-offer'
+            });
+        }
+
+        // Notify the pro
+        await createNotification(quotation.pro_profiles.user_id, {
+            type: 'booking',
+            title: 'Counter-Offer Received',
+            message: `The customer has counter-offered $${counterPrice.toFixed(2)} for ${booking.service_name}. Your original quote was $${parseFloat(quotation.quoted_price).toFixed(2)}.`,
+            link: `/pro-dashboard/quote-requests/${bookingId}`,
+            data: { booking_id: bookingId, quotation_id: quotationId }
+        });
+
+        logger.info('Counter-offer sent', {
+            bookingId,
+            quotationId,
+            originalPrice: quotation.quoted_price,
+            counterOfferPrice: counterPrice
+        });
+
+        res.json({
+            success: true,
+            message: 'Counter-offer sent! The pro will be notified.',
+            data: {
+                quotation_id: quotationId,
+                counter_offer_price: counterPrice
+            }
+        });
+    } catch (error) {
+        logger.error('Counter-offer controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send counter-offer'
+        });
+    }
+};
+
+/**
+ * Pro: Respond to a counter-offer (accept or decline)
+ * POST /api/bookings/quotations/:quotationId/respond-counter-offer
+ */
+exports.respondToCounterOffer = async (req, res) => {
+    try {
+        const { quotationId } = req.params;
+        const { action } = req.body; // 'accept' or 'decline'
+
+        if (!['accept', 'decline'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Action must be "accept" or "decline"'
+            });
+        }
+
+        // Get quotation with pro profile check
+        const { data: quotation, error: quotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                )
+            `)
+            .eq('id', quotationId)
+            .single();
+
+        if (quotationError || !quotation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quotation not found'
+            });
+        }
+
+        // Verify the pro owns this quotation
+        if (quotation.pro_profiles.user_id !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only respond to your own quotations'
+            });
+        }
+
+        if (quotation.status !== 'counter_offered') {
+            return res.status(400).json({
+                success: false,
+                message: 'This quotation does not have a pending counter-offer'
+            });
+        }
+
+        // Get booking for notifications
+        const { data: booking } = await supabaseAdmin
+            .from('bookings')
+            .select('*, services (name)')
+            .eq('id', quotation.booking_id)
+            .single();
+
+        if (action === 'accept') {
+            // Pro accepts the counter-offer: update quoted_price to counter_offer_price
+            const { error: updateError } = await supabaseAdmin
+                .from('booking_quotations')
+                .update({
+                    quoted_price: quotation.counter_offer_price,
+                    status: 'pending',
+                    counter_offer_price: null,
+                    counter_offer_message: null,
+                    counter_offered_at: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', quotationId);
+
+            if (updateError) {
+                logger.error('Accept counter-offer update error', { error: updateError.message });
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to accept counter-offer'
+                });
+            }
+
+            // Notify homeowner
+            if (booking) {
+                await createNotification(booking.user_id, {
+                    type: 'booking',
+                    title: 'Counter-Offer Accepted!',
+                    message: `${quotation.pro_profiles.business_name || 'A pro'} accepted your counter-offer of $${parseFloat(quotation.counter_offer_price).toFixed(2)} for ${booking.service_name}. You can now accept the revised quote.`,
+                    link: `/my-jobs`,
+                    data: { booking_id: quotation.booking_id, quotation_id: quotationId }
+                });
+            }
+
+            logger.info('Pro accepted counter-offer', {
+                quotationId,
+                proId: quotation.pro_id,
+                newPrice: quotation.counter_offer_price
+            });
+
+            res.json({
+                success: true,
+                message: 'Counter-offer accepted! Your quote has been updated.',
+                data: { new_price: quotation.counter_offer_price }
+            });
+        } else {
+            // Pro declines: revert to pending, clear counter-offer fields
+            const { error: updateError } = await supabaseAdmin
+                .from('booking_quotations')
+                .update({
+                    status: 'pending',
+                    counter_offer_price: null,
+                    counter_offer_message: null,
+                    counter_offered_at: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', quotationId);
+
+            if (updateError) {
+                logger.error('Decline counter-offer update error', { error: updateError.message });
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to decline counter-offer'
+                });
+            }
+
+            // Notify homeowner
+            if (booking) {
+                await createNotification(booking.user_id, {
+                    type: 'booking',
+                    title: 'Counter-Offer Declined',
+                    message: `${quotation.pro_profiles.business_name || 'A pro'} declined your counter-offer for ${booking.service_name}. You can still accept their original quote or submit another counter-offer.`,
+                    link: `/my-jobs`,
+                    data: { booking_id: quotation.booking_id, quotation_id: quotationId }
+                });
+            }
+
+            logger.info('Pro declined counter-offer', {
+                quotationId,
+                proId: quotation.pro_id
+            });
+
+            res.json({
+                success: true,
+                message: 'Counter-offer declined. Your original quote remains active.',
+                data: { original_price: quotation.quoted_price }
+            });
+        }
+    } catch (error) {
+        logger.error('Respond to counter-offer controller error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to respond to counter-offer'
+        });
+    }
+};
+
 // ==================== ADMIN: MULTI-QUOTATION MANAGEMENT ====================
 
 /**
@@ -1604,18 +1928,23 @@ exports.acceptQuotation = async (req, res) => {
  */
 exports.getAllQuotations = async (req, res) => {
     try {
+        const { limit = 20, offset = 0 } = req.query;
+        const limitNum = parseInt(limit);
+        const offsetNum = parseInt(offset);
+
         logger.info('getAllQuotations called');
         
         // Step 1: Get all bookings with awaiting_quotes or quote_approved status
-        const { data: bookingsData, error: bookingsError } = await supabaseAdmin
+        const { data: bookingsData, error: bookingsError, count } = await supabaseAdmin
             .from('bookings')
             .select(`
                 *,
                 services (id, name, image_url),
                 profiles!bookings_user_id_fkey (id, full_name, email, phone)
-            `)
+            `, { count: 'exact' })
             .in('status', ['awaiting_quotes', 'quote_approved'])
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(offsetNum, offsetNum + limitNum - 1);
 
         if (bookingsError) {
             logger.error('Get bookings error', { error: bookingsError.message });
@@ -1694,7 +2023,14 @@ exports.getAllQuotations = async (req, res) => {
 
         res.json({
             success: true,
-            data: { bookings: bookingsWithQuotes }
+            data: { 
+                bookings: bookingsWithQuotes,
+                pagination: {
+                    limit: limitNum,
+                    offset: offsetNum,
+                    total: count
+                }
+            }
         });
     } catch (error) {
         logger.error('Get all quotations controller error', { error: error.message, stack: error.stack });
@@ -1840,6 +2176,8 @@ exports.selectQuotation = async (req, res) => {
             price: finalPrice,
             adminId: req.user.id 
         });
+
+        await writeAuditLog(req.user.id, 'select_quotation', 'booking', bookingId, { quotationId, proId: quotation.pro_profiles.id, price: finalPrice });
 
         res.json({
             success: true,
@@ -2014,18 +2352,6 @@ exports.getAvailableProsForQuote = async (req, res) => {
     }
 };
 
-// Helper function to calculate distance between two coordinates (in km)
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
-
 /**
  * Admin: Assign pros to a quote request
  * POST /api/bookings/admin/assign-pros
@@ -2117,6 +2443,8 @@ exports.assignProsToQuote = async (req, res) => {
             assignedCount: createdAssignments?.length,
             adminId: req.user.id 
         });
+
+        await writeAuditLog(req.user.id, 'assign_pros_to_quote', 'booking', bookingId, { proIds, assignedCount: createdAssignments?.length });
 
         res.json({
             success: true,
@@ -2233,6 +2561,8 @@ exports.directOfferToPro = async (req, res) => {
             proId,
             adminId: req.user.id
         });
+
+        await writeAuditLog(req.user.id, 'direct_offer_to_pro', 'booking', bookingId, { proId });
 
         res.json({
             success: true,
@@ -2388,7 +2718,11 @@ exports.getBookingAssignments = async (req, res) => {
  */
 exports.getAllProofs = async (req, res) => {
     try {
-        const { data: proofs, error } = await supabaseAdmin
+        const { limit = 20, offset = 0 } = req.query;
+        const limitNum = parseInt(limit);
+        const offsetNum = parseInt(offset);
+
+        const { data: proofs, error, count } = await supabaseAdmin
             .from('job_proof')
             .select(`
                 *,
@@ -2406,8 +2740,9 @@ exports.getAllProofs = async (req, res) => {
                     business_name,
                     profiles (full_name, email)
                 )
-            `)
-            .order('submitted_at', { ascending: false });
+            `, { count: 'exact' })
+            .order('submitted_at', { ascending: false })
+            .range(offsetNum, offsetNum + limitNum - 1);
 
         if (error) {
             logger.error('Get all proofs error', { error: error.message });
@@ -2416,7 +2751,14 @@ exports.getAllProofs = async (req, res) => {
 
         res.json({
             success: true,
-            data: { proofs }
+            data: { 
+                proofs,
+                pagination: {
+                    limit: limitNum,
+                    offset: offsetNum,
+                    total: count
+                }
+            }
         });
     } catch (error) {
         logger.error('Get all proofs controller error', { error: error.message });

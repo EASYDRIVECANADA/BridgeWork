@@ -112,6 +112,24 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const clientIp = req.ip;
+
+        // FR-1.6: Check for account lockout (5 failed attempts in 15 minutes)
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const { data: recentFailures } = await supabaseAdmin
+            .from('login_attempts')
+            .select('id')
+            .eq('email', email.toLowerCase())
+            .eq('success', false)
+            .gte('attempted_at', fifteenMinutesAgo);
+
+        if (recentFailures && recentFailures.length >= 5) {
+            logger.warn('Account locked due to too many failed attempts', { email });
+            return res.status(429).json({
+                success: false,
+                message: 'Too many failed login attempts. Please try again in 15 minutes.'
+            });
+        }
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -119,12 +137,22 @@ exports.login = async (req, res) => {
         });
 
         if (error) {
+            // Record the failed attempt
+            await supabaseAdmin
+                .from('login_attempts')
+                .insert({ email: email.toLowerCase(), ip_address: clientIp, success: false });
+
             logger.warn('Login failed', { email, error: error.message });
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
             });
         }
+
+        // Record the successful attempt (clears lockout context)
+        await supabaseAdmin
+            .from('login_attempts')
+            .insert({ email: email.toLowerCase(), ip_address: clientIp, success: true });
 
         const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
@@ -148,7 +176,7 @@ exports.login = async (req, res) => {
             await supabase.auth.signOut();
             return res.status(403).json({
                 success: false,
-                message: 'Your account has been deactivated. Please contact support.'
+                message: 'Your account was deactivated'
             });
         }
 
@@ -321,7 +349,27 @@ exports.changePassword = async (req, res) => {
     try {
         const { current_password, new_password } = req.body;
 
-        const { error } = await supabase.auth.updateUser({
+        if (!current_password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Current password is required'
+            });
+        }
+
+        // Verify current password by attempting sign-in (BUG-004 fix)
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+            email: req.user.email,
+            password: current_password
+        });
+
+        if (verifyError) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, {
             password: new_password
         });
 
@@ -397,6 +445,14 @@ exports.resetPassword = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Password must be at least 8 characters'
+            });
+        }
+
+        const passwordComplexityRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+        if (!passwordComplexityRegex.test(new_password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must contain at least one uppercase letter, one number, and one special character'
             });
         }
 

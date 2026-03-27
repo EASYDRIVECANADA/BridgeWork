@@ -57,7 +57,7 @@ export default function MessagesPage() {
         const booking = res.data.data.booking;
         setBookingInfo(booking);
       } catch (err) {
-        console.log('[MESSAGES] Could not load booking info');
+        // Could not load booking info
       }
     };
     loadBookingInfo();

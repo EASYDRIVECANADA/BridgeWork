@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const emailService = require('../services/emailService');
 const notificationService = require('../services/notificationService');
+const { writeAuditLog } = require('../services/auditService');
 
 // Fields that require admin approval when changed
 const APPROVAL_REQUIRED_FIELDS = [
@@ -332,6 +333,8 @@ exports.adminApproveRequest = async (req, res) => {
             fields: Object.keys(request.requested_changes)
         });
 
+        await writeAuditLog(req.profile.id, 'approve_profile_update', 'pro_profile', request.pro_profile_id, { requestId: id, fields: Object.keys(request.requested_changes) });
+
         res.json({
             success: true,
             message: 'Profile update approved and applied successfully'
@@ -427,6 +430,8 @@ exports.adminRejectRequest = async (req, res) => {
             reason
         });
 
+        await writeAuditLog(req.profile.id, 'reject_profile_update', 'pro_profile', id, { reason });
+
         res.json({
             success: true,
             message: 'Profile update request rejected'
@@ -492,6 +497,8 @@ exports.adminUpdateProProfile = async (req, res) => {
             updatedBy: req.profile.id,
             fields: Object.keys(filteredUpdates)
         });
+
+        await writeAuditLog(req.profile.id, 'admin_update_pro_profile', 'pro_profile', proProfileId, { fields: Object.keys(filteredUpdates) });
 
         res.json({
             success: true,

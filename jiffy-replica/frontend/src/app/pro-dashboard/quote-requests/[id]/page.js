@@ -35,6 +35,7 @@ export default function SubmitQuotePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [taxRate, setTaxRate] = useState(13); // Default 13%, will be fetched from API
+  const [respondingCounterOffer, setRespondingCounterOffer] = useState(false);
   
   // Form state
   const [yourPrice, setYourPrice] = useState('');
@@ -86,7 +87,6 @@ export default function SubmitQuotePage() {
         setTaxRate(rate);
       }
     } catch (err) {
-      console.error('Failed to fetch tax rate:', err);
       // Keep default 13%
     }
   };
@@ -148,7 +148,6 @@ export default function SubmitQuotePage() {
         setNotes(originalNotes);
       }
     } catch (err) {
-      console.error('Failed to fetch quote request:', err);
       toast.error('Failed to load quote request');
       router.push('/pro-dashboard/quote-requests');
     } finally {
@@ -187,7 +186,6 @@ export default function SubmitQuotePage() {
       toast.success(myQuotation ? 'Quotation updated successfully!' : 'Quotation submitted successfully!');
       router.push('/pro-dashboard/quote-requests');
     } catch (err) {
-      console.error('Failed to submit quotation:', err);
       toast.error(err.response?.data?.message || 'Failed to submit quotation');
     } finally {
       setSubmitting(false);
@@ -302,17 +300,81 @@ export default function SubmitQuotePage() {
 
             {/* Existing Quote Status */}
             {myQuotation && (
-              <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
+              <div className={`mt-4 p-4 rounded-lg border ${myQuotation.status === 'counter_offered' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-100'}`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <p className="text-sm font-medium text-green-800">Quote Already Submitted</p>
+                  <CheckCircle className={`w-4 h-4 ${myQuotation.status === 'counter_offered' ? 'text-amber-600' : 'text-green-600'}`} />
+                  <p className={`text-sm font-medium ${myQuotation.status === 'counter_offered' ? 'text-amber-800' : 'text-green-800'}`}>
+                    {myQuotation.status === 'counter_offered' ? 'Counter-Offer Received' : 'Quote Already Submitted'}
+                  </p>
                 </div>
-                <p className="text-sm text-green-700">
+                <p className={`text-sm ${myQuotation.status === 'counter_offered' ? 'text-amber-700' : 'text-green-700'}`}>
                   Your quote: <span className="font-bold">${parseFloat(myQuotation.quoted_price).toFixed(2)}</span>
                 </p>
                 <p className="text-xs text-green-600 mt-1">
-                  Status: {myQuotation.status === 'selected' ? '🎉 Selected!' : myQuotation.status === 'rejected' ? 'Not selected' : 'Pending review'}
+                  Status: {myQuotation.status === 'selected' ? '🎉 Selected!' : myQuotation.status === 'rejected' ? 'Not selected' : myQuotation.status === 'counter_offered' ? '⚡ Counter-offer received' : 'Pending review'}
                 </p>
+              </div>
+            )}
+
+            {/* Counter-Offer Section */}
+            {myQuotation?.status === 'counter_offered' && myQuotation.counter_offer_price && (
+              <div className="mt-4 p-4 bg-amber-50 rounded-xl border-2 border-amber-300">
+                <h4 className="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Customer Counter-Offer
+                </h4>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-2xl font-bold text-amber-900">
+                    ${parseFloat(myQuotation.counter_offer_price).toFixed(2)}
+                  </span>
+                  <span className="text-sm text-amber-700 line-through">
+                    ${parseFloat(myQuotation.quoted_price).toFixed(2)}
+                  </span>
+                </div>
+                {myQuotation.counter_offer_message && (
+                  <p className="text-sm text-amber-800 bg-white/60 rounded-lg p-2 mb-3 italic">
+                    "{myQuotation.counter_offer_message}"
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setRespondingCounterOffer(true);
+                      try {
+                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'accept' });
+                        toast.success('Counter-offer accepted! Your quote has been updated.');
+                        fetchQuoteRequest();
+                      } catch (err) {
+                        toast.error(err?.response?.data?.message || 'Failed to accept counter-offer');
+                      } finally {
+                        setRespondingCounterOffer(false);
+                      }
+                    }}
+                    disabled={respondingCounterOffer}
+                    className="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    {respondingCounterOffer ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    Accept Counter-Offer
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setRespondingCounterOffer(true);
+                      try {
+                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'decline' });
+                        toast.info('Counter-offer declined. Your original quote remains active.');
+                        fetchQuoteRequest();
+                      } catch (err) {
+                        toast.error(err?.response?.data?.message || 'Failed to decline counter-offer');
+                      } finally {
+                        setRespondingCounterOffer(false);
+                      }
+                    }}
+                    disabled={respondingCounterOffer}
+                    className="flex-1 py-2.5 border-2 border-red-300 text-red-700 font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    Decline
+                  </button>
+                </div>
               </div>
             )}
           </div>

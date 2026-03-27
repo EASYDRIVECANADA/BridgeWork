@@ -40,6 +40,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!/[A-Z]/.test(formData.password) || !/\d/.test(formData.password) || !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
+      toast.error('Password must contain at least one uppercase letter, one number, and one special character');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -138,8 +143,8 @@ export default function SignupPage() {
               {/* Benefit 3 */}
               <div className="flex flex-col items-center text-center">
                 <div className="w-14 h-14 bg-[#0E7480] rounded-2xl flex items-center justify-center mb-3 shadow-sm">
-                  <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="12" fontWeight="bold">BridgeWork+</text>
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-0.5">Save $25 off every</h3>

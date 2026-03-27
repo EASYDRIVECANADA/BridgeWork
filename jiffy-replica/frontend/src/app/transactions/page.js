@@ -49,7 +49,7 @@ export default function TransactionsPage() {
       setTransactions(data?.transactions || []);
       setPagination(data?.pagination || { limit: 10, offset: 0, total: 0 });
     } catch (err) {
-      console.error('[TRANSACTIONS] Error:', err);
+      // Transaction fetch error
     }
     setLoading(false);
   };

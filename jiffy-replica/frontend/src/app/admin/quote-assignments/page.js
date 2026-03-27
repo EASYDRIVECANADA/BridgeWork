@@ -47,7 +47,6 @@ export default function AdminQuoteAssignmentsPage() {
       const res = await bookingsAPI.getPendingAssignments();
       setPendingBookings(res.data?.data?.bookings || []);
     } catch (err) {
-      console.error('Failed to fetch pending assignments:', err);
       toast.error('Failed to load pending quote requests');
     } finally {
       setLoading(false);
@@ -70,7 +69,6 @@ export default function AdminQuoteAssignmentsPage() {
       const res = await bookingsAPI.getAvailableProsForQuote(bookingId);
       setAvailablePros(res.data?.data?.pros || []);
     } catch (err) {
-      console.error('Failed to fetch available pros:', err);
       toast.error('Failed to load available pros');
     } finally {
       setLoadingPros(false);
@@ -99,7 +97,6 @@ export default function AdminQuoteAssignmentsPage() {
       setAvailablePros([]);
       fetchPendingAssignments();
     } catch (err) {
-      console.error('Failed to offer booking to pro:', err);
       toast.error(err.response?.data?.message || 'Failed to offer booking to pro');
     } finally {
       setAssigning(false);

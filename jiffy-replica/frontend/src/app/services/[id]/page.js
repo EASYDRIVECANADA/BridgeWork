@@ -164,9 +164,7 @@ export default function ServiceDetailPage() {
         // First try direct ID lookup (works if serviceId is a UUID)
         const res = await servicesAPI.getById(serviceId);
         setApiService(res.data.data.service);
-        console.log('[SERVICE] Found service by ID:', res.data.data.service?.name);
       } catch (err) {
-        console.log('[SERVICE] Service not found by ID, trying name match...');
         // If numeric ID (mock), find the mock service name and match to a real DB service
         try {
           const allRes = await servicesAPI.getAll();
@@ -181,7 +179,6 @@ export default function ServiceDetailPage() {
               );
               if (matched) {
                 setApiService(matched);
-                console.log('[SERVICE] Matched DB service by name:', matched.name);
               } else {
                 // Try partial/fuzzy match (e.g. "Plumbing" matches "Plumbing Repair")
                 const partial = dbServices.find(
@@ -191,20 +188,17 @@ export default function ServiceDetailPage() {
                 );
                 if (partial) {
                   setApiService(partial);
-                  console.log('[SERVICE] Partial matched DB service:', partial.name);
                 } else {
                   // No exact/partial match — use first DB service as fallback so booking works
                   // The correct mock service name will be sent via service_name override
                   setApiService({ ...dbServices[0], _fallbackName: mockService.name });
-                  console.log('[SERVICE] No DB name match for:', mockService.name, '- using fallback service ID for booking');
                 }
               }
             } else {
-              console.log('[SERVICE] Mock service not found for ID:', serviceId);
             }
           }
         } catch (e) {
-          console.log('[SERVICE] Could not fetch services list, using mock data only');
+          // Using mock data only
         }
       }
       setLoadingService(false);
@@ -234,7 +228,6 @@ export default function ServiceDetailPage() {
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    console.log('[BOOKING] handleBookingSubmit called', { user: !!user, apiService: !!apiService, serviceId });
     if (!user) {
       toast.info('Please log in to book a service.');
       router.push('/login');
@@ -273,10 +266,8 @@ export default function ServiceDetailPage() {
       // If we used a fallback service, override the name with the correct mock service name
       ...(apiService?._fallbackName ? { service_name_override: apiService._fallbackName } : {}),
     };
-    console.log('[BOOKING] Sending payload:', payload);
     try {
       const res = await bookingsAPI.create(payload);
-      console.log('[BOOKING] Success:', res.data);
       const newBooking = res.data.data.booking;
       
       // Check if this is a Free Quote booking (status will be 'quote_pending')
@@ -294,7 +285,6 @@ export default function ServiceDetailPage() {
         router.push(`/checkout/${newBooking.id}`);
       }
     } catch (err) {
-      console.error('[BOOKING] Error:', err.response?.status, err.response?.data || err.message);
       toast.error(err.response?.data?.message || 'Failed to create booking. Please try again.');
     }
     setSubmitting(false);

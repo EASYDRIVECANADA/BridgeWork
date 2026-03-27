@@ -117,7 +117,7 @@ export default function AdminRevenuePage() {
       });
       setTaxSettings(newTaxSettings);
     } catch (err) {
-      console.error('[ADMIN] Tax settings error:', err);
+      // Tax settings unavailable
     }
     setTaxLoading(false);
   };
@@ -148,7 +148,6 @@ export default function AdminRevenuePage() {
       const res = await paymentsAPI.adminRevenue();
       setRevenue(res.data?.data || null);
     } catch (err) {
-      console.error('[ADMIN] Revenue error:', err);
       toast.error('Failed to load revenue data');
     }
     setLoading(false);
@@ -166,7 +165,7 @@ export default function AdminRevenuePage() {
       setAllInvoices(iRes.data?.data?.invoices || []);
       setQuoteInvoices(qiRes.data?.data?.invoices || []);
     } catch (err) {
-      console.error('[ADMIN] Quotes/Invoices error:', err);
+      // Quotes/Invoices fetch error
     }
     setQiLoading(false);
   };
@@ -177,7 +176,7 @@ export default function AdminRevenuePage() {
       const res = await prosAPI.adminList();
       setPros(res.data?.data?.pros || []);
     } catch (err) {
-      console.error('[ADMIN] Pros list error:', err);
+      // Pros list fetch error
     }
     setProsLoading(false);
   };
@@ -236,7 +235,6 @@ export default function AdminRevenuePage() {
     try {
       await generateInvoicePDF(invoice);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
       toast.error('Failed to generate PDF');
     }
     setDownloadingPdfId(null);

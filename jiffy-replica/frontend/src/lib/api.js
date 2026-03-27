@@ -46,7 +46,7 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshErr) {
-        console.error('Token refresh failed:', refreshErr);
+        // Token refresh failed
       }
     }
     
@@ -95,7 +95,7 @@ export const bookingsAPI = {
   removeProAssignment: (bookingId, proId) => api.delete(`/bookings/admin/assignments/${bookingId}/${proId}`),
   
   // Admin: Multi-quotation management
-  getAllQuotations: () => api.get('/bookings/admin/quotations'),
+  getAllQuotations: (params) => api.get('/bookings/admin/quotations', { params }),
   selectQuotation: (bookingId, quotationId, data) => api.put(`/bookings/admin/quotations/${bookingId}/select/${quotationId}`, data),
   
   // Admin: Legacy Quote Requests (backward compatibility)
@@ -104,13 +104,15 @@ export const bookingsAPI = {
   cancelQuoteRequest: (id, data) => api.delete(`/bookings/admin/quote-requests/${id}`, { data }),
   
   // Admin: Proofs & Disputes
-  getAllProofs: () => api.get('/bookings/admin/proofs'),
+  getAllProofs: (params) => api.get('/bookings/admin/proofs', { params }),
   getAllDisputes: () => api.get('/bookings/admin/disputes'),
   getDisputeDetails: (bookingId) => api.get(`/bookings/admin/disputes/${bookingId}`),
   
   // Homeowner: Quotation acceptance
   getBookingQuotations: (bookingId) => api.get(`/bookings/${bookingId}/quotations`),
   acceptQuotation: (bookingId, quotationId) => api.post(`/bookings/${bookingId}/quotations/${quotationId}/accept`),
+  counterOfferQuotation: (bookingId, quotationId, data) => api.post(`/bookings/${bookingId}/quotations/${quotationId}/counter-offer`, data),
+  respondToCounterOffer: (quotationId, data) => api.post(`/bookings/pro/quotations/${quotationId}/respond-counter-offer`, data),
 };
 
 export const prosAPI = {
@@ -118,6 +120,7 @@ export const prosAPI = {
   getById: (id) => api.get(`/pros/${id}`),
   apply: (data) => api.post('/pros/apply', data),
   getJobs: (params) => api.get('/pros/jobs/list', { params }),
+  getJobHistory: (params) => api.get('/pros/jobs/history', { params }),
   acceptJob: (id) => api.post(`/pros/jobs/${id}/accept`),
   declineJob: (id, data) => api.post(`/pros/jobs/${id}/decline`, data),
   submitProof: (id, data) => api.post(`/pros/jobs/${id}/proof`, data),
@@ -139,6 +142,8 @@ export const prosAPI = {
   updateProfile: (data) => api.patch('/pros/profile', data),
   getStatistics: () => api.get('/pros/statistics/me'),
   getMyProfile: () => api.get('/pros/profile/me'),
+  getAvailability: () => api.get('/pros/availability'),
+  updateAvailability: (data) => api.put('/pros/availability', data),
   // Admin
   adminList: () => api.get('/pros/admin/list'),
   setCommission: (id, data) => api.patch(`/pros/${id}/commission`, data),
@@ -250,11 +255,24 @@ export const supportChatAPI = {
 export const payoutsAPI = {
   // Pro endpoints
   getMyEarnings: () => api.get('/payouts/my-earnings'),
+  getMyWithdrawals: () => api.get('/payouts/my-withdrawals'),
+  getWithdrawalSettings: () => api.get('/payouts/withdrawal-settings'),
+  requestWithdrawal: (data) => api.post('/payouts/withdrawals/request', data),
   updatePayoutMethod: (data) => api.put('/payouts/payout-method', data),
   // Admin endpoints
   getPendingPayouts: () => api.get('/payouts/admin/pending'),
   getPayoutHistory: () => api.get('/payouts/admin/history'),
   getProDetail: (proProfileId) => api.get(`/payouts/admin/pro/${proProfileId}`),
+  getWithdrawalRequests: (params) => api.get('/payouts/admin/withdrawals', { params }),
+  approveWithdrawalRequest: (id, data) => api.patch(`/payouts/admin/withdrawals/${id}/approve`, data),
+  rejectWithdrawalRequest: (id, data) => api.patch(`/payouts/admin/withdrawals/${id}/reject`, data),
+  processWithdrawalRequest: (id, data) => api.post(`/payouts/admin/withdrawals/${id}/process`, data),
+  getPayoutSettings: () => api.get('/payouts/admin/settings'),
+  updatePayoutSettings: (data) => api.put('/payouts/admin/settings', data),
+  getPayoutCalendar: () => api.get('/payouts/admin/calendar'),
+  createPayoutCalendarEntry: (data) => api.post('/payouts/admin/calendar', data),
+  updatePayoutCalendarEntry: (id, data) => api.patch(`/payouts/admin/calendar/${id}`, data),
+  deletePayoutCalendarEntry: (id) => api.delete(`/payouts/admin/calendar/${id}`),
   recordPayout: (data) => api.post('/payouts/admin/record-payout', data),
 };
 
@@ -275,6 +293,13 @@ export const adminManageAPI = {
   listAdmins: () => api.get('/admin/manage-admins/admins'),
   updatePermissions: (id, permissions) => api.patch(`/admin/manage-admins/admins/${id}/permissions`, { admin_permissions: permissions }),
   toggleActive: (id) => api.patch(`/admin/manage-admins/admins/${id}/toggle-active`),
+};
+
+export const notificationsAPI = {
+  getAll: (params) => api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAsRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.patch('/notifications/read-all'),
 };
 
 export default api;

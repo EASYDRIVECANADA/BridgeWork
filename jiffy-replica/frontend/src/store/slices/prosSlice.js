@@ -14,6 +14,18 @@ export const fetchProJobs = createAsyncThunk(
   }
 );
 
+export const fetchProJobHistory = createAsyncThunk(
+  'pros/fetchProJobHistory',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await prosAPI.getJobHistory(params);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch job history');
+    }
+  }
+);
+
 // Accept a job
 export const acceptJob = createAsyncThunk(
   'pros/acceptJob',
@@ -179,6 +191,24 @@ const prosSlice = createSlice({
         state.jobsPagination = action.payload.pagination;
       })
       .addCase(fetchProJobs.rejected, (state, action) => {
+        state._jobsLoadingCount = Math.max(0, (state._jobsLoadingCount || 1) - 1);
+        if (state._jobsLoadingCount === 0) state.loading.jobs = false;
+        state.error = action.payload;
+      })
+
+      // Fetch Pro Job History
+      .addCase(fetchProJobHistory.pending, (state) => {
+        state._jobsLoadingCount = (state._jobsLoadingCount || 0) + 1;
+        state.loading.jobs = true;
+        state.error = null;
+      })
+      .addCase(fetchProJobHistory.fulfilled, (state, action) => {
+        state._jobsLoadingCount = Math.max(0, (state._jobsLoadingCount || 1) - 1);
+        if (state._jobsLoadingCount === 0) state.loading.jobs = false;
+        state.jobHistory = action.payload.jobs || [];
+        state.jobsPagination = action.payload.pagination;
+      })
+      .addCase(fetchProJobHistory.rejected, (state, action) => {
         state._jobsLoadingCount = Math.max(0, (state._jobsLoadingCount || 1) - 1);
         if (state._jobsLoadingCount === 0) state.loading.jobs = false;
         state.error = action.payload;

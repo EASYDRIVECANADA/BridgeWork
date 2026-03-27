@@ -56,6 +56,8 @@ router.post('/apply', authenticate,
 
 router.get('/jobs/list', authenticate, authorize('pro'), prosController.getProJobs);
 
+router.get('/jobs/history', authenticate, authorize('pro'), prosController.getProJobHistory);
+
 router.post('/jobs/:id/accept', authenticate, authorize('pro'),
     [
         param('id').isUUID(),
@@ -117,6 +119,21 @@ const avatarUpload = multer({
 router.post('/avatar', authenticate, avatarUpload.single('avatar'), prosController.uploadAvatar);
 
 router.get('/statistics/me', authenticate, authorize('pro'), prosController.getProStatistics);
+
+router.get('/availability', authenticate, authorize('pro'), prosController.getMyAvailability);
+
+router.put('/availability',
+    authenticate,
+    authorize('pro'),
+    [
+        body('schedule').isArray({ min: 0, max: 7 }).withMessage('schedule must be an array of up to 7 days'),
+        body('schedule.*.day_of_week').isInt({ min: 0, max: 6 }),
+        body('schedule.*.start_time').matches(/^\d{2}:\d{2}$/).withMessage('start_time must be HH:MM'),
+        body('schedule.*.end_time').matches(/^\d{2}:\d{2}$/).withMessage('end_time must be HH:MM'),
+        validate,
+    ],
+    prosController.updateMyAvailability
+);
 
 router.patch('/:id/commission', authenticate, authorize('admin'),
     [

@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 const logger = require('./utils/logger');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { supabaseAdmin } = require('./config/supabase');
+const { supabase } = require('./config/supabase');
 
 const authRoutes = require('./routes/auth');
 const servicesRoutes = require('./routes/services');
@@ -29,6 +30,8 @@ const proProfileUpdatesRoutes = require('./routes/proProfileUpdates');
 const payoutsRoutes = require('./routes/payouts');
 const invoiceRoutes = require('./routes/invoice');
 const adminManageRoutes = require('./routes/adminManage');
+const notificationsRoutes = require('./routes/notifications');
+const { startHoldExpirationJob } = require('./services/holdExpirationJob');
 
 const app = express();
 
@@ -142,80 +145,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Temporary diagnostic endpoint — REMOVE after debugging
-app.get('/debug/env-check', async (req, res) => {
-    const checks = {
-        hasSupabaseUrl: !!process.env.SUPABASE_URL,
-        hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
-        serviceKeyPrefix: process.env.SUPABASE_SERVICE_KEY?.substring(0, 10) + '...',
-        nodeEnv: process.env.NODE_ENV,
-        frontendUrl: process.env.FRONTEND_URL,
-    };
-    // Check Stripe key
-    checks.hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-    checks.stripeKeyPrefix = process.env.STRIPE_SECRET_KEY?.substring(0, 12) + '...';
-    try {
-        const stripe = require('./config/stripe');
-        const bal = await stripe.balance.retrieve();
-        checks.stripeConnected = true;
-        checks.stripeCurrency = bal.available?.[0]?.currency;
-    } catch (e) {
-        checks.stripeConnected = false;
-        checks.stripeError = e.message;
-    }
-    // Raw HTTPS test to Stripe (bypass SDK)
-    try {
-        const result = await new Promise((resolve, reject) => {
-            const https = require('https');
-            const opts = {
-                hostname: 'api.stripe.com',
-                path: '/v1/balance',
-                method: 'GET',
-                headers: { 'Authorization': 'Bearer ' + process.env.STRIPE_SECRET_KEY },
-                timeout: 10000,
-            };
-            const req = https.request(opts, res => {
-                let b = ''; res.on('data', c => b += c);
-                res.on('end', () => resolve({ status: res.statusCode, body: b.substring(0, 200) }));
-            });
-            req.on('error', e => reject(e));
-            req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-            req.end();
-        });
-        checks.stripeRawTest = result.status;
-        checks.stripeRawOk = result.status === 200;
-    } catch (e) {
-        checks.stripeRawTest = 'failed';
-        checks.stripeRawError = e.message;
-    }
-    // Test supabaseAdmin can read
-    try {
-        const { data, error } = await supabaseAdmin.from('profiles').select('id').limit(1);
-        checks.adminCanRead = !error;
-        checks.adminReadError = error?.message || null;
-    } catch (e) {
-        checks.adminCanRead = false;
-        checks.adminReadError = e.message;
-    }
-    // Test supabaseAdmin can write (insert + delete)
-    try {
-        const testId = '00000000-0000-0000-0000-000000000001';
-        const { error: insertErr } = await supabaseAdmin.from('profiles').upsert({
-            id: testId, email: 'diag_test@test.com', full_name: 'Diag', role: 'user'
-        });
-        checks.adminCanWrite = !insertErr;
-        checks.adminWriteError = insertErr?.message || null;
-        if (!insertErr) {
-            await supabaseAdmin.from('profiles').delete().eq('id', testId);
-        }
-    } catch (e) {
-        checks.adminCanWrite = false;
-        checks.adminWriteError = e.message;
-    }
-    res.json(checks);
-});
-
 app.use('/api/auth', authRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/bookings', bookingsRoutes);
@@ -233,6 +162,7 @@ app.use('/api/admin/manage-admins', adminManageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/pro-profile-updates', proProfileUpdatesRoutes);
 app.use('/api/payouts', payoutsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api', invoiceRoutes);
 
 // Serve uploaded images
@@ -259,14 +189,31 @@ app.post('/api/contact', async (req, res) => {
 
 const userSockets = new Map();
 
-io.on('connection', (socket) => {
-    logger.info('Client connected', { socketId: socket.id });
+// Socket.IO JWT authentication middleware — reject unauthenticated connections
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+            return next(new Error('Authentication required'));
+        }
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error || !user) {
+            return next(new Error('Invalid or expired token'));
+        }
+        socket.userId = user.id;
+        socket.userEmail = user.email;
+        next();
+    } catch (err) {
+        logger.error('Socket auth middleware error', { error: err.message });
+        next(new Error('Authentication failed'));
+    }
+});
 
-    socket.on('authenticate', (userId) => {
-        userSockets.set(userId, socket.id);
-        socket.userId = userId;
-        logger.info('User authenticated on socket', { userId, socketId: socket.id });
-    });
+io.on('connection', (socket) => {
+    logger.info('Client connected', { socketId: socket.id, userId: socket.userId });
+
+    // Register authenticated user's socket
+    userSockets.set(socket.userId, socket.id);
 
     socket.on('join_booking', (bookingId) => {
         socket.join(`booking_${bookingId}`);
@@ -373,6 +320,9 @@ httpServer.listen(PORT, () => {
     logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
+
+    // Start scheduled jobs
+    startHoldExpirationJob();
 });
 
 process.on('unhandledRejection', (err) => {

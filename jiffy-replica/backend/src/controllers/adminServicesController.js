@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const multer = require('multer');
 const path = require('path');
+const { writeAuditLog } = require('../services/auditService');
 
 // Configure multer with memory storage for Supabase Storage uploads
 const upload = multer({
@@ -121,6 +122,8 @@ exports.createCategory = async (req, res) => {
 
         logger.info('Category created', { categoryId: data.id, name });
 
+        await writeAuditLog(req.profile.id, 'create_category', 'category', data.id, { name, slug });
+
         res.status(201).json({
             success: true,
             message: 'Category created successfully',
@@ -182,6 +185,8 @@ exports.updateCategory = async (req, res) => {
 
         logger.info('Category updated', { categoryId: id });
 
+        await writeAuditLog(req.profile.id, 'update_category', 'category', id, { fields: Object.keys(updates) });
+
         res.json({
             success: true,
             message: 'Category updated successfully',
@@ -235,6 +240,8 @@ exports.deleteCategory = async (req, res) => {
         }
 
         logger.info('Category permanently deleted', { categoryId: id });
+
+        await writeAuditLog(req.profile.id, 'delete_category', 'category', id);
 
         res.json({
             success: true,
@@ -386,6 +393,8 @@ exports.createService = async (req, res) => {
 
         logger.info('Service created', { serviceId: data.id, name });
 
+        await writeAuditLog(req.profile.id, 'create_service', 'service', data.id, { name, slug, pricing_type });
+
         res.status(201).json({
             success: true,
             message: 'Service created successfully',
@@ -465,6 +474,8 @@ exports.updateService = async (req, res) => {
 
         logger.info('Service updated', { serviceId: id });
 
+        await writeAuditLog(req.profile.id, 'update_service', 'service', id, { fields: Object.keys(updates) });
+
         res.json({
             success: true,
             message: 'Service updated successfully',
@@ -505,6 +516,8 @@ exports.deleteService = async (req, res) => {
         }
 
         logger.info('Service permanently deleted', { serviceId: id });
+
+        await writeAuditLog(req.profile.id, 'delete_service', 'service', id);
 
         res.json({
             success: true,

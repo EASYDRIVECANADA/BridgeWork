@@ -70,7 +70,10 @@ router.post('/admin/reject/:proProfileId', authenticate, authorize('admin'),
 router.post('/admin/create-pro', authenticate, authorize('admin'),
     [
         body('email').isEmail().withMessage('Valid email is required'),
-        body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+        body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+            .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/).withMessage('Password must contain at least one special character'),
         body('full_name').trim().notEmpty().withMessage('Full name is required'),
         validate
     ],

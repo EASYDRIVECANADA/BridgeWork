@@ -588,6 +588,9 @@ exports.approveApplication = async (req, res) => {
             data: { type: 'application_approved' }
         });
 
+        const { writeAuditLog } = require('../services/auditService');
+        await writeAuditLog(req.user.id, 'approve_application', 'pro_profile', proProfileId, { commission_rate: updateData.commission_rate });
+
         logger.info('Pro application approved', { proProfileId, adminId: req.user.id });
         res.json({
             success: true,
@@ -641,6 +644,9 @@ exports.rejectApplication = async (req, res) => {
             link: '/pro-onboarding',
             data: { type: 'application_rejected', reason }
         });
+
+        const { writeAuditLog } = require('../services/auditService');
+        await writeAuditLog(req.user.id, 'reject_application', 'pro_profile', proProfileId, { reason });
 
         logger.info('Pro application rejected', { proProfileId, adminId: req.user.id, reason });
         res.json({

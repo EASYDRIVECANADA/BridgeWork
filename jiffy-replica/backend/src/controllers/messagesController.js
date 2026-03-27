@@ -1,4 +1,4 @@
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
 // Get all conversations for the authenticated user (grouped by booking)
@@ -375,7 +375,7 @@ exports.uploadAttachment = async (req, res) => {
         }
 
         // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        const { error: uploadError } = await supabaseAdmin.storage
             .from('attachments')
             .upload(fileName, file.buffer, {
                 contentType: file.mimetype,

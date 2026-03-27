@@ -8,7 +8,6 @@ import { Search, CheckCircle, Clock, Shield, Star, CalendarDays, Sparkles, Wrenc
 import { fetchCategories } from '@/store/slices/servicesSlice';
 import ServiceCategoryCard from '@/components/ServiceCategoryCard';
 import ServiceSearchBar from '@/components/ServiceSearchBar';
-import TestimonialCard from '@/components/TestimonialCard';
 import Image from 'next/image';
 
 export default function HomePage() {
@@ -120,38 +119,11 @@ export default function HomePage() {
     }
   };
 
-  const testimonials = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      rating: 5,
-      comment: 'Amazing service! My handyman arrived within 30 minutes and fixed everything perfectly.',
-      avatar: 'https://via.placeholder.com/100',
-      service: 'Furniture Assembly'
-    },
-    {
-      id: 2,
-      name: 'Michael Chen',
-      rating: 5,
-      comment: 'Professional, quick, and affordable. Highly recommend BridgeWork for any home repairs!',
-      avatar: 'https://via.placeholder.com/100',
-      service: 'Plumbing Repair'
-    },
-    {
-      id: 3,
-      name: 'Emily Rodriguez',
-      rating: 5,
-      comment: 'The pro was courteous and did an excellent job. Will definitely use again!',
-      avatar: 'https://via.placeholder.com/100',
-      service: 'TV Mounting'
-    }
-  ];
-
   const features = [
     {
       icon: <Clock className="w-8 h-8 text-[#0E7480]" />,
-      title: '10-Minute Response',
-      description: 'Get matched with a certified pro in under 10 minutes'
+      title: 'Fast Matching',
+      description: 'Get matched with a certified pro quickly'
     },
     {
       icon: <Shield className="w-8 h-8 text-[#0E7480]" />,
@@ -161,12 +133,12 @@ export default function HomePage() {
     {
       icon: <Star className="w-8 h-8 text-[#0E7480]" />,
       title: 'Top-Rated Pros',
-      description: 'Only the best professionals with 4.8+ ratings'
+      description: 'Only the best vetted professionals'
     },
     {
       icon: <CheckCircle className="w-8 h-8 text-[#0E7480]" />,
-      title: 'Satisfaction Guaranteed',
-      description: 'We resolve any issues or your money back'
+      title: 'Secure Payments',
+      description: 'Funds held in escrow until the job is done'
     }
   ];
 

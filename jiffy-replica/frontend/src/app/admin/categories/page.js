@@ -51,7 +51,7 @@ export default function AdminCategoriesPage() {
         setServices(svcRes.data.data.services);
       }
     } catch (err) {
-      console.error('Failed to fetch data:', err);
+      // Failed to fetch data
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,6 @@ export default function AdminCategoriesPage() {
       });
       return response.data.data.image_url;
     } catch (err) {
-      console.error('Image upload failed:', err);
       return null;
     }
   };

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -9,11 +10,13 @@ import api from '@/lib/api';
 
 function ServicesPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const serviceType = searchParams.get('type') || 'residential';
   const [categories, setCategories] = useState([]);
   const [services, setServices] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,13 +47,19 @@ function ServicesPageContent() {
           setSelectedCategoryId(null);
         }
       } catch (err) {
-        console.error('Failed to fetch services:', err);
+        // Failed to fetch services
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [serviceType]);
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Filter services by selected category (residential) or show all (commercial)
   const filteredServices = (() => {
@@ -62,8 +71,8 @@ function ServicesPageContent() {
     }
 
     // Search filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       list = list.filter(s =>
         s.name.toLowerCase().includes(q) ||
         s.description?.toLowerCase().includes(q) ||
@@ -78,7 +87,7 @@ function ServicesPageContent() {
     e.preventDefault();
     // Always navigate directly to the service booking page
     // The service type selection (Free Quote vs Emergency) will be shown on that page
-    window.location.href = `/services/${service.id}`;
+    router.push(`/services/${service.id}`);
   };
 
   const handleModalSelection = (type) => {
@@ -87,12 +96,12 @@ function ServicesPageContent() {
       if (type === 'rate' || type === 'quote') {
         // For rate-based or quote services (non-emergency)
         if (selectedService.rate === 'quote') {
-          window.location.href = `/services/${selectedService.id}`;
+          router.push(`/services/${selectedService.id}`);
         } else {
-          window.location.href = `/services/${selectedService.id}?type=rate`;
+          router.push(`/services/${selectedService.id}?type=rate`);
         }
       } else if (type === 'emergency') {
-        window.location.href = `/services/${selectedService.id}?type=emergency`;
+        router.push(`/services/${selectedService.id}?type=emergency`);
       }
     }
   };

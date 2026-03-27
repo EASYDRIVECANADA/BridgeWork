@@ -53,7 +53,7 @@ export default function CustomerInvoicesPage() {
     try {
       await generateInvoicePDF(invoice);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
+      // PDF generation failed
     }
     setDownloadingId(null);
   };

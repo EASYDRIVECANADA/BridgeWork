@@ -908,6 +908,259 @@ async function sendProProfileUpdateRejectedEmail(proEmail, proName, changedField
     }
 }
 
+// ─── Pro Payout Notification Email ───────────────────────────────────────────
+function proPayoutNotificationEmailHTML(proName, amount, etransferEmail, securityQuestion, securityAnswer) {
+    const firstName = proName ? proName.split(' ')[0] : 'there';
+    const content = `
+        <h2 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#142841;">
+            Your Payout Has Been Sent!
+        </h2>
+        <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
+            Hi ${firstName}, great news — BridgeWork has sent your earnings via Interac e-Transfer.
+            Check your inbox at the address below and use the security details to accept the transfer.
+        </p>
+
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px 24px;margin:0 0 24px;">
+            <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.05em;">Payout Amount</p>
+            <p style="margin:0;font-size:28px;font-weight:800;color:#15803d;">$${parseFloat(amount).toFixed(2)} CAD</p>
+        </div>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin:0 0 24px;">
+            <p style="margin:0 0 14px;font-size:13px;font-weight:700;color:#142841;text-transform:uppercase;letter-spacing:0.05em;">Transfer Details</p>
+
+            <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px;color:#6b7280;width:45%;">Sent To</td>
+                    <td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#111827;">${etransferEmail}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px;color:#6b7280;">Security Question</td>
+                    <td style="padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#111827;">${securityQuestion}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 0;font-size:13px;color:#6b7280;">Security Answer</td>
+                    <td style="padding:8px 0;font-size:13px;font-weight:700;color:#0E7480;font-size:15px;">${securityAnswer}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;margin:0 0 24px;">
+            <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
+                <strong>How to accept:</strong> Open the Interac e-Transfer notification email from your bank,
+                click "Accept Transfer", enter the security answer exactly as shown above, and choose your deposit account.
+            </p>
+        </div>
+
+        <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
+            If you have any issues accepting the transfer, reply to this email or use the Help chat on BridgeWork.
+            Keep this email safe until the transfer is deposited.
+        </p>
+    `;
+    return wrapInLayout(content);
+}
+
+async function sendProPayoutNotificationEmail(proEmail, proName, amount, etransferEmail, securityQuestion, securityAnswer) {
+    if (!resend) {
+        logger.warn('Email service not configured — skipping payout notification email');
+        return { success: false, error: 'Email service not configured' };
+    }
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [proEmail],
+            subject: `BridgeWork: Your $${parseFloat(amount).toFixed(2)} payout has been sent`,
+            html: proPayoutNotificationEmailHTML(proName, amount, etransferEmail, securityQuestion, securityAnswer),
+        });
+        if (error) {
+            logger.error('Failed to send payout notification email', { error: error.message, to: proEmail });
+            return { success: false, error: error.message };
+        }
+        logger.info('Payout notification email sent', { to: proEmail, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Payout notification email exception', { error: err.message, to: proEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// ─── Booking Cancellation Email Template ────────────────────────────────────
+function bookingCancellationEmailHTML(recipientName, booking, cancelledBy) {
+    const firstName = recipientName ? recipientName.split(' ')[0] : 'there';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Booking Cancelled</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            Hi ${firstName}, your booking <strong>${booking.booking_number || ''}</strong> has been cancelled${cancelledBy ? ` by the ${cancelledBy}` : ''}.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <tr>
+                <td style="background-color:#fef2f2;border-radius:8px;padding:20px 24px;">
+                    <p style="margin:0 0 8px;color:#991b1b;font-size:14px;font-weight:600;">Cancellation Details</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Booking:</strong> ${booking.booking_number || 'N/A'}</td></tr>
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Service:</strong> ${booking.service_name || 'N/A'}</td></tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.7;">
+            If any payment was held, it will be refunded automatically.
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+            <tr>
+                <td style="background-color:#0E7480;border-radius:8px;">
+                    <a href="${frontendUrl}/services" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+                        Browse Services
+                    </a>
+                </td>
+            </tr>
+        </table>`;
+    return wrapInLayout(content);
+}
+
+async function sendBookingCancellationEmail(toEmail, recipientName, booking, cancelledBy) {
+    if (!resend) {
+        logger.warn('Email service not configured — skipping cancellation email');
+        return { success: false, error: 'Email service not configured' };
+    }
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `BridgeWork: Booking ${booking.booking_number || ''} Cancelled`,
+            html: bookingCancellationEmailHTML(recipientName, booking, cancelledBy),
+        });
+        if (error) {
+            logger.error('Failed to send cancellation email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        logger.info('Cancellation email sent', { to: toEmail, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Cancellation email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// ─── Dispute Opened Email Template ──────────────────────────────────────────
+function disputeOpenedEmailHTML(recipientName, booking, reason) {
+    const firstName = recipientName ? recipientName.split(' ')[0] : 'there';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Dispute Opened</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            Hi ${firstName}, a dispute has been opened for booking <strong>${booking.booking_number || ''}</strong>.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <tr>
+                <td style="background-color:#fffbeb;border-radius:8px;padding:20px 24px;">
+                    <p style="margin:0 0 8px;color:#92400e;font-size:14px;font-weight:600;">Dispute Details</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Booking:</strong> ${booking.booking_number || 'N/A'}</td></tr>
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Service:</strong> ${booking.service_name || 'N/A'}</td></tr>
+                        ${reason ? `<tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Reason:</strong> ${reason}</td></tr>` : ''}
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.7;">
+            Our team will review the dispute and reach out within 24–48 hours. You can communicate with the admin through the dispute chat on your dashboard.
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+            <tr>
+                <td style="background-color:#0E7480;border-radius:8px;">
+                    <a href="${frontendUrl}/my-jobs" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+                        View My Jobs
+                    </a>
+                </td>
+            </tr>
+        </table>`;
+    return wrapInLayout(content);
+}
+
+async function sendDisputeOpenedEmail(toEmail, recipientName, booking, reason) {
+    if (!resend) {
+        logger.warn('Email service not configured — skipping dispute opened email');
+        return { success: false, error: 'Email service not configured' };
+    }
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `BridgeWork: Dispute Opened for Booking ${booking.booking_number || ''}`,
+            html: disputeOpenedEmailHTML(recipientName, booking, reason),
+        });
+        if (error) {
+            logger.error('Failed to send dispute opened email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        logger.info('Dispute opened email sent', { to: toEmail, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Dispute opened email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// ─── Dispute Resolved Email Template ────────────────────────────────────────
+function disputeResolvedEmailHTML(recipientName, booking, resolution) {
+    const firstName = recipientName ? recipientName.split(' ')[0] : 'there';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Dispute Resolved</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            Hi ${firstName}, the dispute for booking <strong>${booking.booking_number || ''}</strong> has been resolved.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <tr>
+                <td style="background-color:#f0fdf4;border-radius:8px;padding:20px 24px;">
+                    <p style="margin:0 0 8px;color:#166534;font-size:14px;font-weight:600;">Resolution</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Booking:</strong> ${booking.booking_number || 'N/A'}</td></tr>
+                        <tr><td style="padding:4px 0;color:#374151;font-size:14px;"><strong>Outcome:</strong> ${resolution || 'Resolved by admin'}</td></tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.7;">
+            If you have any further questions, please contact our support team.
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+            <tr>
+                <td style="background-color:#0E7480;border-radius:8px;">
+                    <a href="${frontendUrl}/my-jobs" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+                        View My Jobs
+                    </a>
+                </td>
+            </tr>
+        </table>`;
+    return wrapInLayout(content);
+}
+
+async function sendDisputeResolvedEmail(toEmail, recipientName, booking, resolution) {
+    if (!resend) {
+        logger.warn('Email service not configured — skipping dispute resolved email');
+        return { success: false, error: 'Email service not configured' };
+    }
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `BridgeWork: Dispute Resolved for Booking ${booking.booking_number || ''}`,
+            html: disputeResolvedEmailHTML(recipientName, booking, resolution),
+        });
+        if (error) {
+            logger.error('Failed to send dispute resolved email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        logger.info('Dispute resolved email sent', { to: toEmail, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Dispute resolved email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
@@ -921,4 +1174,8 @@ module.exports = {
     sendProQuoteAcceptedEmail,
     sendHomeownerQuoteAcceptedConfirmationEmail,
     sendProProfileUpdateRejectedEmail,
+    sendProPayoutNotificationEmail,
+    sendBookingCancellationEmail,
+    sendDisputeOpenedEmail,
+    sendDisputeResolvedEmail,
 };

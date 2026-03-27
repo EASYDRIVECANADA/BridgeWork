@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { writeAuditLog } = require('../services/auditService');
 
 /**
  * Get all tax settings
@@ -106,6 +107,8 @@ exports.updateTaxSetting = async (req, res) => {
     }
 
     logger.info('Tax setting updated', { serviceType, value: taxValue, adminId: req.user?.id });
+
+    await writeAuditLog(req.user?.id, 'update_tax_setting', 'platform_setting', serviceType, { value: taxValue });
 
     res.json({
       success: true,
