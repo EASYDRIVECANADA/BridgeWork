@@ -48,12 +48,12 @@ export default function ProQuoteRequestsPage() {
   };
 
   const filteredRequests = quoteRequests.filter(req => {
-    if (filter === 'available') return !req.has_submitted_quote;
+    if (filter === 'available') return req.can_submit_quote;
     if (filter === 'submitted') return req.has_submitted_quote;
     return true;
   });
 
-  const availableCount = quoteRequests.filter(r => !r.has_submitted_quote).length;
+  const availableCount = quoteRequests.filter(r => r.can_submit_quote).length;
   const submittedCount = quoteRequests.filter(r => r.has_submitted_quote).length;
 
   if (!user || profile?.role !== 'pro') return null;
@@ -178,9 +178,13 @@ export default function ProQuoteRequestsPage() {
                             <CheckCircle className="w-3 h-3" />
                             Quote Submitted
                           </span>
-                        ) : (
+                        ) : request.can_submit_quote ? (
                           <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
                             Awaiting Your Quote
+                          </span>
+                        ) : (
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                            No Longer Accepting Quotes
                           </span>
                         )}
                         {request.my_quote_status === 'counter_offered' && (
@@ -243,12 +247,20 @@ export default function ProQuoteRequestsPage() {
                       className={`flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-colors ${
                         request.my_quote_status === 'counter_offered'
                           ? 'bg-amber-500 text-white hover:bg-amber-600'
+                          : request.can_submit_quote
+                          ? 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
                           : request.has_submitted_quote
                           ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          : 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {request.my_quote_status === 'counter_offered' ? 'Review Counter-Offer' : request.has_submitted_quote ? 'View Quote' : 'Submit Quote'}
+                      {request.my_quote_status === 'counter_offered'
+                        ? 'Review Counter-Offer'
+                        : request.can_submit_quote
+                        ? 'Submit Quote'
+                        : request.has_submitted_quote
+                        ? 'View Quote'
+                        : 'View Details'}
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                   </div>

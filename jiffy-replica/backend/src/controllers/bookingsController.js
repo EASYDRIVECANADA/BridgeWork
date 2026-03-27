@@ -954,15 +954,21 @@ exports.getQuoteRequestsForPro = async (req, res) => {
         const enrichedBookings = (bookings || []).map(booking => {
             const bookingQuotations = quotationsMap[booking.id] || [];
             const myQuote = bookingQuotations.find(q => q.pro_id === proProfile.id);
+            const isDirectAssignment = booking.status !== 'awaiting_quotes' && !myQuote && booking.pro_id === proProfile.id;
+            const canSubmitQuote = booking.status === 'awaiting_quotes' && !myQuote;
+            const canEditQuote = booking.status === 'awaiting_quotes' && !!myQuote;
             return {
                 ...booking,
                 assignment_status: assignmentMap[booking.id] || 'invited',
                 has_submitted_quote: !!myQuote,
                 my_quote_status: myQuote?.status || null,
                 my_quoted_price: myQuote?.quoted_price || null,
+                is_direct_assignment: isDirectAssignment,
+                can_submit_quote: canSubmitQuote,
+                can_edit_quote: canEditQuote,
                 total_quotes: bookingQuotations.length
             };
-        });
+        }).filter((booking) => !booking.is_direct_assignment);
 
         res.json({
             success: true,
@@ -1002,6 +1008,32 @@ exports.getQuoteRequestDetail = async (req, res) => {
             });
         }
 
+        const { data: assignment, error: assignmentError } = await supabaseAdmin
+            .from('quote_assignments')
+            .select('id, status')
+            .eq('booking_id', id)
+            .eq('pro_id', proProfile.id)
+            .maybeSingle();
+
+        if (assignmentError) {
+            logger.error('Get quote request assignment error', {
+                error: assignmentError.message,
+                bookingId: id,
+                proId: proProfile.id
+            });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch quote request'
+            });
+        }
+
+        if (!assignment || assignment.status === 'declined') {
+            return res.status(404).json({
+                success: false,
+                message: 'Quote request not found or not assigned to you'
+            });
+        }
+
         // Get booking details - include all statuses for quote requests the pro is assigned to
         const { data: booking, error } = await supabaseAdmin
             .from('bookings')
@@ -1021,20 +1053,38 @@ exports.getQuoteRequestDetail = async (req, res) => {
             });
         }
 
+        if (assignment.status === 'invited') {
+            await supabaseAdmin
+                .from('quote_assignments')
+                .update({
+                    status: 'viewed',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', assignment.id);
+        }
+
         // Check if pro already submitted a quote
         const { data: existingQuote } = await supabaseAdmin
             .from('booking_quotations')
             .select('*')
             .eq('booking_id', id)
             .eq('pro_id', proProfile.id)
-            .single();
+            .maybeSingle();
+
+        const isDirectAssignment = booking.status !== 'awaiting_quotes' && !existingQuote && booking.pro_id === proProfile.id;
+        const canSubmitQuote = booking.status === 'awaiting_quotes' && !existingQuote;
+        const canEditQuote = booking.status === 'awaiting_quotes' && !!existingQuote;
 
         res.json({
             success: true,
             data: { 
                 booking,
                 my_quotation: existingQuote || null,
-                pro_id: proProfile.id
+                pro_id: proProfile.id,
+                assignment_status: assignment.status,
+                is_direct_assignment: isDirectAssignment,
+                can_submit_quote: canSubmitQuote,
+                can_edit_quote: canEditQuote
             }
         });
     } catch (error) {
@@ -1088,18 +1138,50 @@ exports.submitQuotation = async (req, res) => {
             });
         }
 
-        // Verify booking exists and is awaiting quotes
+        const { data: assignment, error: assignmentError } = await supabaseAdmin
+            .from('quote_assignments')
+            .select('id, status')
+            .eq('booking_id', id)
+            .eq('pro_id', proProfile.id)
+            .maybeSingle();
+
+        if (assignmentError) {
+            logger.error('Submit quotation assignment error', {
+                error: assignmentError.message,
+                bookingId: id,
+                proId: proProfile.id
+            });
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to submit quotation'
+            });
+        }
+
+        if (!assignment || assignment.status === 'declined') {
+            return res.status(403).json({
+                success: false,
+                message: 'This quote request is not assigned to you.'
+            });
+        }
+
+        // Verify booking exists and is still open for quotes
         const { data: booking, error: bookingError } = await supabaseAdmin
             .from('bookings')
             .select('*, services (name)')
             .eq('id', id)
-            .eq('status', 'awaiting_quotes')
             .single();
 
         if (bookingError || !booking) {
             return res.status(404).json({
                 success: false,
-                message: 'Quote request not found or no longer accepting quotes'
+                message: 'Quote request not found'
+            });
+        }
+
+        if (booking.status !== 'awaiting_quotes') {
+            return res.status(409).json({
+                success: false,
+                message: 'This quote request is no longer accepting quotes.'
             });
         }
 
@@ -1109,7 +1191,7 @@ exports.submitQuotation = async (req, res) => {
             .select('id')
             .eq('booking_id', id)
             .eq('pro_id', proProfile.id)
-            .single();
+            .maybeSingle();
 
         if (existingQuote) {
             // Update existing quote
@@ -1151,6 +1233,14 @@ exports.submitQuotation = async (req, res) => {
                 bookingId: id, 
                 proId: proProfile.id 
             });
+
+            await supabaseAdmin
+                .from('quote_assignments')
+                .update({
+                    status: 'quoted',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', assignment.id);
 
             return res.json({
                 success: true,
@@ -1194,6 +1284,14 @@ exports.submitQuotation = async (req, res) => {
                 message: 'Failed to submit quotation'
             });
         }
+
+        await supabaseAdmin
+            .from('quote_assignments')
+            .update({
+                status: 'quoted',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', assignment.id);
 
         // Calculate final price with tax (for notification purposes)
         const price = parseFloat(quoted_price);
@@ -1524,6 +1622,58 @@ exports.acceptQuotation = async (req, res) => {
             return res.status(409).json({
                 success: false,
                 message: 'This booking has already been updated. Please refresh and try again.'
+            });
+        }
+
+        // Ensure quote-accepted bookings have a booking-level invoice for the homeowner UI.
+        try {
+            const { data: existingInvoice } = await supabaseAdmin
+                .from('invoices')
+                .select('id')
+                .eq('booking_id', bookingId)
+                .limit(1)
+                .maybeSingle();
+
+            if (!existingInvoice) {
+                const issueDate = new Date().toISOString();
+                const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+                const recipientName = booking.profiles?.full_name || 'Customer';
+                const recipientAddress = [booking.address, booking.city, booking.state, booking.zip_code]
+                    .filter(Boolean)
+                    .join(', ');
+                const itemDescription = quotation.description || `Accepted quote for ${booking.service_name}`;
+
+                await supabaseAdmin
+                    .from('invoices')
+                    .insert({
+                        booking_id: bookingId,
+                        invoice_number: `INV-${Date.now()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+                        issue_date: issueDate,
+                        due_date: dueDate,
+                        subject: `${booking.service_name} Service Invoice`,
+                        recipient_name: recipientName,
+                        recipient_address: recipientAddress,
+                        notes: 'Auto-generated when the homeowner accepted the selected quote.',
+                        tax_rate: taxRateDecimal,
+                        subtotal: price,
+                        tax: tax,
+                        total: finalPrice,
+                        items: [
+                            {
+                                service: booking.service_name || 'Service',
+                                description: itemDescription,
+                                qty: 1,
+                                unit_cost: price,
+                                total: price,
+                            }
+                        ]
+                    });
+            }
+        } catch (invoiceErr) {
+            logger.error('Auto-create invoice after quote acceptance failed', {
+                error: invoiceErr.message,
+                bookingId,
+                quotationId,
             });
         }
 
@@ -2541,7 +2691,7 @@ exports.directOfferToPro = async (req, res) => {
             type: 'booking',
             title: 'New Job Offered to You',
             message: `You have been selected for a free quote job: ${serviceName} in ${booking.city}, ${booking.state}. Please contact the customer and get started.`,
-            link: `/pro-dashboard/quote-requests/${bookingId}`,
+            link: `/pro-dashboard`,
             data: { booking_id: bookingId, type: 'direct_offer' }
         });
 

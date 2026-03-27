@@ -277,10 +277,25 @@ exports.getProJobs = async (req, res) => {
             });
         }
 
+        const jobs = (data || []).map((booking) => {
+            const baseAmount = parseFloat(booking.base_price || 0) || 0;
+            const taxAmount = parseFloat(booking.tax || 0) || 0;
+            const totalAmount = parseFloat(booking.updated_total_price || booking.total_price || booking.base_price || 0) || 0;
+            const originalBookingAmount = baseAmount + taxAmount > 0
+                ? baseAmount + taxAmount
+                : totalAmount;
+
+            return {
+                ...booking,
+                current_total_amount: totalAmount,
+                original_booking_amount: originalBookingAmount
+            };
+        });
+
         res.json({
             success: true,
             data: {
-                jobs: data || [],
+                jobs,
                 pagination: {
                     limit: parseInt(limit),
                     offset: parseInt(offset),

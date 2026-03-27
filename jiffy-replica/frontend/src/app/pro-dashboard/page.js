@@ -30,8 +30,9 @@ function formatJob(booking) {
     address: `${booking.address || ''}, ${booking.city || ''} ${booking.state || ''}`.trim(),
     date: booking.scheduled_date ? new Date(booking.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
     time: booking.scheduled_time || '',
-    estimatedPay: booking.total_price || booking.base_price || 0,
-    billedAmount: booking.total_price || 0,
+    estimatedPay: booking.current_total_amount || booking.updated_total_price || booking.total_price || booking.base_price || 0,
+    billedAmount: booking.current_total_amount || booking.updated_total_price || booking.total_price || 0,
+    originalBookingAmount: booking.original_booking_amount || booking.total_price || 0,
     status: booking.status,
     description: booking.special_instructions || booking.service_description || '',
     image: booking.services?.image_url || 'https://images.unsplash.com/photo-1585128792020-803d29415281?q=80&w=300',
@@ -1228,8 +1229,18 @@ export default function ProDashboardPage() {
                                 <h3 className="font-bold text-gray-900">{booking.service_name || booking.services?.name}</h3>
                                 <p className="text-sm text-gray-500 mt-0.5">{booking.profiles?.full_name || 'Customer'}</p>
                               </div>
-                              <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
-                                {booking.assignment_status === 'quoted' ? 'Quote Submitted' : 'Awaiting Quote'}
+                              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                booking.has_submitted_quote
+                                  ? 'bg-green-100 text-green-700'
+                                  : booking.can_submit_quote
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {booking.has_submitted_quote
+                                  ? 'Quote Submitted'
+                                  : booking.can_submit_quote
+                                    ? 'Awaiting Quote'
+                                    : 'Closed'}
                               </span>
                             </div>
 
@@ -1264,9 +1275,13 @@ export default function ProDashboardPage() {
                           <div className="flex flex-col justify-center gap-2 p-4 border-l border-gray-100">
                             <Link
                               href={`/pro-dashboard/quote-requests/${booking.id}`}
-                              className="px-4 py-2 bg-[#0E7480] text-white text-sm font-medium rounded-lg hover:bg-[#0a5a63] transition-colors text-center"
+                              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors text-center ${
+                                booking.can_submit_quote
+                                  ? 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
                             >
-                              Submit Quote
+                              {booking.can_submit_quote ? 'Submit Quote' : booking.has_submitted_quote ? 'View Quote' : 'View Details'}
                             </Link>
                             <button
                               onClick={() => {
@@ -2814,7 +2829,7 @@ export default function ProDashboardPage() {
                 {/* Original Amount */}
                 <div className="flex justify-between text-sm mb-3 pb-3 border-b border-gray-200">
                   <span className="text-gray-600">Original Booking:</span>
-                  <span className="font-semibold text-gray-900">${parseFloat(proofJobData.billedAmount || 0).toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">${parseFloat(proofJobData.originalBookingAmount || 0).toFixed(2)}</span>
                 </div>
 
                 {/* Additional Hours */}
@@ -2912,7 +2927,7 @@ export default function ProDashboardPage() {
                     const materialsTotal = materials.reduce((sum, m) => sum + (parseFloat(m.quantity) || 0) * (parseFloat(m.unit_price) || 0), 0);
                     const subtotal = laborTotal + materialsTotal;
                     const tax = subtotal * 0.13;
-                    const originalAmount = parseFloat(proofJobData.billedAmount) || 0;
+                    const originalAmount = parseFloat(proofJobData.originalBookingAmount) || 0;
                     const grandTotal = originalAmount + subtotal + tax;
                     return (
                       <>

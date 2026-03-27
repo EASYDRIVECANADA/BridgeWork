@@ -7,6 +7,47 @@ const { sendDisputeOpenedEmail, sendDisputeResolvedEmail } = require('../service
 // Platform commission rate (15% default)
 const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
 
+async function getStripeConnectTransferEligibility(proProfile, context = {}) {
+    if (!proProfile?.stripe_account_id || proProfile.payout_method !== 'stripe_connect') {
+        return {
+            eligible: false,
+            reason: 'Stripe Connect is not the active payout method for this pro.'
+        };
+    }
+
+    try {
+        const account = await stripe.accounts.retrieve(proProfile.stripe_account_id);
+        const transfersCapability = account.capabilities?.transfers;
+        const stripeBalanceTransfersCapability = account.capabilities?.['stripe_balance.stripe_transfers'];
+        const transfersEnabled = transfersCapability === 'active'
+            || stripeBalanceTransfersCapability === 'active'
+            || (!transfersCapability && !stripeBalanceTransfersCapability);
+        const eligible = !!account.charges_enabled && !!account.payouts_enabled && transfersEnabled;
+
+        return {
+            eligible,
+            reason: eligible
+                ? null
+                : `charges_enabled=${!!account.charges_enabled}, payouts_enabled=${!!account.payouts_enabled}, transfers=${transfersCapability || stripeBalanceTransfersCapability || 'unknown'}`,
+            account,
+        };
+    } catch (error) {
+        logger.warn('Stripe Connect eligibility check failed', {
+            bookingId: context.bookingId,
+            proProfileId: proProfile.id,
+            stripeAccountId: proProfile.stripe_account_id,
+            error: error.message,
+            type: error.type,
+            code: error.code,
+        });
+
+        return {
+            eligible: false,
+            reason: error.message,
+        };
+    }
+}
+
 exports.createPaymentIntent = async (req, res) => {
     try {
         const { booking_id } = req.body;
@@ -96,11 +137,11 @@ exports.createPaymentIntent = async (req, res) => {
         if (booking.pro_id) {
             const { data: proProfile } = await supabaseAdmin
                 .from('pro_profiles')
-                .select('stripe_account_id, commission_rate')
+                .select('id, stripe_account_id, commission_rate, payout_method')
                 .eq('id', booking.pro_id)
                 .single();
 
-            if (proProfile?.stripe_account_id) {
+            if (proProfile?.stripe_account_id && proProfile.payout_method === 'stripe_connect') {
                 // Use per-pro commission rate if set, otherwise fall back to platform default
                 const commissionRate = proProfile.commission_rate != null
                     ? parseFloat(proProfile.commission_rate)
@@ -108,22 +149,54 @@ exports.createPaymentIntent = async (req, res) => {
                 const applicationFee = Math.round(
                     parseFloat(booking.base_price || booking.total_price) * commissionRate * 100
                 );
-                paymentIntentParams.application_fee_amount = applicationFee;
-                paymentIntentParams.transfer_data = {
-                    destination: proProfile.stripe_account_id,
-                };
+                const connectEligibility = await getStripeConnectTransferEligibility(proProfile, { bookingId: booking.id });
 
-                logger.info('Payment split enabled', {
-                    bookingId: booking.id,
-                    proStripeAccount: proProfile.stripe_account_id,
-                    applicationFee: applicationFee / 100,
-                    commissionRate: commissionRate,
-                    isCustomRate: proProfile.commission_rate != null,
-                });
+                if (connectEligibility.eligible) {
+                    paymentIntentParams.application_fee_amount = applicationFee;
+                    paymentIntentParams.transfer_data = {
+                        destination: proProfile.stripe_account_id,
+                    };
+
+                    logger.info('Payment split enabled', {
+                        bookingId: booking.id,
+                        proStripeAccount: proProfile.stripe_account_id,
+                        applicationFee: applicationFee / 100,
+                        commissionRate: commissionRate,
+                        isCustomRate: proProfile.commission_rate != null,
+                    });
+                } else {
+                    logger.warn('Stripe Connect payout not ready during payment intent creation; falling back to manual payout', {
+                        bookingId: booking.id,
+                        proProfileId: proProfile.id,
+                        proStripeAccount: proProfile.stripe_account_id,
+                        reason: connectEligibility.reason,
+                    });
+                }
             }
         }
 
-        const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+        let paymentIntent;
+        try {
+            paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+        } catch (stripeError) {
+            const canRetryWithoutTransfer = stripeError.code === 'insufficient_capabilities_for_transfer'
+                && paymentIntentParams.transfer_data;
+
+            if (!canRetryWithoutTransfer) {
+                throw stripeError;
+            }
+
+            logger.warn('Retrying payment intent creation without Stripe Connect transfer_data', {
+                bookingId: booking.id,
+                stripeAccountId: paymentIntentParams.transfer_data.destination,
+                error: stripeError.message,
+                code: stripeError.code,
+            });
+
+            delete paymentIntentParams.transfer_data;
+            delete paymentIntentParams.application_fee_amount;
+            paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+        }
 
         await supabaseAdmin
             .from('transactions')
@@ -157,9 +230,13 @@ exports.createPaymentIntent = async (req, res) => {
             statusCode: error.statusCode,
             stack: error.stack?.substring(0, 500)
         });
+
+        const isStripeAuthError = error.type === 'StripeAuthenticationError' || error.statusCode === 401;
         res.status(500).json({
             success: false,
-            message: 'Failed to create payment intent',
+            message: isStripeAuthError
+                ? 'Payments are temporarily unavailable because Stripe is not configured correctly.'
+                : 'Failed to create payment intent',
             debug: process.env.NODE_ENV !== 'production' ? error.message : undefined
         });
     }
@@ -564,9 +641,22 @@ exports.capturePayment = async (req, res) => {
                     const platformFee = Math.round(capturedAmount * commissionRate);
                     const proShare = capturedAmount - platformFee;
 
-                    const useStripeConnect = proProfile.payout_method === 'stripe_connect'
+                    let useStripeConnect = false;
+                    if (proProfile.payout_method === 'stripe_connect'
                         && proProfile.stripe_account_id
-                        && !paymentIntent.transfer_data;
+                        && !paymentIntent.transfer_data) {
+                        const connectEligibility = await getStripeConnectTransferEligibility(proProfile, { bookingId: booking.id });
+                        useStripeConnect = connectEligibility.eligible;
+
+                        if (!useStripeConnect) {
+                            logger.warn('Stripe Connect payout not ready during capture; recording manual payout instead', {
+                                bookingId: booking.id,
+                                proProfileId: proProfile.id,
+                                proStripeAccount: proProfile.stripe_account_id,
+                                reason: connectEligibility.reason,
+                            });
+                        }
+                    }
 
                     if (proShare > 0 && useStripeConnect) {
                         // Stripe Connect: automated transfer

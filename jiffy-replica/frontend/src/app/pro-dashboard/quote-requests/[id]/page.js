@@ -32,6 +32,9 @@ export default function SubmitQuotePage() {
   
   const [booking, setBooking] = useState(null);
   const [myQuotation, setMyQuotation] = useState(null);
+  const [isDirectAssignment, setIsDirectAssignment] = useState(false);
+  const [canSubmitQuote, setCanSubmitQuote] = useState(false);
+  const [canEditQuote, setCanEditQuote] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [taxRate, setTaxRate] = useState(13); // Default 13%, will be fetched from API
@@ -98,6 +101,9 @@ export default function SubmitQuotePage() {
       const data = res.data?.data;
       setBooking(data?.booking || null);
       setMyQuotation(data?.my_quotation || null);
+      setIsDirectAssignment(!!data?.is_direct_assignment);
+      setCanSubmitQuote(!!data?.can_submit_quote);
+      setCanEditQuote(!!data?.can_edit_quote);
       
       // Pre-fill form if quote exists
       if (data?.my_quotation) {
@@ -157,6 +163,11 @@ export default function SubmitQuotePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!booking || (myQuotation ? !canEditQuote : !canSubmitQuote)) {
+      toast.error('This quote request is no longer accepting quotes.');
+      return;
+    }
     
     if (!yourPrice || parseFloat(yourPrice) <= 0) {
       toast.error('Please enter a valid price for your work');
@@ -177,76 +188,75 @@ export default function SubmitQuotePage() {
         description: description || null,
         estimated_duration: durationInMinutes,
         duration_unit: durationUnit,
-        materials_included: materialsIncluded,
-        materials_list: materialsIncluded && materials.length > 0 ? materials : null,
-        warranty_info: warrantyInfo || null,
-        notes: notes || null
-      });
-      
-      toast.success(myQuotation ? 'Quotation updated successfully!' : 'Quotation submitted successfully!');
-      router.push('/pro-dashboard/quote-requests');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit quotation');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Calculate tax preview using dynamic tax rate from API
-  const taxPreview = quotedPriceNum * (taxRate / 100);
-  const totalPreview = quotedPriceNum + taxPreview;
-
-  if (!user || profile?.role !== 'pro') return null;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
-      </div>
-    );
-  }
-
-  if (!booking) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Quote Request Not Found</h3>
-          <p className="text-gray-500 mb-4">This quote request may no longer be available.</p>
-          <Link
-            href="/pro-dashboard/quote-requests"
-            className="text-[#0E7480] hover:underline font-medium"
-          >
-            Back to Quote Requests
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        {/* Back Button */}
-        <Link
-          href="/pro-dashboard/quote-requests"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Quote Requests
-        </Link>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Job Details */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#0E7480]" />
               Job Details
             </h2>
 
-            {/* Service Info */}
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
+
+            {myQuotation?.status === 'counter_offered' && myQuotation.counter_offer_price && (
+              <div className="mt-4 p-4 bg-amber-50 rounded-xl border-2 border-amber-300">
+                <h4 className="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Customer Counter-Offer
+                </h4>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-2xl font-bold text-amber-900">
+                    ${parseFloat(myQuotation.counter_offer_price).toFixed(2)}
+                  </span>
+                  <span className="text-sm text-amber-700 line-through">
+                    ${parseFloat(myQuotation.quoted_price).toFixed(2)}
+                  </span>
+                </div>
+                {myQuotation.counter_offer_message && (
+                  <p className="text-sm text-amber-800 bg-white/60 rounded-lg p-2 mb-3 italic">
+                    "{myQuotation.counter_offer_message}"
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setRespondingCounterOffer(true);
+                      try {
+                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'accept' });
+                        toast.success('Counter-offer accepted! Your quote has been updated.');
+                        fetchQuoteRequest();
+                      } catch (err) {
+                        toast.error(err?.response?.data?.message || 'Failed to accept counter-offer');
+                      } finally {
+                        setRespondingCounterOffer(false);
+                      }
+                    }}
+                    disabled={respondingCounterOffer}
+                    className="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    {respondingCounterOffer ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    Accept Counter-Offer
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setRespondingCounterOffer(true);
+                      try {
+                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'decline' });
+                        toast.info('Counter-offer declined. Your original quote remains active.');
+                        fetchQuoteRequest();
+                      } catch (err) {
+                        toast.error(err?.response?.data?.message || 'Failed to decline counter-offer');
+                      } finally {
+                        setRespondingCounterOffer(false);
+                      }
+                    }}
+                    disabled={respondingCounterOffer}
+                    className="flex-1 py-2.5 border-2 border-red-300 text-red-700 font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            )}
                 {booking.service_name}
               </h3>
               {booking.services?.description && (
@@ -316,6 +326,7 @@ export default function SubmitQuotePage() {
               </div>
             )}
 
+<<<<<<< Updated upstream
             {/* Counter-Offer Section */}
             {myQuotation?.status === 'counter_offered' && myQuotation.counter_offer_price && (
               <div className="mt-4 p-4 bg-amber-50 rounded-xl border-2 border-amber-300">
@@ -375,6 +386,14 @@ export default function SubmitQuotePage() {
                     Decline
                   </button>
                 </div>
+=======
+            {isFormLocked && (
+              <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-100">
+                <p className="text-sm font-medium text-amber-800 mb-1">Quote Submission Closed</p>
+                <p className="text-sm text-amber-700">
+                  This request is no longer accepting quote submissions{myQuotation ? ' or edits' : ''}. You can still review the job details here.
+                </p>
+>>>>>>> Stashed changes
               </div>
             )}
           </div>
@@ -383,9 +402,25 @@ export default function SubmitQuotePage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-[#0E7480]" />
-              {myQuotation ? 'Update Your Quote' : 'Submit Your Quote'}
+              {isDirectAssignment ? 'Job Already Assigned' : myQuotation ? 'Update Your Quote' : 'Submit Your Quote'}
             </h2>
 
+            {isDirectAssignment ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-sm font-medium text-blue-900 mb-1">No Quote Needed</p>
+                  <p className="text-sm text-blue-800">
+                    This booking was already assigned directly to you, so you do not need to submit a quote. You can proceed with the job from your pro dashboard.
+                  </p>
+                </div>
+                <Link
+                  href="/pro-dashboard"
+                  className="inline-flex items-center justify-center w-full bg-[#0E7480] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#0a5a63] transition-colors"
+                >
+                  Go to Pro Dashboard
+                </Link>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Total Quoted Price (Read-only, auto-calculated) */}
               <div className="p-4 bg-gradient-to-r from-[#0E7480]/10 to-[#0E7480]/5 rounded-xl border border-[#0E7480]/20">
@@ -436,6 +471,7 @@ export default function SubmitQuotePage() {
                     value={yourPrice}
                     onChange={(e) => setYourPrice(e.target.value)}
                     placeholder="0.00"
+                    disabled={isFormLocked}
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
                     required
                   />
@@ -454,6 +490,7 @@ export default function SubmitQuotePage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe what's included in your quote..."
                   rows={3}
+                  disabled={isFormLocked}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none resize-none"
                 />
               </div>
@@ -471,11 +508,13 @@ export default function SubmitQuotePage() {
                     value={estimatedDuration}
                     onChange={(e) => setEstimatedDuration(e.target.value)}
                     placeholder="e.g., 2"
+                    disabled={isFormLocked}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
                   />
                   <select
                     value={durationUnit}
                     onChange={(e) => setDurationUnit(e.target.value)}
+                    disabled={isFormLocked}
                     className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none bg-white"
                   >
                     <option value="minutes">Minutes</option>
@@ -497,6 +536,7 @@ export default function SubmitQuotePage() {
                         setMaterials([{ name: '', price: '' }]);
                       }
                     }}
+                    disabled={isFormLocked}
                     className="w-4 h-4 text-[#0E7480] border-gray-300 rounded focus:ring-[#0E7480]"
                   />
                   <label htmlFor="materials" className="text-sm text-gray-700 flex items-center gap-1">
@@ -517,6 +557,7 @@ export default function SubmitQuotePage() {
                           value={material.name}
                           onChange={(e) => updateMaterial(index, 'name', e.target.value)}
                           placeholder="Material name"
+                          disabled={isFormLocked}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none text-sm"
                         />
                         <div className="relative w-28">
@@ -528,22 +569,24 @@ export default function SubmitQuotePage() {
                             value={material.price}
                             onChange={(e) => updateMaterial(index, 'price', e.target.value)}
                             placeholder="0.00"
+                            disabled={isFormLocked}
                             className="w-full pl-6 pr-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none text-sm"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={() => removeMaterial(index)}
+                          disabled={isFormLocked}
                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
-
                     <button
                       type="button"
                       onClick={addMaterial}
+                      disabled={isFormLocked}
                       className="flex items-center gap-1 text-sm text-[#0E7480] hover:text-[#0a5a63] font-medium mt-2"
                     >
                       <Plus className="w-4 h-4" />
@@ -571,6 +614,7 @@ export default function SubmitQuotePage() {
                   value={warrantyInfo}
                   onChange={(e) => setWarrantyInfo(e.target.value)}
                   placeholder="e.g., 90-day workmanship warranty"
+                  disabled={isFormLocked}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
                 />
               </div>
@@ -585,6 +629,7 @@ export default function SubmitQuotePage() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Any other information for the admin..."
                   rows={2}
+                  disabled={isFormLocked}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none resize-none"
                 />
               </div>
@@ -592,7 +637,7 @@ export default function SubmitQuotePage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={submitting || !yourPrice}
+                disabled={submitting || !yourPrice || isFormLocked}
                 className="w-full bg-[#0E7480] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#0a5a63] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (
@@ -603,7 +648,7 @@ export default function SubmitQuotePage() {
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    {myQuotation ? 'Update Quote' : 'Submit Quote'}
+                    {isFormLocked ? 'Quote Submission Closed' : myQuotation ? 'Update Quote' : 'Submit Quote'}
                   </>
                 )}
               </button>
@@ -612,6 +657,7 @@ export default function SubmitQuotePage() {
                 Your quote will be reviewed by admin before being shown to the customer.
               </p>
             </form>
+            )}
           </div>
         </div>
       </div>

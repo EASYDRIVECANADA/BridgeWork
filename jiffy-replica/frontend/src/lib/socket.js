@@ -17,22 +17,27 @@ export const getSocket = () => {
   return socket;
 };
 
-export const connectSocket = async (userId) => {
-  const s = getSocket();
+const connectSocketWithSession = async (s) => {
+  let authToken = null;
 
-  // Get current auth token for Socket.IO JWT auth
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      s.auth = { token: session.access_token };
-    }
+    authToken = session?.access_token || null;
   } catch (err) {
-    // Fall back to connecting without token; server will reject if required
+    authToken = null;
   }
+
+  s.auth = authToken ? { token: authToken } : {};
 
   if (!s.connected) {
     s.connect();
   }
+};
+
+export const connectSocket = (userId) => {
+  const s = getSocket();
+
+  connectSocketWithSession(s);
   return s;
 };
 

@@ -1,6 +1,90 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 
+async function createAutoInvoiceFromAcceptedQuote(bookingId) {
+  const { data: booking, error: bookingError } = await supabaseAdmin
+    .from('bookings')
+    .select(`
+      id,
+      user_id,
+      service_name,
+      address,
+      city,
+      state,
+      zip_code,
+      selected_quotation_id,
+      base_price,
+      tax,
+      total_price,
+      profiles:user_id (
+        full_name
+      )
+    `)
+    .eq('id', bookingId)
+    .maybeSingle();
+
+  if (bookingError || !booking || !booking.selected_quotation_id) {
+    return null;
+  }
+
+  const { data: quotation, error: quotationError } = await supabaseAdmin
+    .from('booking_quotations')
+    .select('id, description, quoted_price')
+    .eq('id', booking.selected_quotation_id)
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+
+  if (quotationError || !quotation) {
+    return null;
+  }
+
+  const subtotal = parseFloat(booking.base_price || quotation.quoted_price || 0) || 0;
+  const tax = parseFloat(booking.tax || 0) || 0;
+  const total = parseFloat(booking.total_price || subtotal + tax) || 0;
+  const taxRate = subtotal > 0 ? tax / subtotal : 0;
+  const issueDate = new Date().toISOString();
+  const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const recipientName = booking.profiles?.full_name || 'Customer';
+  const recipientAddress = [booking.address, booking.city, booking.state, booking.zip_code]
+    .filter(Boolean)
+    .join(', ');
+
+  const { data: invoice, error: invoiceError } = await supabaseAdmin
+    .from('invoices')
+    .insert({
+      booking_id: bookingId,
+      invoice_number: `INV-${Date.now()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
+      issue_date: issueDate,
+      due_date: dueDate,
+      subject: `${booking.service_name || 'Service'} Service Invoice`,
+      recipient_name: recipientName,
+      recipient_address: recipientAddress,
+      notes: 'Auto-generated from the accepted quote.',
+      tax_rate: taxRate,
+      subtotal,
+      tax,
+      total,
+      items: [
+        {
+          service: booking.service_name || 'Service',
+          description: quotation.description || `Accepted quote for ${booking.service_name || 'service'}`,
+          qty: 1,
+          unit_cost: subtotal,
+          total: subtotal,
+        }
+      ]
+    })
+    .select('*')
+    .single();
+
+  if (invoiceError) {
+    logger.error('Auto invoice backfill failed', { error: invoiceError.message, bookingId, quotationId: quotation.id });
+    return null;
+  }
+
+  return invoice;
+}
+
 // POST /bookings/:bookingId/invoice
 exports.createInvoice = async (req, res) => {
   try {
@@ -69,11 +153,15 @@ exports.getInvoice = async (req, res) => {
   try {
     const { bookingId } = req.params;
 
-    const { data: invoice, error } = await supabaseAdmin
+    let { data: invoice, error } = await supabaseAdmin
       .from('invoices')
       .select('*')
       .eq('booking_id', bookingId)
-      .single();
+      .maybeSingle();
+
+    if (!invoice && !error) {
+      invoice = await createAutoInvoiceFromAcceptedQuote(bookingId);
+    }
 
     if (error || !invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });

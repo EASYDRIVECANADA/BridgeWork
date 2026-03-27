@@ -138,6 +138,8 @@ export default function CheckoutClient() {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [creatingIntent, setCreatingIntent] = useState(false);
+  const [paymentInitError, setPaymentInitError] = useState(null);
+  const [paymentUnavailableMessage, setPaymentUnavailableMessage] = useState(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
   const [taxRate, setTaxRate] = useState(13); // Default 13%, fetched from API
   const fetchedRef = useRef(false);
@@ -194,16 +196,23 @@ export default function CheckoutClient() {
 
         // Create payment intent
         setCreatingIntent(true);
+        setPaymentInitError(null);
+        setPaymentUnavailableMessage(null);
         try {
           const payRes = await paymentsAPI.createIntent({ booking_id: bookingId });
           setClientSecret(payRes.data.data.client_secret);
           setPaymentIntentId(payRes.data.data.payment_intent_id);
         } catch (payErr) {
-          // If booking must be accepted first, show info message
+          const serverMessage = payErr.response?.data?.message;
+          const debugMessage = payErr.response?.data?.debug;
           if (payErr.response?.status === 400) {
-            toast.info(payErr.response?.data?.message || 'Payment not available yet for this booking.');
+            const unavailableMessage = serverMessage || 'Payment not available yet for this booking.';
+            setPaymentUnavailableMessage(unavailableMessage);
+            toast.info(unavailableMessage);
           } else {
-            toast.error('Failed to initialize payment. Please try again.');
+            const initErrorMessage = serverMessage || debugMessage || 'Failed to initialize payment. Please try again.';
+            setPaymentInitError(initErrorMessage);
+            toast.error(initErrorMessage);
           }
         }
         setCreatingIntent(false);
@@ -352,6 +361,23 @@ export default function CheckoutClient() {
                     paymentIntentId={paymentIntentId}
                   />
                 </Elements>
+              ) : paymentInitError ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Lock className="w-6 h-6 text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Payment Initialization Failed</h3>
+                  <p className="text-xs text-gray-600 mb-4">
+                    {paymentInitError}
+                  </p>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 text-sm text-[#0E7480] hover:underline"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Dashboard
+                  </Link>
+                </div>
               ) : (
                 <div className="text-center py-12">
                   <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -359,8 +385,7 @@ export default function CheckoutClient() {
                   </div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-1">Payment Not Available Yet</h3>
                   <p className="text-xs text-gray-600 mb-4">
-                    Your booking needs to be accepted by a pro before payment can be processed.
-                    We&apos;ll notify you when it&apos;s ready.
+                    {paymentUnavailableMessage || 'Your booking needs to be accepted by a pro before payment can be processed. We\'ll notify you when it\'s ready.'}
                   </p>
                   <Link
                     href="/dashboard"

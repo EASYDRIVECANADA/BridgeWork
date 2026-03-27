@@ -87,17 +87,17 @@ export default function AdminQuoteAssignmentsPage() {
 
     setAssigning(true);
     try {
-      await bookingsAPI.directOfferToPro({
+      await bookingsAPI.assignProsToQuote({
         bookingId,
-        proId: selectedPro
+        proIds: [selectedPro]
       });
-      toast.success('Booking offered to pro successfully!');
+      toast.success('Quote request sent to the selected pro successfully!');
       setExpandedBooking(null);
       setSelectedPro(null);
       setAvailablePros([]);
       fetchPendingAssignments();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to offer booking to pro');
+      toast.error(err.response?.data?.message || 'Failed to send quote request to pro');
     } finally {
       setAssigning(false);
     }
@@ -138,7 +138,7 @@ export default function AdminQuoteAssignmentsPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Quote Assignments</h1>
               <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                Select a pro to offer each free quote booking to
+                Select a pro to receive each free quote request
               </p>
             </div>
             <button
@@ -230,9 +230,9 @@ export default function AdminQuoteAssignmentsPage() {
                   <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                       <h4 className="text-base sm:text-lg font-medium text-gray-900">
-                        Select a Pro to Offer This Job To
+                        Select a Pro to Receive This Quote Request
                       </h4>
-                      <p className="text-xs sm:text-sm text-gray-500">The selected pro will be assigned directly and notified</p>
+                      <p className="text-xs sm:text-sm text-gray-500">The selected pro will see this in Quote Requests and can submit a quote to the customer</p>
                     </div>
 
                     {loadingPros ? (
@@ -342,12 +342,12 @@ export default function AdminQuoteAssignmentsPage() {
                             {assigning ? (
                               <>
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                Offering...
+                                Sending...
                               </>
                             ) : (
                               <>
                                 <Send className="h-5 w-5 mr-2" />
-                                Offer to Pro
+                                Send Quote Request
                               </>
                             )}
                           </button>

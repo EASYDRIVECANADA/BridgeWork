@@ -266,7 +266,7 @@ export default function AdminProfilePage() {
                     type="text"
                     value={profileForm.city}
                     onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
-                    placeholder="Toronto"
+                    placeholder="Ottawa"
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480]/30 focus:border-[#0E7480]"
                   />
                 </div>
