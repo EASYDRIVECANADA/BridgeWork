@@ -1,16 +1,11 @@
 [build]
-  base = "frontend"
+  base = "jiffy-replica/frontend"
   command = "npm run build"
-  publish = "frontend/.next"
+  publish = ".next"
   
 [build.environment]
   NODE_VERSION = "18"
   NEXT_TELEMETRY_DISABLED = "1"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
 
 [[headers]]
   for = "/*"
