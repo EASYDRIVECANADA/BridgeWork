@@ -8,9 +8,7 @@
     "dev:frontend": "npm --prefix jiffy-replica/frontend run dev"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "all": "^0.0.0"
+    "concurrently": "^8.2.2",
+    "docx": "^9.6.0"
   }
 }
