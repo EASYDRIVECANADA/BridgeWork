@@ -10,6 +10,7 @@ import { signUp } from '@/store/slices/authSlice';
 import { toast } from 'react-toastify';
 
 export default function BecomeProPage() {
+  const PRO_SIGNUP_SOURCE = 'become-pro';
   const router = useRouter();
   const dispatch = useDispatch();
   const { isLoading } = useSelector((state) => state.auth);
@@ -22,11 +23,13 @@ export default function BecomeProPage() {
     email: '',
     phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    referralCode: ''
   });
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((currentData) => ({ ...currentData, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -37,21 +40,32 @@ export default function BecomeProPage() {
       return;
     }
 
+    if (!/[A-Z]/.test(formData.password) || !/\d/.test(formData.password) || !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
+      toast.error('Password must contain at least one uppercase letter, one number, and one special character');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
     try {
+      const firstName = formData.firstName.trim();
+      const lastName = formData.lastName.trim();
       const signupData = {
-        full_name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        phone: formData.phone,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: [firstName, lastName].filter(Boolean).join(' '),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
         password: formData.password,
         role: 'pro',
+        referral_code: formData.referralCode.trim() || undefined,
+        signup_source: PRO_SIGNUP_SOURCE,
       };
       await dispatch(signUp(signupData)).unwrap();
-      setSignupEmail(formData.email);
+      setSignupEmail(formData.email.trim());
       setSignupSuccess(true);
     } catch (err) {
       toast.error(err || 'Signup failed');
@@ -502,6 +516,8 @@ export default function BecomeProPage() {
                 <input
                   type="text"
                   name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -513,6 +529,8 @@ export default function BecomeProPage() {
                 <input
                   type="text"
                   name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -527,6 +545,8 @@ export default function BecomeProPage() {
                 <input
                   type="email"
                   name="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -538,6 +558,8 @@ export default function BecomeProPage() {
                 <input
                   type="tel"
                   name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -552,6 +574,8 @@ export default function BecomeProPage() {
                 <input
                   type="password"
                   name="password"
+                  value={formData.password}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -563,6 +587,8 @@ export default function BecomeProPage() {
                 <input
                   type="password"
                   name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
                   required
                 />
@@ -572,6 +598,9 @@ export default function BecomeProPage() {
             <div className="md:col-span-2">
               <input
                 type="text"
+                name="referralCode"
+                value={formData.referralCode}
+                onChange={handleChange}
                 placeholder="Referral Code (Optional)"
                 className="w-full md:w-1/2 px-4 py-3 rounded text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E7480]"
               />

@@ -47,7 +47,9 @@ export const signUp = createAsyncThunk(
         message: response.data?.message || 'Please check your email to confirm your account.'
       };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.message || 'Signup failed');
+      const responseData = error.response?.data;
+      const firstValidationError = responseData?.errors?.[0]?.message;
+      return rejectWithValue(firstValidationError || responseData?.message || error.message || 'Signup failed');
     }
   }
 );

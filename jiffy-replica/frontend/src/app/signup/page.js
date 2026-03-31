@@ -51,12 +51,17 @@ export default function SignupPage() {
     }
 
     try {
+      const firstName = formData.firstName.trim();
+      const lastName = formData.lastName.trim();
       const signupData = {
-        full_name: `${formData.firstName} ${formData.lastName}`,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: [firstName, lastName].filter(Boolean).join(' '),
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
         role: 'user',
+        signup_source: 'signup',
       };
       await dispatch(signUp(signupData)).unwrap();
       setSignupEmail(formData.email);

@@ -1,9 +1,32 @@
 const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'BridgeWork <onboarding@resend.dev>';
+
+// ─── GHL / SMTP transport (used for password reset emails) ──────────────────
+const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || FROM_EMAIL;
+
+function createSmtpTransport() {
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!host || !user || !pass) {
+        logger.warn('SMTP credentials not fully configured (SMTP_HOST, SMTP_USER, SMTP_PASS required)');
+        return null;
+    }
+
+    return nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+    });
+}
 
 if (!resend) {
     logger.warn('RESEND_API_KEY not configured - email functionality will be disabled');
@@ -161,30 +184,27 @@ async function sendWelcomeEmail(toEmail, fullName) {
     }
 }
 
-// ─── Send Password Reset Email ──────────────────────────────────────────────
+// ─── Send Password Reset Email (via GHL SMTP) ──────────────────────────────
 async function sendPasswordResetEmail(toEmail, fullName, resetLink) {
-    if (!resend) {
-        logger.warn('Email service not configured - skipping password reset email', { to: toEmail });
-        return { success: false, error: 'Email service not configured' };
+    const transport = createSmtpTransport();
+
+    if (!transport) {
+        logger.warn('SMTP not configured - skipping password reset email', { to: toEmail });
+        return { success: false, error: 'SMTP not configured' };
     }
-    
+
     try {
-        const { data, error } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: [toEmail],
+        const info = await transport.sendMail({
+            from: SMTP_FROM_EMAIL,
+            to: toEmail,
             subject: 'Reset Your BridgeWork Password',
             html: passwordResetEmailHTML(fullName, resetLink),
         });
 
-        if (error) {
-            logger.error('Failed to send password reset email', { error: error.message, to: toEmail });
-            return { success: false, error: error.message };
-        }
-
-        logger.info('Password reset email sent', { to: toEmail, id: data?.id });
-        return { success: true, id: data?.id };
+        logger.info('Password reset email sent via SMTP', { to: toEmail, messageId: info.messageId });
+        return { success: true, messageId: info.messageId };
     } catch (err) {
-        logger.error('Password reset email exception', { error: err.message, to: toEmail });
+        logger.error('Password reset email SMTP exception', { error: err.message, to: toEmail });
         return { success: false, error: err.message };
     }
 }
@@ -1161,6 +1181,337 @@ async function sendDisputeResolvedEmail(toEmail, recipientName, booking, resolut
     }
 }
 
+// ─── Guest Quote Request Emails ─────────────────────────────────────────────
+
+// Confirmation sent to guest after submitting a quote request
+async function sendGuestQuoteConfirmationEmail(toEmail, guestName, request) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Thank you, ${guestName}!</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                We've received your quote request for <strong>${request.service_name}</strong>.
+            </p>
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0 0 8px;font-weight:600;color:#166534;">Request Details</p>
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Request #:</strong> ${request.request_number}<br>
+                    <strong>Service:</strong> ${request.service_name}<br>
+                    <strong>Location:</strong> ${request.address}, ${request.city}, ${request.state} ${request.zip_code}<br>
+                    ${request.preferred_date ? `<strong>Preferred Date:</strong> ${new Date(request.preferred_date).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}<br>` : ''}
+                    ${request.description ? `<strong>Notes:</strong> ${request.description}<br>` : ''}
+                </p>
+            </div>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Our team will review your request and get back to you with a personalized quote. You'll receive an email once your quote is ready.
+            </p>
+            <p style="color:#6b7280;font-size:13px;margin-top:24px;">
+                If you have any questions, please contact us at <a href="mailto:${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}" style="color:#0E7480;">${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}</a>.
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `[BridgeWork] Quote Request Received — ${request.request_number}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send guest quote confirmation', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Guest quote confirmation email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// Notification to admins about a new guest quote request
+async function sendAdminNewGuestQuoteEmail(adminEmails, request) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">New Guest Quote Request</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                A public visitor has submitted a quote request.
+            </p>
+            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Request #:</strong> ${request.request_number}<br>
+                    <strong>Name:</strong> ${request.guest_name}<br>
+                    <strong>Email:</strong> ${request.guest_email}<br>
+                    <strong>Phone:</strong> ${request.guest_phone}<br>
+                    <strong>Service:</strong> ${request.service_name}<br>
+                    <strong>Location:</strong> ${request.address}, ${request.city}, ${request.state} ${request.zip_code}<br>
+                    ${request.preferred_date ? `<strong>Preferred Date:</strong> ${new Date(request.preferred_date).toLocaleDateString('en-CA')}<br>` : ''}
+                    ${request.description ? `<strong>Description:</strong> ${request.description}<br>` : ''}
+                </p>
+            </div>
+            <p style="color:#374151;font-size:15px;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/guest-quotes" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">View in Admin Panel</a>
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails,
+            subject: `[BridgeWork] New Guest Quote — ${request.service_name} — ${request.guest_name}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send admin guest quote notification', { error: error.message });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Admin guest quote email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
+// Quote details sent to guest by admin
+async function sendGuestQuoteEmail(toEmail, guestName, request, adminMessage) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const subtotal = parseFloat(request.quoted_price);
+        const tax = parseFloat(request.tax_amount || 0);
+        const total = subtotal + tax;
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Your Quote is Ready, ${guestName}!</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Thank you for your interest in our services. Here is your personalized quote for <strong>${request.service_name}</strong>.
+            </p>
+            ${adminMessage ? `<div style="background-color:#f9fafb;border-left:4px solid #0E7480;padding:16px;margin:20px 0;border-radius:0 8px 8px 0;"><p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">${adminMessage}</p></div>` : ''}
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0 0 8px;font-weight:600;color:#166534;">Quote Summary</p>
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Quote #:</strong> ${request.request_number}<br>
+                    <strong>Service:</strong> ${request.service_name}<br>
+                    <strong>Location:</strong> ${request.address}, ${request.city}, ${request.state} ${request.zip_code}<br>
+                </p>
+                <hr style="border:none;border-top:1px solid #bbf7d0;margin:12px 0;">
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Subtotal:</strong> $${subtotal.toFixed(2)} CAD<br>
+                    <strong>HST (13%):</strong> $${tax.toFixed(2)} CAD<br>
+                    <strong style="font-size:16px;color:#166534;">Total: $${total.toFixed(2)} CAD</strong>
+                </p>
+            </div>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                If you'd like to proceed, we'll send you a secure payment link. Simply reply to this email or contact us to confirm.
+            </p>
+            <p style="color:#6b7280;font-size:13px;margin-top:24px;">
+                Contact us: <a href="mailto:${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}" style="color:#0E7480;">${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}</a>
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `[BridgeWork] Your Quote for ${request.service_name} — ${request.request_number}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send guest quote email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Guest quote email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// Payment link sent to guest
+async function sendGuestPaymentLinkEmail(toEmail, guestName, request, paymentUrl) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const total = parseFloat(request.quoted_price) + parseFloat(request.tax_amount || 0);
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Payment Link for Your Service</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Hi ${guestName}, your payment link is ready for <strong>${request.service_name}</strong>.
+            </p>
+            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Quote #:</strong> ${request.request_number}<br>
+                    <strong>Total Amount:</strong> <span style="font-size:18px;font-weight:700;color:#0E7480;">$${total.toFixed(2)} CAD</span>
+                </p>
+            </div>
+            <p style="text-align:center;margin:24px 0;">
+                <a href="${paymentUrl}" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:16px;">Pay Now — $${total.toFixed(2)} CAD</a>
+            </p>
+            <p style="color:#6b7280;font-size:13px;text-align:center;">
+                This is a secure payment link powered by Stripe. Your payment information is encrypted and safe.
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `[BridgeWork] Payment Link — ${request.service_name} — $${total.toFixed(2)} CAD`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send guest payment link email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Guest payment link email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// Invoice sent to guest after payment
+async function sendGuestInvoiceEmail(toEmail, guestName, request) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const subtotal = parseFloat(request.quoted_price);
+        const tax = parseFloat(request.tax_amount || 0);
+        const total = subtotal + tax;
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Invoice — Payment Received</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Hi ${guestName}, thank you for your payment. Below is your invoice for the completed service.
+            </p>
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0 0 8px;font-weight:600;color:#166534;">Invoice Details</p>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
+                    <tr>
+                        <td style="padding:6px 0;"><strong>Invoice #:</strong></td>
+                        <td style="padding:6px 0;text-align:right;">${request.request_number}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;"><strong>Date:</strong></td>
+                        <td style="padding:6px 0;text-align:right;">${new Date().toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;"><strong>Service:</strong></td>
+                        <td style="padding:6px 0;text-align:right;">${request.service_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;"><strong>Location:</strong></td>
+                        <td style="padding:6px 0;text-align:right;">${request.address}, ${request.city}</td>
+                    </tr>
+                    <tr style="border-top:1px solid #bbf7d0;">
+                        <td style="padding:8px 0;"><strong>Subtotal:</strong></td>
+                        <td style="padding:8px 0;text-align:right;">$${subtotal.toFixed(2)} CAD</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;"><strong>HST (13%):</strong></td>
+                        <td style="padding:6px 0;text-align:right;">$${tax.toFixed(2)} CAD</td>
+                    </tr>
+                    <tr style="border-top:2px solid #166534;">
+                        <td style="padding:8px 0;"><strong style="font-size:16px;">Total Paid:</strong></td>
+                        <td style="padding:8px 0;text-align:right;"><strong style="font-size:16px;color:#166534;">$${total.toFixed(2)} CAD</strong></td>
+                    </tr>
+                </table>
+            </div>
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
+                <p style="margin:0;color:#166534;font-weight:600;font-size:15px;">Payment Status: PAID</p>
+            </div>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Thank you for choosing BridgeWork! If you have any questions about this invoice, please contact us.
+            </p>
+            <p style="color:#6b7280;font-size:13px;margin-top:24px;">
+                <a href="mailto:${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}" style="color:#0E7480;">${process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com'}</a>
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: `[BridgeWork] Invoice — ${request.service_name} — ${request.request_number}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send guest invoice email', { error: error.message, to: toEmail });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Guest invoice email exception', { error: err.message, to: toEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// Notify pro about guest quote assignment
+async function sendProGuestQuoteAssignmentEmail(proEmail, proName, request) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">New Quote Assignment</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                Hi ${proName}, you've been assigned to provide a quote for a customer.
+            </p>
+            <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Request #:</strong> ${request.request_number}<br>
+                    <strong>Service:</strong> ${request.service_name}<br>
+                    <strong>Customer:</strong> ${request.guest_name}<br>
+                    <strong>Location:</strong> ${request.address}, ${request.city}, ${request.state} ${request.zip_code}<br>
+                    ${request.preferred_date ? `<strong>Preferred Date:</strong> ${new Date(request.preferred_date).toLocaleDateString('en-CA')}<br>` : ''}
+                    ${request.description ? `<strong>Description:</strong> ${request.description}<br>` : ''}
+                </p>
+            </div>
+            <p style="text-align:center;margin:24px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/pro-dashboard?tab=quotes" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Submit Your Quote</a>
+            </p>
+            <p style="color:#6b7280;font-size:13px;text-align:center;">
+                Log in to your Pro Dashboard to review the request and submit your quotation.
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [proEmail],
+            subject: `[BridgeWork] Quote Assignment: ${request.service_name} — ${request.request_number}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send pro guest quote assignment email', { error: error.message, to: proEmail });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Pro guest quote assignment email exception', { error: err.message, to: proEmail });
+        return { success: false, error: err.message };
+    }
+}
+
+// Notify admins when pro submitted their guest quote
+async function sendAdminProGuestQuoteSubmittedEmail(adminEmails, request, proBusinessName, quotedPrice) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const html = wrapInLayout(`
+            <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Pro Submitted Guest Quote</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.7;">
+                <strong>${proBusinessName}</strong> has submitted their quotation for a guest quote request.
+            </p>
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:20px 0;">
+                <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                    <strong>Request #:</strong> ${request.request_number}<br>
+                    <strong>Service:</strong> ${request.service_name}<br>
+                    <strong>Guest:</strong> ${request.guest_name}<br>
+                    <strong>Pro Quote:</strong> <span style="font-size:16px;font-weight:700;color:#166534;">$${quotedPrice.toFixed(2)} CAD</span>
+                </p>
+            </div>
+            <p style="text-align:center;margin:24px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/guest-quotes" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Review & Send to Guest</a>
+            </p>
+        `);
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails,
+            subject: `[BridgeWork] Pro Quoted $${quotedPrice.toFixed(2)} — ${request.service_name} — ${request.request_number}`,
+            html,
+        });
+        if (error) {
+            logger.error('Failed to send admin pro guest quote submitted email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Admin pro guest quote submitted email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
@@ -1178,4 +1529,11 @@ module.exports = {
     sendBookingCancellationEmail,
     sendDisputeOpenedEmail,
     sendDisputeResolvedEmail,
+    sendGuestQuoteConfirmationEmail,
+    sendAdminNewGuestQuoteEmail,
+    sendGuestQuoteEmail,
+    sendGuestPaymentLinkEmail,
+    sendGuestInvoiceEmail,
+    sendProGuestQuoteAssignmentEmail,
+    sendAdminProGuestQuoteSubmittedEmail,
 };

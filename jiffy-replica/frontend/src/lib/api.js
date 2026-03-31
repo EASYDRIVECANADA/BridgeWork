@@ -302,4 +302,20 @@ export const notificationsAPI = {
   markAllAsRead: () => api.patch('/notifications/read-all'),
 };
 
+export const guestQuotesAPI = {
+  // Public (no auth)
+  submit: (data) => api.post('/guest-quotes', data),
+  // Admin
+  getAll: (params) => api.get('/guest-quotes', { params }),
+  getById: (id) => api.get(`/guest-quotes/${id}`),
+  update: (id, data) => api.patch(`/guest-quotes/${id}`, data),
+  assignPro: (id, data) => api.post(`/guest-quotes/${id}/assign-pro`, data),
+  sendQuote: (id, data) => api.post(`/guest-quotes/${id}/send-quote`, data),
+  sendPaymentLink: (id) => api.post(`/guest-quotes/${id}/send-payment-link`),
+  sendInvoice: (id) => api.post(`/guest-quotes/${id}/send-invoice`),
+  // Pro
+  getProAssignments: () => api.get('/guest-quotes/pro/assignments'),
+  proSubmitQuote: (id, data) => api.post(`/guest-quotes/${id}/pro-submit-quote`, data),
+};
+
 export default api;

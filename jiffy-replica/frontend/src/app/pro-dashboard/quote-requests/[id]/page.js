@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
@@ -188,75 +188,78 @@ export default function SubmitQuotePage() {
         description: description || null,
         estimated_duration: durationInMinutes,
         duration_unit: durationUnit,
+        materials_included: materialsIncluded,
+        materials_list: materialsIncluded && materials.length > 0 ? materials : null,
+        warranty_info: warrantyInfo || null,
+        notes: notes || null
+      });
+      
+      toast.success(myQuotation ? 'Quotation updated successfully!' : 'Quotation submitted successfully!');
+      router.push('/pro-dashboard/quote-requests');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit quotation');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const isFormLocked = !canSubmitQuote && !canEditQuote;
+
+  // Calculate tax preview using dynamic tax rate from API
+  const taxPreview = quotedPriceNum * (taxRate / 100);
+  const totalPreview = quotedPriceNum + taxPreview;
+
+  if (!user || profile?.role !== 'pro') return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#0E7480]" />
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Quote Request Not Found</h3>
+          <p className="text-gray-500 mb-4">This quote request may no longer be available.</p>
+          <Link
+            href="/pro-dashboard/quote-requests"
+            className="text-[#0E7480] hover:underline font-medium"
+          >
+            Back to Quote Requests
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        {/* Back Button */}
+        <Link
+          href="/pro-dashboard/quote-requests"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Quote Requests
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Job Details */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#0E7480]" />
               Job Details
             </h2>
 
+            {/* Service Info */}
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-
-            {myQuotation?.status === 'counter_offered' && myQuotation.counter_offer_price && (
-              <div className="mt-4 p-4 bg-amber-50 rounded-xl border-2 border-amber-300">
-                <h4 className="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Customer Counter-Offer
-                </h4>
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-bold text-amber-900">
-                    ${parseFloat(myQuotation.counter_offer_price).toFixed(2)}
-                  </span>
-                  <span className="text-sm text-amber-700 line-through">
-                    ${parseFloat(myQuotation.quoted_price).toFixed(2)}
-                  </span>
-                </div>
-                {myQuotation.counter_offer_message && (
-                  <p className="text-sm text-amber-800 bg-white/60 rounded-lg p-2 mb-3 italic">
-                    "{myQuotation.counter_offer_message}"
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      setRespondingCounterOffer(true);
-                      try {
-                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'accept' });
-                        toast.success('Counter-offer accepted! Your quote has been updated.');
-                        fetchQuoteRequest();
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || 'Failed to accept counter-offer');
-                      } finally {
-                        setRespondingCounterOffer(false);
-                      }
-                    }}
-                    disabled={respondingCounterOffer}
-                    className="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
-                  >
-                    {respondingCounterOffer ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    Accept Counter-Offer
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setRespondingCounterOffer(true);
-                      try {
-                        await bookingsAPI.respondToCounterOffer(myQuotation.id, { action: 'decline' });
-                        toast.info('Counter-offer declined. Your original quote remains active.');
-                        fetchQuoteRequest();
-                      } catch (err) {
-                        toast.error(err?.response?.data?.message || 'Failed to decline counter-offer');
-                      } finally {
-                        setRespondingCounterOffer(false);
-                      }
-                    }}
-                    disabled={respondingCounterOffer}
-                    className="flex-1 py-2.5 border-2 border-red-300 text-red-700 font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </div>
-            )}
                 {booking.service_name}
               </h3>
               {booking.services?.description && (
@@ -321,12 +324,11 @@ export default function SubmitQuotePage() {
                   Your quote: <span className="font-bold">${parseFloat(myQuotation.quoted_price).toFixed(2)}</span>
                 </p>
                 <p className="text-xs text-green-600 mt-1">
-                  Status: {myQuotation.status === 'selected' ? '🎉 Selected!' : myQuotation.status === 'rejected' ? 'Not selected' : myQuotation.status === 'counter_offered' ? '⚡ Counter-offer received' : 'Pending review'}
+                  Status: {myQuotation.status === 'selected' ? '≡ƒÄë Selected!' : myQuotation.status === 'rejected' ? 'Not selected' : myQuotation.status === 'counter_offered' ? 'ΓÜí Counter-offer received' : 'Pending review'}
                 </p>
               </div>
             )}
 
-<<<<<<< Updated upstream
             {/* Counter-Offer Section */}
             {myQuotation?.status === 'counter_offered' && myQuotation.counter_offer_price && (
               <div className="mt-4 p-4 bg-amber-50 rounded-xl border-2 border-amber-300">
@@ -386,14 +388,16 @@ export default function SubmitQuotePage() {
                     Decline
                   </button>
                 </div>
-=======
+              </div>
+            )}
+
+            {/* Form Locked Notice */}
             {isFormLocked && (
               <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-100">
                 <p className="text-sm font-medium text-amber-800 mb-1">Quote Submission Closed</p>
                 <p className="text-sm text-amber-700">
                   This request is no longer accepting quote submissions{myQuotation ? ' or edits' : ''}. You can still review the job details here.
                 </p>
->>>>>>> Stashed changes
               </div>
             )}
           </div>
@@ -583,6 +587,7 @@ export default function SubmitQuotePage() {
                         </button>
                       </div>
                     ))}
+
                     <button
                       type="button"
                       onClick={addMaterial}

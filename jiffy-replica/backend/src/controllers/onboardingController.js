@@ -292,6 +292,18 @@ exports.submitRequirements = async (req, res) => {
             });
         }
 
+        if (insurance_expiry) {
+            const expiryDate = new Date(insurance_expiry);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (isNaN(expiryDate.getTime()) || expiryDate < today) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insurance expiry date must be today or a future date'
+                });
+            }
+        }
+
         const updateData = {
             service_categories,
             insurance_policy_number: insurance_policy_number || null,

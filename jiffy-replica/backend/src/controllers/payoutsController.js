@@ -17,6 +17,65 @@ function getTodayDateString() {
     return new Date().toISOString().split('T')[0];
 }
 
+function getCalendarEntryEndDate(entry) {
+    return entry?.end_date || entry?.entry_date || null;
+}
+
+function addDays(dateString, days) {
+    const date = new Date(`${dateString}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().split('T')[0];
+}
+
+function isDateWithinRange(targetDate, startDate, endDate) {
+    if (!targetDate || !startDate) {
+        return false;
+    }
+
+    const normalizedEndDate = endDate || startDate;
+    return targetDate >= startDate && targetDate <= normalizedEndDate;
+}
+
+function validateCalendarDateRange(entryDate, endDate) {
+    if (!entryDate) {
+        return 'A start date is required.';
+    }
+
+    if (endDate && endDate < entryDate) {
+        return 'The end date cannot be earlier than the start date.';
+    }
+
+    return null;
+}
+
+function isMissingEndDateColumnError(error) {
+    return error?.message?.includes('end_date') && error?.message?.includes('payout_calendar');
+}
+
+async function fetchPayoutCalendarEntries({ activeOnly = false } = {}) {
+    let query = supabaseAdmin
+        .from('payout_calendar')
+        .select('*');
+
+    if (activeOnly) {
+        query = query.eq('is_active', true);
+    }
+
+    let { data, error } = await query
+        .order('entry_date', { ascending: true })
+        .order('end_date', { ascending: true, nullsFirst: false });
+
+    if (error && isMissingEndDateColumnError(error)) {
+        ({ data, error } = await query.order('entry_date', { ascending: true }));
+    }
+
+    if (error) {
+        throw error;
+    }
+
+    return data || [];
+}
+
 async function getPayoutSettingsRecord() {
     const { data, error } = await supabaseAdmin
         .from('payout_settings')
@@ -39,33 +98,38 @@ async function getPayoutSettingsRecord() {
 }
 
 async function getActiveCalendarEntries() {
-    const { data, error } = await supabaseAdmin
-        .from('payout_calendar')
-        .select('*')
-        .eq('is_active', true)
-        .order('entry_date', { ascending: true });
-
-    if (error) {
+    try {
+        return await fetchPayoutCalendarEntries({ activeOnly: true });
+    } catch (error) {
         logger.error('getActiveCalendarEntries error', { error: error.message });
         return [];
     }
-
-    return data || [];
 }
 
 function getNextPayoutDate(calendarEntries) {
     const today = getTodayDateString();
-    const holidayDates = new Set(
-        (calendarEntries || [])
-            .filter((entry) => entry.entry_type === 'holiday')
-            .map((entry) => entry.entry_date)
-    );
+    const holidayEntries = (calendarEntries || []).filter((entry) => entry.entry_type === 'holiday');
+    const payoutEntries = (calendarEntries || []).filter((entry) => entry.entry_type === 'payout');
 
-    const nextPayout = (calendarEntries || []).find(
-        (entry) => entry.entry_type === 'payout' && entry.entry_date >= today && !holidayDates.has(entry.entry_date)
-    );
+    for (const payoutEntry of payoutEntries) {
+        const rangeStart = payoutEntry.entry_date;
+        const rangeEnd = getCalendarEntryEndDate(payoutEntry);
+        let candidateDate = rangeStart >= today ? rangeStart : today;
 
-    return nextPayout?.entry_date || null;
+        while (candidateDate <= rangeEnd) {
+            const blockedByHoliday = holidayEntries.some((holidayEntry) => (
+                isDateWithinRange(candidateDate, holidayEntry.entry_date, getCalendarEntryEndDate(holidayEntry))
+            ));
+
+            if (!blockedByHoliday) {
+                return candidateDate;
+            }
+
+            candidateDate = addDays(candidateDate, 1);
+        }
+    }
+
+    return null;
 }
 
 async function getLedgerRecords(proProfileId) {
@@ -492,62 +556,35 @@ exports.updatePayoutMethod = async (req, res) => {
 
 exports.adminGetPendingPayouts = async (req, res) => {
     try {
-        const { data: pros, error: prosErr } = await supabaseAdmin
-            .from('pro_profiles')
-            .select('id, user_id, business_name, payout_method, etransfer_email, stripe_account_id, profiles!pro_profiles_user_id_fkey(full_name, email)')
-            .order('business_name', { ascending: true });
-
-        if (prosErr) {
-            logger.error('adminGetPendingPayouts pros error', { error: prosErr.message });
-            return res.status(500).json({ success: false, message: 'Failed to load pros' });
-        }
-
-        const { data: allRecords, error: recErr } = await supabaseAdmin
-            .from('pro_payouts')
-            .select('*')
+        const { data: pendingPayouts, error } = await supabaseAdmin
+            .from('withdrawal_requests')
+            .select(`
+                *,
+                pro_profiles!withdrawal_requests_pro_profile_id_fkey (
+                    id,
+                    business_name,
+                    etransfer_email,
+                    payout_method,
+                    profiles!pro_profiles_user_id_fkey (full_name, email)
+                )
+            `)
+            .eq('status', 'approved')
+            .order('scheduled_for_date', { ascending: true, nullsFirst: false })
+            .order('reviewed_at', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: false });
 
-        if (recErr) {
-            logger.error('adminGetPendingPayouts records error', { error: recErr.message });
-            return res.status(500).json({ success: false, message: 'Failed to load payout records' });
+        if (error) {
+            logger.error('adminGetPendingPayouts records error', { error: error.message });
+            return res.status(500).json({ success: false, message: 'Failed to load pending payouts' });
         }
 
-        const records = allRecords || [];
-
-        const proSummaries = (pros || []).map((pro) => {
-            const proRecords = records.filter((record) => record.pro_profile_id === pro.id);
-            const earnings = proRecords.filter((record) => record.type === 'earning' && record.status === 'completed');
-            const payouts = proRecords.filter((record) => record.type === 'payout' && record.status === 'completed');
-            const pendingEarnings = proRecords.filter((record) => record.type === 'earning' && record.status === 'pending');
-
-            const totalEarned = earnings.reduce((sum, record) => sum + parseFloat(record.amount), 0);
-            const totalPaidOut = payouts.reduce((sum, record) => sum + parseFloat(record.amount), 0);
-            const pendingBalance = totalEarned - totalPaidOut;
-            const pendingAmount = pendingEarnings.reduce((sum, record) => sum + parseFloat(record.amount), 0);
-
-            return {
-                proProfileId: pro.id,
-                userId: pro.user_id,
-                businessName: pro.business_name,
-                fullName: pro.profiles?.full_name,
-                email: pro.profiles?.email,
-                payoutMethod: pro.payout_method || 'e_transfer',
-                etransferEmail: pro.etransfer_email,
-                stripeConnected: !!pro.stripe_account_id,
-                totalEarned: roundAmount(totalEarned),
-                totalPaidOut: roundAmount(totalPaidOut),
-                pendingBalance: roundAmount(pendingBalance),
-                pendingEarnings: roundAmount(pendingAmount),
-                lastPayout: payouts.length > 0 ? payouts[0].paid_at : null,
-                earningsCount: earnings.length,
-            };
-        }).filter((pro) => pro.totalEarned > 0 || pro.pendingEarnings > 0);
+        const approvedRequests = pendingPayouts || [];
 
         res.json({
             success: true,
             data: {
-                pros: proSummaries,
-                totalPendingBalance: roundAmount(proSummaries.reduce((sum, pro) => sum + pro.pendingBalance, 0)),
+                pendingPayouts: approvedRequests,
+                totalPendingAmount: roundAmount(approvedRequests.reduce((sum, request) => sum + parseFloat(request.amount || 0), 0)),
             }
         });
     } catch (error) {
@@ -710,15 +747,7 @@ exports.adminUpdatePayoutSettings = async (req, res) => {
 
 exports.adminGetPayoutCalendar = async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin
-            .from('payout_calendar')
-            .select('*')
-            .order('entry_date', { ascending: true });
-
-        if (error) {
-            logger.error('adminGetPayoutCalendar error', { error: error.message });
-            return res.status(500).json({ success: false, message: 'Failed to load payout calendar' });
-        }
+        const data = await fetchPayoutCalendarEntries();
 
         res.json({
             success: true,
@@ -735,25 +764,57 @@ exports.adminGetPayoutCalendar = async (req, res) => {
 
 exports.adminCreatePayoutCalendarEntry = async (req, res) => {
     try {
-        const { entry_date, entry_type, title, notes } = req.body;
+        const { entry_date, end_date, entry_type, title, notes } = req.body;
 
         if (!entry_date || !entry_type || !['payout', 'holiday', 'event'].includes(entry_type)) {
             return res.status(400).json({ success: false, message: 'Valid date and entry type are required.' });
         }
 
+        const rangeValidationError = validateCalendarDateRange(entry_date, end_date);
+        if (rangeValidationError) {
+            return res.status(400).json({ success: false, message: rangeValidationError });
+        }
+
         const entryTitle = (title || '').trim() || (entry_type === 'payout' ? 'Payout Day' : entry_type === 'holiday' ? 'Holiday' : 'Event');
-        const { data, error } = await supabaseAdmin
+        let insertPayload = {
+            entry_date,
+            end_date: end_date || entry_date,
+            entry_type,
+            title: entryTitle,
+            notes: notes?.trim() || null,
+            created_by: req.user.id,
+            updated_by: req.user.id,
+        };
+
+        let { data, error } = await supabaseAdmin
             .from('payout_calendar')
-            .insert({
+            .insert(insertPayload)
+            .select()
+            .single();
+
+        if (error && isMissingEndDateColumnError(error)) {
+            if (end_date && end_date !== entry_date) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Date ranges require the latest payout calendar migration to be applied.'
+                });
+            }
+
+            insertPayload = {
                 entry_date,
                 entry_type,
                 title: entryTitle,
                 notes: notes?.trim() || null,
                 created_by: req.user.id,
                 updated_by: req.user.id,
-            })
-            .select()
-            .single();
+            };
+
+            ({ data, error } = await supabaseAdmin
+                .from('payout_calendar')
+                .insert(insertPayload)
+                .select()
+                .single());
+        }
 
         if (error) {
             logger.error('adminCreatePayoutCalendarEntry error', { error: error.message });
@@ -774,10 +835,38 @@ exports.adminCreatePayoutCalendarEntry = async (req, res) => {
 exports.adminUpdatePayoutCalendarEntry = async (req, res) => {
     try {
         const { calendarEntryId } = req.params;
-        const { entry_date, entry_type, title, notes, is_active } = req.body;
+        const { entry_date, end_date, entry_type, title, notes, is_active } = req.body;
 
         if (entry_type && !['payout', 'holiday', 'event'].includes(entry_type)) {
             return res.status(400).json({ success: false, message: 'Invalid calendar entry type.' });
+        }
+
+        let { data: existingEntry, error: existingEntryError } = await supabaseAdmin
+            .from('payout_calendar')
+            .select('id, entry_date, end_date')
+            .eq('id', calendarEntryId)
+            .single();
+
+        if (existingEntryError && isMissingEndDateColumnError(existingEntryError)) {
+            ({ data: existingEntry, error: existingEntryError } = await supabaseAdmin
+                .from('payout_calendar')
+                .select('id, entry_date')
+                .eq('id', calendarEntryId)
+                .single());
+        }
+
+        if (existingEntryError || !existingEntry) {
+            return res.status(404).json({ success: false, message: 'Calendar entry not found.' });
+        }
+
+        const nextEntryDate = entry_date || existingEntry.entry_date;
+        const nextEndDate = end_date !== undefined
+            ? (end_date || nextEntryDate)
+            : (existingEntry.end_date || nextEntryDate);
+
+        const rangeValidationError = validateCalendarDateRange(nextEntryDate, nextEndDate);
+        if (rangeValidationError) {
+            return res.status(400).json({ success: false, message: rangeValidationError });
         }
 
         const updateData = {
@@ -786,17 +875,35 @@ exports.adminUpdatePayoutCalendarEntry = async (req, res) => {
         };
 
         if (entry_date) updateData.entry_date = entry_date;
+        if (end_date !== undefined) updateData.end_date = end_date || nextEntryDate;
         if (entry_type) updateData.entry_type = entry_type;
         if (title !== undefined) updateData.title = (title || '').trim() || 'Untitled';
         if (notes !== undefined) updateData.notes = notes?.trim() || null;
         if (is_active !== undefined) updateData.is_active = !!is_active;
 
-        const { data, error } = await supabaseAdmin
+        let { data, error } = await supabaseAdmin
             .from('payout_calendar')
             .update(updateData)
             .eq('id', calendarEntryId)
             .select()
             .single();
+
+        if (error && isMissingEndDateColumnError(error)) {
+            if (end_date && end_date !== nextEntryDate) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Date ranges require the latest payout calendar migration to be applied.'
+                });
+            }
+
+            delete updateData.end_date;
+            ({ data, error } = await supabaseAdmin
+                .from('payout_calendar')
+                .update(updateData)
+                .eq('id', calendarEntryId)
+                .select()
+                .single());
+        }
 
         if (error) {
             logger.error('adminUpdatePayoutCalendarEntry error', { error: error.message });

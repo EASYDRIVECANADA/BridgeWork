@@ -5,8 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, CheckCircle, Calendar, Clock, Loader2, Phone, FileText } from 'lucide-react';
-import { servicesAPI, bookingsAPI } from '@/lib/api';
+import { MapPin, CheckCircle, Calendar, Clock, Loader2, Phone, FileText, User, Mail } from 'lucide-react';
+import { servicesAPI, bookingsAPI, guestQuotesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ServiceDetailPage() {
@@ -33,6 +33,11 @@ export default function ServiceDetailPage() {
     scheduled_period: 'AM',
     special_instructions: '',
     promo_code: '',
+  });
+
+  const [guestForm, setGuestForm] = useState({
+    name: '',
+    email: '',
   });
 
   // Pricing data for each service
@@ -226,13 +231,87 @@ export default function ServiceDetailPage() {
     }
   }, [apiService, initialServiceType]);
 
+  const BOOKING_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/78ef72a3-ac8c-4db8-b4a9-742880e7477b';
+
+  const sendBookingWebhook = async (booking, formFields) => {
+    try {
+      await fetch(BOOKING_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          booking_number: booking.booking_number || null,
+          booking_status: booking.status,
+          service_name: apiService?.name || formFields.service_name_override || null,
+          scheduled_date: formFields.scheduled_date,
+          scheduled_time: formFields.scheduled_time,
+          phone_number: formFields.phone_number,
+          address: formFields.address,
+          city: formFields.city,
+          province: formFields.state,
+          postal_code: formFields.zip_code,
+          special_instructions: formFields.special_instructions || null,
+          promo_code: formFields.promo_code || null,
+          user_id: user?.id || null,
+          user_email: profile?.email || null,
+          user_name: profile?.full_name || null,
+          total_price: booking.total_price || null,
+          pricing_type: apiService?.pricing_type || null,
+        }),
+      });
+    } catch (err) {
+      // Webhook errors are non-fatal — booking still succeeds
+    }
+  };
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    if (!user) {
+
+    const isGuestQuote = !user && serviceType === 'quote';
+
+    if (!user && !isGuestQuote) {
       toast.info('Please log in to book a service.');
       router.push('/login');
       return;
     }
+
+    // Guest quote validation
+    if (isGuestQuote) {
+      if (!guestForm.name || !guestForm.email || !bookingForm.phone_number) {
+        toast.error('Please provide your name, email, and phone number.');
+        return;
+      }
+      if (!bookingForm.address || !bookingForm.city || !bookingForm.state || !bookingForm.zip_code) {
+        toast.error('Please fill in all address fields.');
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const payload = {
+          guest_name: guestForm.name,
+          guest_email: guestForm.email,
+          guest_phone: bookingForm.phone_number,
+          service_id: apiService?.id || serviceId,
+          service_name: apiService?.name || service?.name || displayName,
+          address: bookingForm.address,
+          city: bookingForm.city,
+          state: bookingForm.state,
+          zip_code: bookingForm.zip_code,
+          description: bookingForm.special_instructions || undefined,
+          preferred_date: bookingForm.scheduled_date || undefined,
+        };
+        await guestQuotesAPI.submit(payload);
+        toast.success('Quote request submitted! Check your email for confirmation.');
+        setGuestForm({ name: '', email: '' });
+        setBookingForm({ address: '', city: '', state: '', zip_code: '', phone_number: '', scheduled_date: '', scheduled_time: '09:00', scheduled_period: 'AM', special_instructions: '', promo_code: '' });
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to submit quote request. Please try again.');
+      }
+      setSubmitting(false);
+      return;
+    }
+
     if (!apiService) {
       toast.error('This service is not available for booking yet. Please try another service.');
       return;
@@ -269,7 +348,9 @@ export default function ServiceDetailPage() {
     try {
       const res = await bookingsAPI.create(payload);
       const newBooking = res.data.data.booking;
-      
+
+      sendBookingWebhook(newBooking, payload);
+
       // Check if this is a Free Quote booking (status will be 'quote_pending')
       const isFreeQuote = newBooking.status === 'quote_pending' || newBooking.is_free_quote;
       
@@ -448,7 +529,9 @@ export default function ServiceDetailPage() {
               {/* Right Box - Booking Card */}
       <div className="lg:col-span-1">
         <div className="bg-white rounded-lg shadow-xl p-6 sticky top-28">
-                  <h3 className="text-base font-bold text-gray-900 mb-4 text-center">Book {displayName}</h3>
+                  <h3 className="text-base font-bold text-gray-900 mb-4 text-center">
+                    {(!user && serviceType === 'quote') ? `Get a Free Quote — ${displayName}` : `Book ${displayName}`}
+                  </h3>
                   
                   {/* Service Type Selection Cards - Dynamic based on admin settings */}
                   {(() => {
@@ -552,6 +635,41 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                   <div className="border-t border-gray-200 my-3"></div>
 
                   <form onSubmit={handleBookingSubmit} className="space-y-4">
+                    {/* SECTION: Guest Info (only for unauthenticated quote requests) */}
+                    {!user && serviceType === 'quote' && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <User className="w-4 h-4 text-[#0E7480]" />
+                          Your Information
+                        </h4>
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Full Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="John Smith"
+                            value={guestForm.name}
+                            onChange={(e) => setGuestForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Email Address *</label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="email"
+                              required
+                              placeholder="john@example.com"
+                              value={guestForm.email}
+                              onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
+                              className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent text-sm bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* SECTION: Schedule */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -562,11 +680,11 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                       {/* Date Picker */}
                       <div className="mb-3">
                         <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          Preferred Date *
+                          Preferred Date {(!user && serviceType === 'quote') ? '(optional)' : '*'}
                         </label>
                         <input
                           type="date"
-                          required
+                          required={!(!user && serviceType === 'quote')}
                           min={new Date().toISOString().split('T')[0]}
                           value={bookingForm.scheduled_date}
                           onChange={(e) => setBookingForm(prev => ({ ...prev, scheduled_date: e.target.value }))}
@@ -731,15 +849,17 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Booking...
+                          {(!user && serviceType === 'quote') ? 'Submitting...' : 'Booking...'}
                         </>
                       ) : (
-                        'Book Now'
+                        (!user && serviceType === 'quote') ? 'Request Free Quote' : 'Book Now'
                       )}
                     </button>
 
                     <p className="text-xs text-center text-gray-600">
-                      You won&apos;t be charged until the job is complete
+                      {(!user && serviceType === 'quote')
+                        ? 'No account required. We\'ll email you a personalized quote.'
+                        : 'You won\'t be charged until the job is complete'}
                     </p>
                   </form>
                 </div>

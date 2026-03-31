@@ -21,13 +21,24 @@ export default function ReviewModal({ booking, onClose, onReviewSubmitted }) {
 
     setIsSubmitting(true);
     try {
-      await reviewsAPI.create({
+      const response = await reviewsAPI.create({
         booking_id: booking.id,
         rating,
         comment: comment.trim() || undefined,
       });
+
+      if (typeof window !== 'undefined') {
+        const reviewPayload = JSON.stringify({
+          bookingId: booking.id,
+          reviewId: response.data?.data?.review?.id || null,
+          submittedAt: Date.now(),
+        });
+        window.localStorage.setItem('bridgework.reviewSubmitted', reviewPayload);
+        window.dispatchEvent(new CustomEvent('bridgework-review-submitted', { detail: reviewPayload }));
+      }
+
       toast.success('Review submitted successfully!');
-      if (onReviewSubmitted) onReviewSubmitted();
+      if (onReviewSubmitted) onReviewSubmitted(response.data?.data?.review || null);
       onClose();
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to submit review';

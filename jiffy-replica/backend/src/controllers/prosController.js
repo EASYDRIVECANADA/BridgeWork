@@ -262,8 +262,11 @@ exports.getProJobs = async (req, res) => {
                 query = query.eq('status', status);
             }
 
+            const shouldShowNewestFirst = status === 'accepted' || status === 'in_progress';
+
             query = query
-                .order('scheduled_datetime', { ascending: true })
+                .order('scheduled_datetime', { ascending: !shouldShowNewestFirst, nullsFirst: false })
+                .order('created_at', { ascending: !shouldShowNewestFirst })
                 .range(offset, offset + parseInt(limit) - 1);
         }
 

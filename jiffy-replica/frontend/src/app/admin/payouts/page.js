@@ -37,6 +37,12 @@ function formatDateLabel(dateString) {
   });
 }
 
+function formatDateRange(startDate, endDate) {
+  if (!startDate) return 'Not scheduled';
+  if (!endDate || endDate === startDate) return formatDateLabel(startDate);
+  return `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`;
+}
+
 function getStatusClasses(status) {
   if (status === 'processed' || status === 'completed') return 'bg-green-100 text-green-700';
   if (status === 'approved') return 'bg-blue-100 text-blue-700';
@@ -56,7 +62,7 @@ export default function AdminPayoutsPage() {
   const [activeTab, setActiveTab] = useState('requests');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [pros, setPros] = useState([]);
+  const [pendingPayouts, setPendingPayouts] = useState([]);
   const [totalPending, setTotalPending] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
@@ -66,16 +72,6 @@ export default function AdminPayoutsPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [calendarEntries, setCalendarEntries] = useState([]);
   const [nextPayoutDate, setNextPayoutDate] = useState(null);
-
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [selectedPro, setSelectedPro] = useState(null);
-  const [payoutAmount, setPayoutAmount] = useState('');
-  const [payoutReference, setPayoutReference] = useState('');
-  const [payoutNotes, setPayoutNotes] = useState('');
-  const [securityQuestion, setSecurityQuestion] = useState('');
-  const [securityAnswer, setSecurityAnswer] = useState('');
-  const [sendEmail, setSendEmail] = useState(true);
-  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [rejectNotes, setRejectNotes] = useState('');
@@ -91,6 +87,7 @@ export default function AdminPayoutsPage() {
   const [processSubmitting, setProcessSubmitting] = useState(false);
 
   const [calendarDate, setCalendarDate] = useState('');
+  const [calendarEndDate, setCalendarEndDate] = useState('');
   const [calendarType, setCalendarType] = useState('payout');
   const [calendarTitle, setCalendarTitle] = useState('');
   const [calendarNotes, setCalendarNotes] = useState('');
@@ -107,8 +104,8 @@ export default function AdminPayoutsPage() {
         payoutsAPI.getPayoutCalendar(),
       ]);
 
-      setPros(pendingRes.data?.data?.pros || []);
-      setTotalPending(parseFloat(pendingRes.data?.data?.totalPendingBalance || 0));
+      setPendingPayouts(pendingRes.data?.data?.pendingPayouts || []);
+      setTotalPending(parseFloat(pendingRes.data?.data?.totalPendingAmount || 0));
       setPayoutHistory(historyRes.data?.data?.payouts || []);
       setWithdrawalRequests(withdrawalsRes.data?.data?.withdrawals || []);
       setRequestCounts(withdrawalsRes.data?.data?.counts || { pending: 0, approved: 0, rejected: 0, processed: 0 });
@@ -134,68 +131,31 @@ export default function AdminPayoutsPage() {
     loadDashboardData();
   }, [user, profile, router]);
 
-  const filteredPros = useMemo(() => {
+  const filteredPendingPayouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return pros;
-    return pros.filter((pro) =>
-      [pro.businessName, pro.fullName, pro.email, pro.etransferEmail]
+    if (!query) return pendingPayouts;
+    return pendingPayouts.filter((request) => {
+      const businessName = request.pro_profiles?.business_name || '';
+      const fullName = request.pro_profiles?.profiles?.full_name || '';
+      const email = request.pro_profiles?.profiles?.email || '';
+      const etransferEmail = request.pro_profiles?.etransfer_email || '';
+      return [businessName, fullName, email, etransferEmail]
         .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
-    );
-  }, [pros, searchQuery]);
+        .some((value) => value.toLowerCase().includes(query));
+    });
+  }, [pendingPayouts, searchQuery]);
 
   const filteredRequests = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return withdrawalRequests;
-    return withdrawalRequests.filter((request) => {
+    const visibleRequests = withdrawalRequests.filter((request) => request.status !== 'approved');
+    if (!query) return visibleRequests;
+    return visibleRequests.filter((request) => {
       const businessName = request.pro_profiles?.business_name || '';
       const fullName = request.pro_profiles?.profiles?.full_name || '';
       const email = request.pro_profiles?.profiles?.email || '';
       return [businessName, fullName, email].some((value) => value.toLowerCase().includes(query));
     });
   }, [withdrawalRequests, searchQuery]);
-
-  const openPayoutModal = (pro) => {
-    setSelectedPro(pro);
-    setPayoutAmount(pro.pendingBalance.toFixed(2));
-    setPayoutReference('');
-    setPayoutNotes('');
-    setSecurityQuestion('');
-    setSecurityAnswer('');
-    setSendEmail(true);
-    setShowPayoutModal(true);
-  };
-
-  const handleRecordPayout = async () => {
-    if (!payoutAmount || parseFloat(payoutAmount) <= 0) {
-      toast.error('Enter a valid payout amount');
-      return;
-    }
-    if (sendEmail && (!securityQuestion.trim() || !securityAnswer.trim())) {
-      toast.error('Enter the security question and answer to notify the pro, or turn off the email option.');
-      return;
-    }
-
-    setPayoutSubmitting(true);
-    try {
-      await payoutsAPI.recordPayout({
-        pro_profile_id: selectedPro.proProfileId,
-        amount: parseFloat(payoutAmount),
-        payout_reference: payoutReference.trim() || undefined,
-        notes: payoutNotes.trim() || undefined,
-        security_question: securityQuestion.trim() || undefined,
-        security_answer: securityAnswer.trim() || undefined,
-        send_email: sendEmail,
-      });
-      toast.success(`Payout of ${formatCurrency(payoutAmount)} recorded.`);
-      setShowPayoutModal(false);
-      await loadDashboardData();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to record payout');
-    } finally {
-      setPayoutSubmitting(false);
-    }
-  };
 
   const handleApproveRequest = async (requestId) => {
     try {
@@ -296,12 +256,14 @@ export default function AdminPayoutsPage() {
     try {
       await payoutsAPI.createPayoutCalendarEntry({
         entry_date: calendarDate,
+        end_date: calendarEndDate || calendarDate,
         entry_type: calendarType,
         title: calendarTitle.trim() || undefined,
         notes: calendarNotes.trim() || undefined,
       });
       toast.success('Calendar entry created.');
       setCalendarDate('');
+      setCalendarEndDate('');
       setCalendarType('payout');
       setCalendarTitle('');
       setCalendarNotes('');
@@ -366,7 +328,7 @@ export default function AdminPayoutsPage() {
                 <DollarSign className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Manual Balance Pending</p>
+                <p className="text-xs text-gray-500">Pending Payout Amount</p>
                 <p className="text-xl font-bold text-gray-900">{formatCurrency(totalPending)}</p>
               </div>
             </div>
@@ -378,7 +340,7 @@ export default function AdminPayoutsPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Open Withdrawal Requests</p>
-                <p className="text-xl font-bold text-gray-900">{requestCounts.pending + requestCounts.approved}</p>
+                <p className="text-xl font-bold text-gray-900">{requestCounts.pending}</p>
               </div>
             </div>
           </div>
@@ -540,8 +502,13 @@ export default function AdminPayoutsPage() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Add Calendar Entry</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                   <input type="date" value={calendarDate} onChange={(e) => setCalendarDate(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input type="date" value={calendarEndDate} min={calendarDate || undefined} onChange={(e) => setCalendarEndDate(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0E7480] focus:border-transparent" />
+                  <p className="text-xs text-gray-400 mt-1">Leave blank to create a single-day entry.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entry Type</label>
@@ -594,7 +561,7 @@ export default function AdminPayoutsPage() {
                           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${getStatusClasses(entry.entry_type)}`}>{entry.entry_type}</span>
                           {!entry.is_active && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">inactive</span>}
                         </div>
-                        <p className="text-sm text-gray-500">{formatDateLabel(entry.entry_date)}</p>
+                        <p className="text-sm text-gray-500">{formatDateRange(entry.entry_date, entry.end_date)}</p>
                         {entry.notes && <p className="text-sm text-gray-400 mt-1">{entry.notes}</p>}
                       </div>
                       <div className="flex items-center gap-2 md:justify-end">
@@ -623,60 +590,75 @@ export default function AdminPayoutsPage() {
 
         {activeTab === 'pending' && (
           <div className="space-y-3">
-            {filteredPros.length === 0 ? (
+            {filteredPendingPayouts.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
                 <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 font-medium">No pending payouts</p>
-                <p className="text-sm text-gray-400 mt-1">Manual e-Transfer balances will appear here.</p>
+                <p className="text-sm text-gray-400 mt-1">Approved withdrawal requests will appear here.</p>
               </div>
             ) : (
-              filteredPros.map((pro) => (
-                <div key={pro.proProfileId} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              filteredPendingPayouts.map((request) => {
+                const businessName = request.pro_profiles?.business_name || request.pro_profiles?.profiles?.full_name || 'Pro';
+                const fullName = request.pro_profiles?.profiles?.full_name || 'No name';
+                const email = request.pro_profiles?.profiles?.email || 'No email';
+                const payoutMethod = request.pro_profiles?.payout_method || 'e_transfer';
+                const etransferEmail = request.pro_profiles?.etransfer_email;
+
+                return (
+                <div key={request.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                   <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">
-                        {(pro.fullName || pro.businessName || '?').charAt(0).toUpperCase()}
+                        {(fullName || businessName || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900 text-sm">{pro.businessName || pro.fullName}</p>
-                        <p className="text-xs text-gray-500">{pro.fullName} • {pro.email}</p>
+                        <p className="font-semibold text-gray-900 text-sm">{businessName}</p>
+                        <p className="text-xs text-gray-500">{fullName} • {email}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pro.payoutMethod === 'stripe_connect' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {pro.payoutMethod === 'stripe_connect' ? 'Stripe Connect' : 'e-Transfer'}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${payoutMethod === 'stripe_connect' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {payoutMethod === 'stripe_connect' ? 'Stripe Connect' : 'e-Transfer'}
                           </span>
-                          {pro.etransferEmail && pro.payoutMethod !== 'stripe_connect' && (
-                            <span className="text-xs text-gray-400">{pro.etransferEmail}</span>
+                          {etransferEmail && payoutMethod !== 'stripe_connect' && (
+                            <span className="text-xs text-gray-400">{etransferEmail}</span>
                           )}
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">approved</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 xl:gap-6 xl:items-center">
                       <div>
-                        <p className="text-xs text-gray-400">Total Earned</p>
-                        <p className="text-sm font-semibold text-gray-700">{formatCurrency(pro.totalEarned)}</p>
+                        <p className="text-xs text-gray-400">Requested Amount</p>
+                        <p className="text-sm font-semibold text-gray-700">{formatCurrency(request.amount)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-400">Paid Out</p>
-                        <p className="text-sm font-semibold text-gray-700">{formatCurrency(pro.totalPaidOut)}</p>
+                        <p className="text-xs text-gray-400">Requested On</p>
+                        <p className="text-sm font-semibold text-gray-700">{formatDateLabel(request.created_at)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-400">Pending</p>
-                        <p className={`text-sm font-bold ${pro.pendingBalance > 0 ? 'text-amber-600' : 'text-green-600'}`}>{formatCurrency(pro.pendingBalance)}</p>
+                        <p className="text-xs text-gray-400">Scheduled Payout</p>
+                        <p className="text-sm font-bold text-amber-600">{formatDateLabel(request.scheduled_for_date)}</p>
                       </div>
                       <div className="flex items-center justify-start xl:justify-end">
-                        {pro.pendingBalance > 0 && pro.payoutMethod !== 'stripe_connect' ? (
-                          <button onClick={() => openPayoutModal(pro)} className="px-4 py-2 bg-[#0E7480] text-white text-xs font-semibold rounded-lg hover:bg-[#0c6670] transition-colors">
-                            Record Payout
+                        <div className="flex flex-wrap gap-2 xl:justify-end">
+                          <button onClick={() => openProcessModal(request)} className="px-4 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors">
+                            Process Payout
                           </button>
-                        ) : (
-                          <span className="text-xs text-green-600 font-medium">{pro.payoutMethod === 'stripe_connect' ? 'Auto-paid' : 'No action needed'}</span>
-                        )}
+                          <button onClick={() => openRejectModal(request)} className="px-4 py-2 border border-red-200 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors">
+                            Reject
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                  {(request.notes || request.admin_notes) && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-500 space-y-1">
+                      {request.notes && <p>Pro note: {request.notes}</p>}
+                      {request.admin_notes && <p>Admin note: {request.admin_notes}</p>}
+                    </div>
+                  )}
                 </div>
-              ))
+              );})
             )}
           </div>
         )}
@@ -719,74 +701,6 @@ export default function AdminPayoutsPage() {
           </div>
         )}
       </div>
-
-      {showPayoutModal && selectedPro && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Record Payout</h3>
-              <button onClick={() => setShowPayoutModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-sm font-semibold text-gray-900">{selectedPro.businessName || selectedPro.fullName}</p>
-              <p className="text-xs text-gray-500">{selectedPro.email}</p>
-              {selectedPro.etransferEmail && <p className="text-xs text-blue-600 mt-1">e-Transfer to: {selectedPro.etransferEmail}</p>}
-              <p className="text-sm font-bold text-amber-600 mt-2">Pending Balance: {formatCurrency(selectedPro.pendingBalance)}</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Payout Amount</label>
-                <input type="number" step="0.01" min="0.01" max={selectedPro.pendingBalance} value={payoutAmount} onChange={(e) => setPayoutAmount(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">e-Transfer Confirmation #</label>
-                <input type="text" value={payoutReference} onChange={(e) => setPayoutReference(e.target.value)} placeholder="e.g. ET-12345678" className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Notes</label>
-                <textarea value={payoutNotes} onChange={(e) => setPayoutNotes(e.target.value)} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none resize-none" />
-              </div>
-            </div>
-
-            <div className="mt-4 border border-[#0E7480]/20 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between bg-[#0E7480]/5 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-[#0E7480]" />
-                  <span className="text-sm font-semibold text-gray-800">Notify Pro via Email</span>
-                </div>
-                <button type="button" onClick={() => setSendEmail(!sendEmail)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${sendEmail ? 'bg-[#0E7480]' : 'bg-gray-300'}`}>
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${sendEmail ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              {sendEmail && (
-                <div className="px-4 py-4 space-y-3 bg-white">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Security Question</label>
-                    <input type="text" value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Security Answer</label>
-                    <input type="text" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4 mb-4 text-xs text-amber-700">
-              Send the Interac e-Transfer before recording this payout. This action creates a permanent payout ledger record.
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowPayoutModal(false)} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleRecordPayout} disabled={payoutSubmitting} className="flex-1 px-4 py-2.5 bg-[#0E7480] text-white rounded-lg text-sm font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50">
-                {payoutSubmitting ? 'Recording...' : `Record ${formatCurrency(payoutAmount || 0)}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showRejectModal && selectedRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

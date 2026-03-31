@@ -28,6 +28,7 @@ const ALL_PERMISSIONS = [
   { key: 'quotations', label: 'Quotations' },
   { key: 'quote_assignments', label: 'Quote Assignments' },
   { key: 'quote_requests', label: 'Quote Requests' },
+  { key: 'guest_quotes', label: 'Guest Quotes' },
   { key: 'proofs', label: 'Job Proofs' },
   { key: 'support_chat', label: 'Support Chat' },
   { key: 'disputes', label: 'Disputes' },

@@ -31,6 +31,7 @@ const payoutsRoutes = require('./routes/payouts');
 const invoiceRoutes = require('./routes/invoice');
 const adminManageRoutes = require('./routes/adminManage');
 const notificationsRoutes = require('./routes/notifications');
+const guestQuotesRoutes = require('./routes/guestQuotes');
 const { startHoldExpirationJob } = require('./services/holdExpirationJob');
 
 const app = express();
@@ -163,6 +164,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/pro-profile-updates', proProfileUpdatesRoutes);
 app.use('/api/payouts', payoutsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/guest-quotes', guestQuotesRoutes);
 app.use('/api', invoiceRoutes);
 
 // Serve uploaded images

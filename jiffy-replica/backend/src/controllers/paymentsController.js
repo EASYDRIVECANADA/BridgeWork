@@ -288,6 +288,15 @@ exports.handleWebhook = async (req, res) => {
             case 'payment_intent.canceled':
                 await handlePaymentCanceled(event.data.object);
                 break;
+            case 'checkout.session.completed': {
+                // Handle guest quote payments via Stripe Checkout
+                const session = event.data.object;
+                if (session.metadata?.type === 'guest_quote') {
+                    const { handleGuestQuotePayment } = require('./guestQuotesController');
+                    await handleGuestQuotePayment(session);
+                }
+                break;
+            }
             default:
                 logger.info('Unhandled event type', { type: event.type });
         }
@@ -920,7 +929,7 @@ exports.disputeBooking = async (req, res) => {
             .select('*')
             .eq('id', booking_id)
             .eq('user_id', req.user.id)
-            .in('status', ['accepted', 'in_progress', 'proof_submitted'])
+            .in('status', ['accepted', 'in_progress', 'proof_submitted', 'completed'])
             .single();
 
         if (error || !booking) {
@@ -928,6 +937,17 @@ exports.disputeBooking = async (req, res) => {
                 success: false,
                 message: 'Booking not found or not in a disputable state.'
             });
+        }
+
+        if (booking.status === 'completed' && booking.updated_at) {
+            const completedTime = new Date(booking.updated_at);
+            const hoursSinceCompletion = (Date.now() - completedTime.getTime()) / (1000 * 60 * 60);
+            if (hoursSinceCompletion > 48) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Disputes cannot be opened more than 48 hours after job completion.'
+                });
+            }
         }
 
         await supabaseAdmin

@@ -204,6 +204,10 @@ export default function Navbar() {
                             <Receipt className="w-4 h-4" />
                             All Quotations
                           </Link>
+                          <Link href="/admin/guest-quotes" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
+                            <FileText className="w-4 h-4" />
+                            Guest Quotes
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -453,6 +457,10 @@ export default function Navbar() {
                   <Link href="/admin/quotations" className="flex items-center gap-3 px-4 py-2.5 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
                     <Receipt className="w-5 h-5" />
                     All Quotations
+                  </Link>
+                  <Link href="/admin/guest-quotes" className="flex items-center gap-3 px-4 py-2.5 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <FileText className="w-5 h-5" />
+                    Guest Quotes
                   </Link>
                   
                   {/* Team Section */}

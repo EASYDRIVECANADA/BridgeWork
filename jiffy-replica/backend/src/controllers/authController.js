@@ -2,9 +2,47 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 
+const PRO_SIGNUP_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/dab09a81-2ca1-448f-906b-3a6b12c07f5e';
+
+async function sendProSignupWebhook(payload) {
+    try {
+        const response = await fetch(PRO_SIGNUP_WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const responseText = await response.text();
+            logger.warn('Pro signup webhook failed', {
+                status: response.status,
+                body: responseText
+            });
+        }
+    } catch (error) {
+        logger.warn('Pro signup webhook error', { error: error.message });
+    }
+}
+
 exports.signup = async (req, res) => {
     try {
-        const { email, password, full_name, role = 'user', phone, address, city, state, zip_code } = req.body;
+        const {
+            email,
+            password,
+            full_name,
+            role = 'user',
+            phone,
+            address,
+            city,
+            state,
+            zip_code,
+            first_name,
+            last_name,
+            referral_code,
+            signup_source
+        } = req.body;
 
         // Use supabase.auth.signUp() which triggers Supabase's built-in confirmation email
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -87,6 +125,39 @@ exports.signup = async (req, res) => {
             } else {
                 logger.info('Pro profile auto-created', { userId: authData.user.id });
             }
+
+            const derivedFirstName = first_name || full_name?.trim()?.split(/\s+/)?.[0] || '';
+            const derivedLastName = last_name || full_name?.trim()?.split(/\s+/)?.slice(1).join(' ') || '';
+
+            await sendProSignupWebhook({
+                user_id: authData.user.id,
+                first_name: derivedFirstName,
+                last_name: derivedLastName,
+                full_name,
+                email,
+                phone: phone || null,
+                role,
+                referral_code: referral_code || null,
+                signup_source: signup_source || 'become-pro'
+            });
+        }
+
+        // Fire webhook for homeowner (user) signups
+        if (role === 'user') {
+            const derivedFirstName = first_name || full_name?.trim()?.split(/\s+/)?.[0] || '';
+            const derivedLastName = last_name || full_name?.trim()?.split(/\s+/)?.slice(1).join(' ') || '';
+
+            await sendProSignupWebhook({
+                user_id: authData.user.id,
+                first_name: derivedFirstName,
+                last_name: derivedLastName,
+                full_name,
+                email,
+                phone: phone || null,
+                role,
+                referral_code: referral_code || null,
+                signup_source: signup_source || 'signup'
+            });
         }
 
         logger.info('User signed up successfully — confirmation email sent by Supabase', { userId: authData.user.id });
@@ -400,27 +471,57 @@ exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
 
-        // Use Supabase's built-in resetPasswordForEmail
-        // This sends a branded email (template configured in Supabase dashboard)
         const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
-        const redirectTo = `${frontendUrl}/reset-password`;
 
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo
-        });
+        // Look up the user's profile so we have their name and user_id
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, full_name')
+            .eq('email', email.toLowerCase())
+            .maybeSingle();
 
-        if (resetError) {
-            logger.error('Failed to send reset email', { error: resetError.message, email });
-            // Still return success to prevent email enumeration
-        }
-
-        logger.info('Password reset email requested', { email });
-
-        // Always return success to prevent email enumeration attacks
-        res.json({
+        // Always return success to prevent email enumeration — even if no account found
+        const genericResponse = {
             success: true,
             message: 'If an account with that email exists, a password reset link has been sent.'
-        });
+        };
+
+        if (!profile) {
+            logger.info('Password reset requested for unknown email (no-op)', { email });
+            return res.json(genericResponse);
+        }
+
+        // Generate a secure random token
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+        // Invalidate any existing unused tokens for this user
+        await supabaseAdmin
+            .from('password_reset_tokens')
+            .update({ used_at: new Date().toISOString() })
+            .eq('user_id', profile.id)
+            .is('used_at', null);
+
+        // Store the new token
+        const { error: insertError } = await supabaseAdmin
+            .from('password_reset_tokens')
+            .insert({ user_id: profile.id, token_hash: tokenHash, expires_at: expiresAt });
+
+        if (insertError) {
+            logger.error('Failed to store password reset token', { error: insertError.message, userId: profile.id });
+            return res.json(genericResponse);
+        }
+
+        // Build the reset link and send via GHL SMTP
+        const resetLink = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+
+        const { sendPasswordResetEmail } = require('../services/emailService');
+        await sendPasswordResetEmail(email, profile.full_name || 'there', resetLink);
+
+        logger.info('Password reset email sent', { userId: profile.id });
+
+        res.json(genericResponse);
     } catch (error) {
         logger.error('Forgot password controller error', { error: error.message });
         res.status(500).json({
