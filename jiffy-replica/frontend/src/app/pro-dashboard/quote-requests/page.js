@@ -17,13 +17,14 @@ import {
   User,
   Send
 } from 'lucide-react';
-import { bookingsAPI } from '@/lib/api';
+import { bookingsAPI, guestQuotesAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function ProQuoteRequestsPage() {
   const router = useRouter();
   const { user, profile } = useSelector((state) => state.auth);
   const [quoteRequests, setQuoteRequests] = useState([]);
+  const [guestQuoteAssignments, setGuestQuoteAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // 'all', 'available', 'submitted'
 
@@ -32,14 +33,18 @@ export default function ProQuoteRequestsPage() {
       router.push('/pro-login');
       return;
     }
-    fetchQuoteRequests();
+    fetchAllRequests();
   }, [user, profile, router]);
 
-  const fetchQuoteRequests = async () => {
+  const fetchAllRequests = async () => {
     try {
       setLoading(true);
-      const res = await bookingsAPI.getQuoteRequestsForPro();
-      setQuoteRequests(res.data?.data?.bookings || []);
+      const [quoteRes, guestRes] = await Promise.all([
+        bookingsAPI.getQuoteRequestsForPro().catch(() => null),
+        guestQuotesAPI.getProAssignments().catch(() => null),
+      ]);
+      setQuoteRequests(quoteRes?.data?.data?.bookings || []);
+      setGuestQuoteAssignments(guestRes?.data?.data?.assignments || []);
     } catch (err) {
       toast.error('Failed to load quote requests');
     } finally {
@@ -47,14 +52,25 @@ export default function ProQuoteRequestsPage() {
     }
   };
 
-  const filteredRequests = quoteRequests.filter(req => {
+  // Normalize guest assignments to match the shape used in filtering/display
+  const normalizedGuestAssignments = guestQuoteAssignments.map(gq => ({
+    ...gq,
+    _isGuest: true,
+    can_submit_quote: gq.status === 'pro_assigned',
+    has_submitted_quote: ['pro_quoted', 'quoted', 'payment_sent', 'paid', 'completed'].includes(gq.status),
+    service_name: gq.service_name,
+  }));
+
+  const allRequests = [...quoteRequests, ...normalizedGuestAssignments];
+
+  const filteredRequests = allRequests.filter(req => {
     if (filter === 'available') return req.can_submit_quote;
     if (filter === 'submitted') return req.has_submitted_quote;
     return true;
   });
 
-  const availableCount = quoteRequests.filter(r => r.can_submit_quote).length;
-  const submittedCount = quoteRequests.filter(r => r.has_submitted_quote).length;
+  const availableCount = allRequests.filter(r => r.can_submit_quote).length;
+  const submittedCount = allRequests.filter(r => r.has_submitted_quote).length;
 
   if (!user || profile?.role !== 'pro') return null;
 
@@ -77,7 +93,7 @@ export default function ProQuoteRequestsPage() {
                 <FileText className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{quoteRequests.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{allRequests.length}</p>
                 <p className="text-xs text-gray-500">Total Requests</p>
               </div>
             </div>
@@ -116,7 +132,7 @@ export default function ProQuoteRequestsPage() {
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            All ({quoteRequests.length})
+            All ({allRequests.length})
           </button>
           <button
             onClick={() => setFilter('available')}
@@ -173,6 +189,11 @@ export default function ProQuoteRequestsPage() {
                         <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                           {request.service_name}
                         </h3>
+                        {request._isGuest && (
+                          <span className="px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                            Guest
+                          </span>
+                        )}
                         {request.has_submitted_quote ? (
                           <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-green-100 text-green-700 flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
@@ -187,34 +208,41 @@ export default function ProQuoteRequestsPage() {
                             No Longer Accepting Quotes
                           </span>
                         )}
-                        {request.my_quote_status === 'counter_offered' && (
+                        {!request._isGuest && request.my_quote_status === 'counter_offered' && (
                           <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
                             <DollarSign className="w-3 h-3" />
                             Counter-Offer
                           </span>
                         )}
-                        <span className="text-[10px] sm:text-xs text-gray-400">
-                          {request.total_quotes} quote{request.total_quotes !== 1 ? 's' : ''} received
-                        </span>
+                        {!request._isGuest && (
+                          <span className="text-[10px] sm:text-xs text-gray-400">
+                            {request.total_quotes} quote{request.total_quotes !== 1 ? 's' : ''} received
+                          </span>
+                        )}
+                        {request._isGuest && request.request_number && (
+                          <span className="text-[10px] sm:text-xs text-gray-400 font-mono">
+                            {request.request_number}
+                          </span>
+                        )}
                       </div>
 
                       {/* Customer Info */}
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                         <User className="w-4 h-4 text-gray-400" />
-                        <span>{request.profiles?.full_name || 'Customer'}</span>
+                        <span>{request._isGuest ? (request.guest_name || 'Guest') : (request.profiles?.full_name || 'Customer')}</span>
                       </div>
 
                       {/* Details Grid */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                         <div className="flex items-center gap-2 text-gray-600">
                           <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{request.city}, {request.state}</span>
+                          <span>{request._isGuest ? `${request.city}, ${request.state}` : `${request.city}, ${request.state}`}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <span>
-                            {request.scheduled_date
-                              ? new Date(request.scheduled_date).toLocaleDateString('en-US', {
+                            {(request._isGuest ? request.preferred_date : request.scheduled_date)
+                              ? new Date(request._isGuest ? request.preferred_date : request.scheduled_date).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
                                 })
@@ -223,7 +251,7 @@ export default function ProQuoteRequestsPage() {
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <Clock className="w-4 h-4 text-gray-400" />
-                          <span>{request.scheduled_time || 'Flexible'}</span>
+                          <span>{(request._isGuest ? request.preferred_time : request.scheduled_time) || 'Flexible'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-600">
                           <DollarSign className="w-4 h-4 text-gray-400" />
@@ -231,11 +259,11 @@ export default function ProQuoteRequestsPage() {
                         </div>
                       </div>
 
-                      {/* Special Instructions */}
-                      {request.special_instructions && (
+                      {/* Special Instructions / Guest Notes */}
+                      {(request._isGuest ? request.description : request.special_instructions) && (
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                           <p className="text-sm text-gray-600">
-                            <span className="font-medium">Notes:</span> {request.special_instructions}
+                            <span className="font-medium">Notes:</span> {request._isGuest ? request.description : request.special_instructions}
                           </p>
                         </div>
                       )}
@@ -243,9 +271,9 @@ export default function ProQuoteRequestsPage() {
 
                     {/* Action Button */}
                     <Link
-                      href={`/pro-dashboard/quote-requests/${request.id}`}
+                      href={request._isGuest ? `/pro-dashboard/quote-requests/guest/${request.id}` : `/pro-dashboard/quote-requests/${request.id}`}
                       className={`flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-colors ${
-                        request.my_quote_status === 'counter_offered'
+                        !request._isGuest && request.my_quote_status === 'counter_offered'
                           ? 'bg-amber-500 text-white hover:bg-amber-600'
                           : request.can_submit_quote
                           ? 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
@@ -254,7 +282,7 @@ export default function ProQuoteRequestsPage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {request.my_quote_status === 'counter_offered'
+                      {!request._isGuest && request.my_quote_status === 'counter_offered'
                         ? 'Review Counter-Offer'
                         : request.can_submit_quote
                         ? 'Submit Quote'

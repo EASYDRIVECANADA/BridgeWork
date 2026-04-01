@@ -155,8 +155,9 @@ export default function AdminQuotationsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredBookings.map((booking) => {
+          <>
+            <div className="space-y-4">
+              {filteredBookings.map((booking) => {
               const isExpanded = expandedBooking === booking.id;
               const quotations = booking.booking_quotations || [];
               const selectedQuote = quotations.find(q => q.status === 'selected');
@@ -367,33 +368,34 @@ export default function AdminQuotationsPage() {
                   )}
                 </div>
               );
-            })}
-          </div>
-
-          {/* Pagination Controls */}
-          {pagination.total > pagination.limit && (
-            <div className="flex items-center justify-between mt-6 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <p className="text-sm text-gray-600">
-                Showing {pagination.offset + 1}–{Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => fetchQuotations(Math.max(0, pagination.offset - pagination.limit))}
-                  disabled={pagination.offset === 0}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => fetchQuotations(pagination.offset + pagination.limit)}
-                  disabled={pagination.offset + pagination.limit >= pagination.total}
-                  className="px-4 py-2 text-sm font-medium text-white bg-[#0E7480] rounded-lg hover:bg-[#0a5a63] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+              })}
             </div>
-          )}
+
+            {/* Pagination Controls */}
+            {pagination.total > pagination.limit && (
+              <div className="flex items-center justify-between mt-6 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-600">
+                  Showing {pagination.offset + 1}–{Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fetchQuotations(Math.max(0, pagination.offset - pagination.limit))}
+                    disabled={pagination.offset === 0}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => fetchQuotations(pagination.offset + pagination.limit)}
+                    disabled={pagination.offset + pagination.limit >= pagination.total}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#0E7480] rounded-lg hover:bg-[#0a5a63] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

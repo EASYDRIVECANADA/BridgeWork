@@ -111,8 +111,6 @@ export default function ProDashboardPage() {
   // Guest quote assignments state
   const [guestQuoteAssignments, setGuestQuoteAssignments] = useState([]);
   const [guestQuotesLoading, setGuestQuotesLoading] = useState(false);
-  const [guestQuoteForm, setGuestQuoteForm] = useState({});
-  const [guestQuoteSubmitting, setGuestQuoteSubmitting] = useState(null);
 
   // Pro profile settings state
   const avatarInputRef = useRef(null);
@@ -937,9 +935,9 @@ export default function ProDashboardPage() {
                       Quote Requests
                     </span>
                   </div>
-                  {quoteRequests.length > 0 && (
+                  {(quoteRequests.length + guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length) > 0 && (
                     <span className="bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                      {quoteRequests.length}
+                      {quoteRequests.length + guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length}
                     </span>
                   )}
                 </button>
@@ -1378,175 +1376,76 @@ export default function ProDashboardPage() {
                       {guestQuoteAssignments.map((gq) => {
                         const isAssigned = gq.status === 'pro_assigned';
                         const isQuoted = gq.status === 'pro_quoted';
-                        const form = guestQuoteForm[gq.id] || {};
 
                         return (
                           <div key={gq.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="p-4">
-                              <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-gray-900">{gq.service_name}</h3>
-                                    <span className="text-xs text-gray-400 font-mono">{gq.request_number}</span>
+                            <div className="flex">
+                              {/* Left content */}
+                              <div className="flex-1 p-4">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h3 className="font-bold text-gray-900">{gq.service_name}</h3>
+                                      <span className="text-xs text-gray-400 font-mono">{gq.request_number}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-0.5">Guest: {gq.guest_name}</p>
                                   </div>
-                                  <p className="text-sm text-gray-500 mt-0.5">Guest: {gq.guest_name}</p>
+                                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                    isAssigned
+                                      ? 'bg-orange-100 text-orange-700'
+                                      : isQuoted
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {isAssigned ? 'Awaiting Your Quote' : isQuoted ? 'Quote Submitted' : gq.status?.replace(/_/g, ' ')}
+                                  </span>
                                 </div>
-                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                                  isAssigned
-                                    ? 'bg-orange-100 text-orange-700'
-                                    : isQuoted
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {isAssigned ? 'Awaiting Your Quote' : isQuoted ? 'Quote Submitted' : gq.status?.replace(/_/g, ' ')}
-                                </span>
-                              </div>
 
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="w-3.5 h-3.5" />
-                                  <span>{gq.address}, {gq.city}, {gq.state} {gq.zip_code}</span>
-                                </div>
-                              </div>
-                              {gq.preferred_date && (
-                                <div className="flex items-center gap-1 mt-1 text-sm text-gray-600">
-                                  <Calendar className="w-3.5 h-3.5" />
-                                  <span>Preferred: {new Date(gq.preferred_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                </div>
-                              )}
-                              {gq.description && (
-                                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">
-                                  <p className="font-medium mb-1">Guest Notes:</p>
-                                  <p>{gq.description}</p>
-                                </div>
-                              )}
-
-                              {/* Quote Submitted Summary */}
-                              {isQuoted && gq.pro_quoted_price && (
-                                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-                                  <p className="font-medium text-green-800 mb-1">Your Submitted Quote:</p>
-                                  <p className="text-green-700 text-lg font-bold">
-                                    {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(gq.pro_quoted_price)}
-                                  </p>
-                                  {gq.pro_quote_description && <p className="text-green-700 mt-1">{gq.pro_quote_description}</p>}
-                                  <p className="text-xs text-green-600 mt-2">Waiting for admin to review and send to guest.</p>
-                                </div>
-                              )}
-
-                              {/* Submit Quote Form (only if pro_assigned) */}
-                              {isAssigned && (
-                                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <p className="text-sm font-medium text-blue-800 mb-3">Submit Your Quotation</p>
-                                  <div className="space-y-3">
-                                    <div>
-                                      <label className="block text-xs text-gray-700 mb-1 font-medium">Price (CAD) *</label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0.01"
-                                        placeholder="e.g. 250.00"
-                                        value={form.quoted_price || ''}
-                                        onChange={(e) => setGuestQuoteForm(prev => ({
-                                          ...prev,
-                                          [gq.id]: { ...prev[gq.id], quoted_price: e.target.value }
-                                        }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480]"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-xs text-gray-700 mb-1 font-medium">Description (optional)</label>
-                                      <textarea
-                                        rows={2}
-                                        placeholder="Describe the work, materials, and scope..."
-                                        value={form.description || ''}
-                                        onChange={(e) => setGuestQuoteForm(prev => ({
-                                          ...prev,
-                                          [gq.id]: { ...prev[gq.id], description: e.target.value }
-                                        }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] resize-none"
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                        <label className="block text-xs text-gray-700 mb-1 font-medium">Estimated Duration (optional)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="e.g. 2-3 hours"
-                                          value={form.estimated_duration || ''}
-                                          onChange={(e) => setGuestQuoteForm(prev => ({
-                                            ...prev,
-                                            [gq.id]: { ...prev[gq.id], estimated_duration: e.target.value }
-                                          }))}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480]"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs text-gray-700 mb-1 font-medium">Warranty Info (optional)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="e.g. 1 year parts & labor"
-                                          value={form.warranty_info || ''}
-                                          onChange={(e) => setGuestQuoteForm(prev => ({
-                                            ...prev,
-                                            [gq.id]: { ...prev[gq.id], warranty_info: e.target.value }
-                                          }))}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480]"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <label className="block text-xs text-gray-700 mb-1 font-medium">Additional Notes (optional)</label>
-                                      <textarea
-                                        rows={2}
-                                        placeholder="Any additional details for the admin..."
-                                        value={form.notes || ''}
-                                        onChange={(e) => setGuestQuoteForm(prev => ({
-                                          ...prev,
-                                          [gq.id]: { ...prev[gq.id], notes: e.target.value }
-                                        }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] resize-none"
-                                      />
-                                    </div>
-                                    <button
-                                      onClick={async () => {
-                                        if (!form.quoted_price || parseFloat(form.quoted_price) <= 0) {
-                                          toast.error('Please enter a valid price.');
-                                          return;
-                                        }
-                                        setGuestQuoteSubmitting(gq.id);
-                                        try {
-                                          await guestQuotesAPI.proSubmitQuote(gq.id, {
-                                            quoted_price: parseFloat(form.quoted_price),
-                                            description: form.description || undefined,
-                                            estimated_duration: form.estimated_duration || undefined,
-                                            warranty_info: form.warranty_info || undefined,
-                                            notes: form.notes || undefined,
-                                          });
-                                          toast.success('Quote submitted successfully! Admin will review it.');
-                                          setGuestQuoteForm(prev => {
-                                            const copy = { ...prev };
-                                            delete copy[gq.id];
-                                            return copy;
-                                          });
-                                          // Refresh assignments
-                                          try {
-                                            const res = await guestQuotesAPI.getProAssignments();
-                                            setGuestQuoteAssignments(res.data?.data?.assignments || []);
-                                          } catch (e) { /* ignore */ }
-                                        } catch (err) {
-                                          toast.error(err.response?.data?.message || 'Failed to submit quote.');
-                                        }
-                                        setGuestQuoteSubmitting(null);
-                                      }}
-                                      disabled={guestQuoteSubmitting === gq.id}
-                                      className="px-4 py-2 bg-[#0E7480] text-white rounded-lg text-sm font-medium hover:bg-[#0a5a63] disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                      {guestQuoteSubmitting === gq.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                                      Submit Quote
-                                    </button>
+                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    <span>{gq.address}, {gq.city}, {gq.state} {gq.zip_code}</span>
                                   </div>
                                 </div>
-                              )}
+                                {gq.preferred_date && (
+                                  <div className="flex items-center gap-1 mt-1 text-sm text-gray-600">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    <span>Preferred: {new Date(gq.preferred_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                  </div>
+                                )}
+                                {gq.description && (
+                                  <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-700">
+                                    <p className="font-medium mb-1">Guest Notes:</p>
+                                    <p>{gq.description}</p>
+                                  </div>
+                                )}
+
+                                {/* Quote Submitted Summary */}
+                                {isQuoted && gq.pro_quoted_price && (
+                                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                                    <p className="font-medium text-green-800 mb-1">Your Submitted Quote:</p>
+                                    <p className="text-green-700 text-lg font-bold">
+                                      {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(gq.pro_quoted_price)}
+                                    </p>
+                                    {gq.pro_quote_description && <p className="text-green-700 mt-1">{gq.pro_quote_description}</p>}
+                                    <p className="text-xs text-green-600 mt-2">Waiting for admin to review and send to guest.</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex flex-col justify-center gap-2 p-4 border-l border-gray-100">
+                                <Link
+                                  href={`/pro-dashboard/quote-requests/guest/${gq.id}`}
+                                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors text-center ${
+                                    isAssigned
+                                      ? 'bg-[#0E7480] text-white hover:bg-[#0a5a63]'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {isAssigned ? 'Submit Quote' : isQuoted ? 'View Quote' : 'View Details'}
+                                </Link>
+                              </div>
                             </div>
                           </div>
                         );

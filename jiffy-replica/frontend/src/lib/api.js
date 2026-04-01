@@ -315,6 +315,7 @@ export const guestQuotesAPI = {
   sendInvoice: (id) => api.post(`/guest-quotes/${id}/send-invoice`),
   // Pro
   getProAssignments: () => api.get('/guest-quotes/pro/assignments'),
+  getProAssignmentDetail: (id) => api.get(`/guest-quotes/pro/assignments/${id}`),
   proSubmitQuote: (id, data) => api.post(`/guest-quotes/${id}/pro-submit-quote`, data),
 };
 
