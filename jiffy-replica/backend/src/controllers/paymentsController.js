@@ -3,9 +3,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { writeAuditLog } = require('../services/auditService');
 const { sendDisputeOpenedEmail, sendDisputeResolvedEmail } = require('../services/emailService');
-
-// Platform commission rate (15% default)
-const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
+const { PLATFORM_COMMISSION_RATE } = require('../utils/commissionRate');
 
 async function getStripeConnectTransferEligibility(proProfile, context = {}) {
     if (!proProfile?.stripe_account_id || proProfile.payout_method !== 'stripe_connect') {

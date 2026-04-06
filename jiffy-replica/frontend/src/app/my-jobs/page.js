@@ -211,6 +211,55 @@ export default function MyJobsPage() {
     try {
       await bookingsAPI.acceptQuotation(quotesModal.bookingId, quotationId);
       toast.success('Quote accepted! The pro has been notified to start the job.');
+
+      // Fire webhook with full booking + quote data (non-blocking)
+      try {
+        const acceptedQuote = quotations.find((q) => q.id === quotationId) || {};
+        const booking = quotesModal.booking || {};
+        const webhookPayload = {
+          event: 'quote_accepted',
+          timestamp: new Date().toISOString(),
+          booking: {
+            id: booking.id,
+            booking_number: booking.booking_number,
+            service_name: booking.service_name || booking.services?.name,
+            address: booking.address,
+            city: booking.city,
+            state: booking.state,
+            zip_code: booking.zip_code,
+            scheduled_datetime: booking.scheduled_datetime,
+            special_instructions: booking.special_instructions,
+            status: 'accepted',
+          },
+          customer: {
+            id: user?.id,
+            name: user?.user_metadata?.full_name || user?.email,
+            email: user?.email,
+            phone: user?.user_metadata?.phone,
+          },
+          quote: {
+            id: acceptedQuote.id,
+            quoted_price: acceptedQuote.quoted_price,
+            description: acceptedQuote.description,
+            estimated_duration: acceptedQuote.estimated_duration,
+            materials_included: acceptedQuote.materials_included,
+            warranty_info: acceptedQuote.warranty_info,
+          },
+          pro: {
+            id: acceptedQuote.pro_id,
+            business_name: acceptedQuote.pro_profiles?.business_name,
+            user_id: acceptedQuote.pro_profiles?.user_id,
+          },
+        };
+        fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/039eacdc-7770-4078-a409-f80bd2d6f758', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(webhookPayload),
+        }).catch(() => {}); // fire-and-forget
+      } catch (_) {
+        // webhook failure must never break the acceptance UX
+      }
+
       setQuotesModal(null);
       setQuotations([]);
       dispatch(fetchBookings());

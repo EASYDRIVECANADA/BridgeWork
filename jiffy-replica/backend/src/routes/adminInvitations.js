@@ -13,6 +13,9 @@ router.post('/', adminInvitationsController.createInvitation);
 // Get all invitations
 router.get('/', adminInvitationsController.getAllInvitations);
 
+// Get all admin accounts
+router.get('/admin-accounts', adminInvitationsController.getAdminAccounts);
+
 // Verify token (public - no auth required for this one)
 router.get('/verify/:token', adminInvitationsController.verifyToken);
 

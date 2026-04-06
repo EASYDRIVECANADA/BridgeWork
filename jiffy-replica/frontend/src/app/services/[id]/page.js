@@ -286,22 +286,60 @@ export default function ServiceDetailPage() {
         return;
       }
 
+      // Snapshot all form values immediately before any async operations
+      const snapshot = {
+        name: guestForm.name,
+        email: guestForm.email,
+        phone: bookingForm.phone_number,
+        address: bookingForm.address,
+        city: bookingForm.city,
+        state: bookingForm.state,
+        zip_code: bookingForm.zip_code,
+        preferred_date: bookingForm.scheduled_date || undefined,
+        preferred_time: `${bookingForm.scheduled_time} ${bookingForm.scheduled_period}`,
+        description: bookingForm.special_instructions || undefined,
+        promo_code: bookingForm.promo_code || undefined,
+        service_id: apiService?.id || serviceId,
+        service_name: apiService?.name || service?.name || displayName,
+      };
+
       setSubmitting(true);
       try {
         const payload = {
-          guest_name: guestForm.name,
-          guest_email: guestForm.email,
-          guest_phone: bookingForm.phone_number,
-          service_id: apiService?.id || serviceId,
-          service_name: apiService?.name || service?.name || displayName,
-          address: bookingForm.address,
-          city: bookingForm.city,
-          state: bookingForm.state,
-          zip_code: bookingForm.zip_code,
-          description: bookingForm.special_instructions || undefined,
-          preferred_date: bookingForm.scheduled_date || undefined,
+          guest_name: snapshot.name,
+          guest_email: snapshot.email,
+          guest_phone: snapshot.phone,
+          service_id: snapshot.service_id,
+          service_name: snapshot.service_name,
+          address: snapshot.address,
+          city: snapshot.city,
+          state: snapshot.state,
+          zip_code: snapshot.zip_code,
+          description: snapshot.description,
+          preferred_date: snapshot.preferred_date,
         };
         await guestQuotesAPI.submit(payload);
+
+        // Fire LeadConnector webhook (non-blocking)
+        fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/bc614de7-e681-4503-9c91-50d3eb28ed50', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: snapshot.name,
+            email: snapshot.email,
+            phone: snapshot.phone,
+            service: snapshot.service_name,
+            address: snapshot.address,
+            city: snapshot.city,
+            state: snapshot.state,
+            zip_code: snapshot.zip_code,
+            preferred_date: snapshot.preferred_date,
+            preferred_time: snapshot.preferred_time,
+            description: snapshot.description,
+            promo_code: snapshot.promo_code,
+          }),
+        }).catch(() => {});
+
         toast.success('Quote request submitted! Check your email for confirmation.');
         setGuestForm({ name: '', email: '' });
         setBookingForm({ address: '', city: '', state: '', zip_code: '', phone_number: '', scheduled_date: '', scheduled_time: '09:00', scheduled_period: 'AM', special_instructions: '', promo_code: '' });

@@ -116,6 +116,7 @@ export const bookingsAPI = {
 };
 
 export const prosAPI = {
+  getFeatured: (params) => api.get('/pros/featured', { params }),
   getNearby: (params) => api.get('/pros/nearby', { params }),
   getById: (id) => api.get(`/pros/${id}`),
   apply: (data) => api.post('/pros/apply', data),

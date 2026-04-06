@@ -6,8 +6,8 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').repla
 // Stripe live mode requires HTTPS for redirect URLs — use a separate env var if set
 const STRIPE_REDIRECT_URL = (process.env.STRIPE_REDIRECT_URL || FRONTEND_URL).replace(/\/+$/, '');
 
-// Platform commission rate (15%)
-const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
+// Platform commission rate
+const { PLATFORM_COMMISSION_RATE } = require('../utils/commissionRate');
 
 /**
  * Create a Stripe Connect account for a pro and return the onboarding link.

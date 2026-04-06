@@ -21,6 +21,9 @@ const proofUpload = multer({
 
 const router = express.Router();
 
+// Public — featured pros for homepage showcase (no auth required)
+router.get('/featured', prosController.getFeaturedPros);
+
 router.get('/nearby',
     [
         query('lat').isFloat(),

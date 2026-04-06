@@ -2,8 +2,7 @@ const cron = require('node-cron');
 const stripe = require('../config/stripe');
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
-
-const PLATFORM_COMMISSION_RATE = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
+const { PLATFORM_COMMISSION_RATE } = require('../utils/commissionRate');
 
 // Thresholds in hours
 const WARNING_THRESHOLD_HOURS = 144;    // 6 days — send warning

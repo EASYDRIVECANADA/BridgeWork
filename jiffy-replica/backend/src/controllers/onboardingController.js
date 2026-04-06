@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { PLATFORM_COMMISSION_RATE } = require('../utils/commissionRate');
 
 // Onboarding steps:
 // 0 = not started
@@ -440,7 +441,7 @@ exports.completeStripeStep = async (req, res) => {
 exports.getServiceAgreement = async (req, res) => {
     try {
         // Get the pro's commission rate (or platform default)
-        let commissionRate = parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13');
+        let commissionRate = PLATFORM_COMMISSION_RATE;
 
         if (req.user) {
             const { data: proProfile } = await supabaseAdmin
@@ -783,7 +784,7 @@ exports.adminCreatePro = async (req, res) => {
             reference_2_phone: reference_2_phone || null,
             reference_2_email: reference_2_email || null,
             reference_2_relationship: reference_2_relationship || null,
-            commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : parseFloat(process.env.PLATFORM_COMMISSION_RATE || '0.13'),
+            commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : PLATFORM_COMMISSION_RATE,
             bio: bio || null,
             hourly_rate: hourly_rate || null,
             service_radius: service_radius || 25,

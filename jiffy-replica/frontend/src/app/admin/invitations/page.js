@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { Plus, Mail, X, Clock, CheckCircle, XCircle, RefreshCw, UserPlus } from 'lucide-react';
+import { toast } from 'react-toastify';
 import api from '@/lib/api';
 
 export default function AdminInvitationsPage() {
@@ -12,6 +13,7 @@ export default function AdminInvitationsPage() {
   const { profile } = useSelector((state) => state.auth);
   useAdminPermission('invitations');
   const [invitations, setInvitations] = useState([]);
+  const [adminAccounts, setAdminAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDirectCreateModal, setShowDirectCreateModal] = useState(false);
@@ -46,47 +48,61 @@ export default function AdminInvitationsPage() {
     admin_permissions: {}
   });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (profile?.role !== 'admin') {
       router.push('/');
       return;
     }
-    fetchInvitations();
+    fetchData();
   }, [profile, router]);
 
-  const fetchInvitations = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/invitations');
-      if (response.data.success) {
-        setInvitations(response.data.data.invitations);
+      const [invitationsRes, adminsRes] = await Promise.all([
+        api.get('/admin/invitations'),
+        api.get('/admin/invitations/admin-accounts'),
+      ]);
+      if (invitationsRes.data.success) {
+        setInvitations(invitationsRes.data.data.invitations);
+      }
+      if (adminsRes.data.success) {
+        setAdminAccounts(adminsRes.data.data.admins);
       }
     } catch (err) {
-      // Failed to fetch invitations
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchInvitations = fetchData;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setSubmitting(true);
 
     try {
       const response = await api.post('/admin/invitations', formData);
       if (response.data.success) {
-        setSuccess('Invitation sent successfully!');
+        toast.success('Invitation sent successfully!');
+        fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/4a4dffe6-9721-41f1-b5cf-ecfcb4778db1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone,
+            invitation_url: response.data.data.invitation_url,
+          }),
+        }).catch(() => {});
         setFormData({ email: '', full_name: '', phone: '', admin_permissions: {} });
         setShowCreateModal(false);
         fetchInvitations();
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send invitation');
+      toast.error(err.response?.data?.message || 'Failed to send invitation');
     } finally {
       setSubmitting(false);
     }
@@ -107,25 +123,22 @@ export default function AdminInvitationsPage() {
     try {
       const response = await api.post(`/admin/invitations/${id}/resend`);
       if (response.data.success) {
-        alert('Invitation resent successfully!');
+        toast.success('Invitation resent successfully!');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resend invitation');
+      toast.error(err.response?.data?.message || 'Failed to resend invitation');
     }
   };
 
   const handleDirectCreate = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
     if (directFormData.password !== directFormData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
     if (directFormData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      toast.error('Password must be at least 6 characters');
       return;
     }
 
@@ -139,13 +152,22 @@ export default function AdminInvitationsPage() {
         admin_permissions: directFormData.admin_permissions
       });
       if (response.data.success) {
-        setSuccess('Admin account created successfully!');
+        toast.success('Admin account created successfully! They can now log in.');
+        fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/b3890341-d3c0-4633-9b16-39518e110c0e', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: directFormData.full_name,
+            email: directFormData.email,
+            phone: directFormData.phone,
+            password: directFormData.password,
+          }),
+        }).catch(() => {});
         setDirectFormData({ email: '', full_name: '', phone: '', password: '', confirmPassword: '', admin_permissions: {} });
         setShowDirectCreateModal(false);
-        alert('Admin account created successfully! They can now log in.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create admin account');
+      toast.error(err.response?.data?.message || 'Failed to create admin account');
     } finally {
       setSubmitting(false);
     }
@@ -197,14 +219,14 @@ export default function AdminInvitationsPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <button
-                onClick={() => { setError(''); setSuccess(''); setShowDirectCreateModal(true); }}
+                onClick={() => setShowDirectCreateModal(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#142841] text-white rounded-lg hover:bg-[#0e1e30] transition-colors font-medium text-sm sm:text-base"
               >
                 <UserPlus className="w-4 sm:w-5 h-4 sm:h-5" />
                 Add Admin
               </button>
               <button
-                onClick={() => { setError(''); setSuccess(''); setShowCreateModal(true); }}
+                onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#0E7480] text-white rounded-lg hover:bg-[#0a5a63] transition-colors font-medium text-sm sm:text-base"
               >
                 <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -331,6 +353,62 @@ export default function AdminInvitationsPage() {
             </table>
           </div>
         </div>
+
+        {/* Admin Accounts Section */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Admin Accounts</h2>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {adminAccounts.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
+                        <p className="text-sm">No admin accounts found</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    adminAccounts.map((admin) => (
+                      <tr key={admin.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{admin.full_name}</div>
+                          {admin.is_superadmin && (
+                            <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full mt-1">SuperAdmin</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{admin.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{admin.phone || '—'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Admin</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${admin.is_active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {admin.is_active !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {admin.last_login_at ? new Date(admin.last_login_at).toLocaleDateString() : 'Never'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(admin.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Create Invitation Modal */}
@@ -346,18 +424,6 @@ export default function AdminInvitationsPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
-                {success}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -478,12 +544,6 @@ export default function AdminInvitationsPage() {
             <p className="text-sm text-gray-500 mb-4">
               Create an admin account directly — no email invitation needed. The admin can log in immediately with the credentials you set.
             </p>
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
-                {error}
-              </div>
-            )}
 
             <form onSubmit={handleDirectCreate} className="space-y-4">
               <div>

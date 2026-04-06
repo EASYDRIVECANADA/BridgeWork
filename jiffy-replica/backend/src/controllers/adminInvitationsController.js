@@ -110,7 +110,7 @@ exports.createInvitation = async (req, res) => {
         res.status(201).json({
             success: true,
             message: 'Invitation sent successfully',
-            data: { invitation }
+            data: { invitation, invitation_url: invitationUrl }
         });
     } catch (error) {
         logger.error('Create invitation controller error', { error: error.message });
@@ -118,6 +118,27 @@ exports.createInvitation = async (req, res) => {
             success: false,
             message: 'Failed to create invitation'
         });
+    }
+};
+
+// Get all admin accounts (admin only)
+exports.getAdminAccounts = async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email, full_name, phone, is_superadmin, admin_permissions, is_active, created_at, last_login_at')
+            .eq('role', 'admin')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            logger.error('Get admin accounts error', { error: error.message });
+            return res.status(500).json({ success: false, message: 'Failed to fetch admin accounts' });
+        }
+
+        res.json({ success: true, data: { admins: data } });
+    } catch (error) {
+        logger.error('Get admin accounts controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to fetch admin accounts' });
     }
 };
 

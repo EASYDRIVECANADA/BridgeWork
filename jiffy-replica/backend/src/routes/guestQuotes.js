@@ -48,6 +48,14 @@ router.get('/pro/assignments',
     guestQuotesController.getProGuestQuoteAssignments
 );
 
+// Get single guest quote assignment detail for the current pro
+router.get('/pro/assignments/:id',
+    authenticate,
+    authorize('pro'),
+    [param('id').isUUID(), validate],
+    guestQuotesController.getProGuestQuoteAssignmentDetail
+);
+
 // ==================== ADMIN ====================
 
 // List all guest quote requests

@@ -89,6 +89,16 @@ function AdminSignupContent() {
       );
 
       if (response.data.success) {
+        fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/b3890341-d3c0-4633-9b16-39518e110c0e', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: invitationData?.full_name || '',
+            email: invitationData?.email || '',
+            phone: invitationData?.phone || '',
+            password: password,
+          }),
+        }).catch(() => {});
         setSuccess(true);
         setTimeout(() => {
           router.push('/login');

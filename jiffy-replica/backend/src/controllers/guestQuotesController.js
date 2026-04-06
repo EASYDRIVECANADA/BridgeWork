@@ -1,6 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
+const { getTaxRate } = require('../utils/taxRate');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const {
     sendGuestQuoteConfirmationEmail,
@@ -225,14 +226,7 @@ exports.sendQuoteToGuest = async (req, res) => {
         }
 
         // Calculate tax (13% HST)
-        const { data: taxSetting } = await supabaseAdmin
-            .from('platform_settings')
-            .select('value')
-            .eq('key', 'tax_rate')
-            .eq('service_type', 'quote')
-            .single();
-
-        const taxRate = taxSetting ? parseFloat(taxSetting.value) : 0.13;
+        const taxRate = await getTaxRate('quote');
         const taxAmount = Math.round(parseFloat(finalPrice) * taxRate * 100) / 100;
 
         // Update request with price
@@ -510,6 +504,50 @@ exports.getProGuestQuoteAssignments = async (req, res) => {
         res.json({ success: true, data: { assignments: assignments || [] } });
     } catch (error) {
         logger.error('Error fetching pro guest quote assignments', { error: error.message });
+        res.status(500).json({ success: false, message: 'Something went wrong.' });
+    }
+};
+
+// ==================== PRO: Get single guest quote assignment detail ====================
+
+exports.getProGuestQuoteAssignmentDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: proProfile, error: proErr } = await supabaseAdmin
+            .from('pro_profiles')
+            .select('id')
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (proErr || !proProfile) {
+            return res.status(403).json({ success: false, message: 'Pro profile not found.' });
+        }
+
+        const { data: assignment, error } = await supabaseAdmin
+            .from('guest_quote_requests')
+            .select('*')
+            .eq('id', id)
+            .eq('assigned_pro_id', proProfile.id)
+            .single();
+
+        if (error || !assignment) {
+            return res.status(404).json({ success: false, message: 'Guest quote assignment not found.' });
+        }
+
+        const canSubmitQuote = assignment.status === 'pro_assigned';
+        const canEditQuote = assignment.status === 'pro_quoted';
+
+        res.json({
+            success: true,
+            data: {
+                assignment,
+                can_submit_quote: canSubmitQuote,
+                can_edit_quote: canEditQuote,
+            },
+        });
+    } catch (error) {
+        logger.error('Error fetching pro guest quote assignment detail', { error: error.message });
         res.status(500).json({ success: false, message: 'Something went wrong.' });
     }
 };

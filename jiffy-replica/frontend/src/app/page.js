@@ -8,6 +8,7 @@ import { Search, CheckCircle, Clock, Shield, Star, CalendarDays, Sparkles, Wrenc
 import { fetchCategories } from '@/store/slices/servicesSlice';
 import ServiceCategoryCard from '@/components/ServiceCategoryCard';
 import ServiceSearchBar from '@/components/ServiceSearchBar';
+import { prosAPI } from '@/lib/api';
 import Image from 'next/image';
 
 export default function HomePage() {
@@ -82,21 +83,44 @@ export default function HomePage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const samplePros = [
+  const fallbackPros = [
     { name: 'Ava', service: 'Interior Painting', badge: 'Background checked', rating: 5.0, eta: '8 min', note: 'Bringing supplies + tape.' },
     { name: 'Noah', service: 'Electrical Install', badge: 'Insured & verified', rating: 4.8, eta: '11 min', note: 'Confirming your fixture type.' },
     { name: 'Maya', service: 'Plumbing Fix', badge: 'Top rated in your area', rating: 4.9, eta: '9 min', note: 'On the way—see you soon.' },
     { name: 'Jaimie', service: 'Appliance Repair', badge: 'BridgeWork Certified Pro', rating: 4.9, eta: '7 min', note: 'Diagnosing before arrival.' },
   ];
+  const [samplePros, setSamplePros] = useState(fallbackPros);
+
+  useEffect(() => {
+    prosAPI.getFeatured({ limit: 4 })
+      .then(res => {
+        const live = (res.data?.data || []).filter(p => p.name && p.service);
+        if (live.length >= 2) {
+          const badges = ['Background checked', 'Insured & verified', 'Top rated in your area', 'BridgeWork Certified Pro'];
+          const etas = ['7 min', '8 min', '9 min', '11 min'];
+          const notes = ['On the way—see you soon.', 'Bringing supplies + tape.', 'Confirming your requirements.', 'Diagnosing before arrival.'];
+          setSamplePros(live.map((p, i) => ({
+            name: p.name.split(' ')[0],
+            service: p.service,
+            badge: badges[i % badges.length],
+            rating: p.rating || 4.9,
+            eta: etas[i % etas.length],
+            note: notes[i % notes.length],
+          })));
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+  }, []);
 
   useEffect(() => {
     if (prefersReducedMotion) return;
+    const len = samplePros.length;
     const id = setInterval(() => {
       setActiveProDirection(1);
-      setActiveProIndex((i) => (i + 1) % samplePros.length);
+      setActiveProIndex((i) => (i + 1) % len);
     }, 3200);
     return () => clearInterval(id);
-  }, [prefersReducedMotion]); // samplePros is static
+  }, [prefersReducedMotion, samplePros.length]);
 
   const timelineSteps = [
     { title: 'Request sent', subtitle: 'We received your details', icon: Send },

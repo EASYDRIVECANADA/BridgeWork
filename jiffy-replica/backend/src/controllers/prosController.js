@@ -1,6 +1,98 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { sendHomeownerProAcceptedEmail } = require('../services/emailService');
+const { getTaxRate } = require('../utils/taxRate');
+
+// Public endpoint: get top-rated approved pros for homepage showcase
+exports.getFeaturedPros = async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 4, 10);
+
+        // Get approved pros with their profiles and reviews
+        const { data: pros, error } = await supabaseAdmin
+            .from('pro_profiles')
+            .select(`
+                id,
+                business_name,
+                service_categories,
+                services_offered,
+                user_id,
+                profiles!pro_profiles_user_id_fkey ( full_name, avatar_url, city )
+            `)
+            .eq('admin_approved', true)
+            .eq('is_available', true)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (error) {
+            logger.error('Error fetching featured pros', { error: error.message });
+            return res.status(500).json({ success: false, message: 'Failed to fetch featured pros' });
+        }
+
+        if (!pros || pros.length === 0) {
+            return res.json({ success: true, data: [] });
+        }
+
+        // Get average ratings for these pros
+        const proIds = pros.map(p => p.id);
+        const { data: reviewStats } = await supabaseAdmin
+            .from('reviews')
+            .select('pro_id, rating');
+
+        const ratingMap = {};
+        if (reviewStats) {
+            for (const r of reviewStats) {
+                if (!proIds.includes(r.pro_id)) continue;
+                if (!ratingMap[r.pro_id]) ratingMap[r.pro_id] = { total: 0, count: 0 };
+                ratingMap[r.pro_id].total += r.rating;
+                ratingMap[r.pro_id].count += 1;
+            }
+        }
+
+        // Get service names for their offered services
+        const allServiceIds = [...new Set(pros.flatMap(p => p.services_offered || []))];
+        let serviceMap = {};
+        if (allServiceIds.length > 0) {
+            const { data: services } = await supabaseAdmin
+                .from('services')
+                .select('id, name')
+                .in('id', allServiceIds);
+            if (services) {
+                serviceMap = Object.fromEntries(services.map(s => [s.id, s.name]));
+            }
+        }
+
+        // Sort by rating (highest first), then by review count
+        const enriched = pros.map(p => {
+            const stats = ratingMap[p.id] || { total: 0, count: 0 };
+            const avgRating = stats.count > 0 ? Math.round((stats.total / stats.count) * 10) / 10 : null;
+            const primaryService = (p.services_offered || []).length > 0
+                ? serviceMap[p.services_offered[0]] || null
+                : null;
+            return {
+                id: p.id,
+                name: p.profiles?.full_name || p.business_name || 'BridgeWork Pro',
+                service: primaryService,
+                rating: avgRating,
+                reviewCount: stats.count,
+                city: p.profiles?.city || null,
+                avatarUrl: p.profiles?.avatar_url || null,
+            };
+        });
+
+        enriched.sort((a, b) => {
+            const rA = a.rating || 0;
+            const rB = b.rating || 0;
+            if (rB !== rA) return rB - rA;
+            return (b.reviewCount || 0) - (a.reviewCount || 0);
+        });
+
+        return res.json({ success: true, data: enriched.slice(0, limit) });
+    } catch (err) {
+        logger.error('Error in getFeaturedPros', { error: err.message });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
 
 exports.getNearbyPros = async (req, res) => {
     try {
@@ -665,7 +757,7 @@ exports.submitJobProof = async (req, res) => {
             }).filter(item => item.name && item.quantity > 0);
 
             const subtotal = laborTotal + materialsTotal;
-            const taxRate = 0.13; // 13% tax
+            const taxRate = await getTaxRate('rate');
             const tax = subtotal * taxRate;
             const grandTotal = originalAmount + subtotal + tax;
 

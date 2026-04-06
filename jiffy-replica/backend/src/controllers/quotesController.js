@@ -1,23 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { createNotification } = require('../services/notificationService');
-
-// Helper to get tax rate from platform_settings (same as bookingsController)
-const getDefaultTaxRate = async () => {
-    try {
-        const { data, error } = await supabaseAdmin
-            .from('platform_settings')
-            .select('value')
-            .eq('key', 'tax_rate')
-            .eq('service_type', 'quote')
-            .single();
-        if (error || !data) return 0.13;
-        return data.value / 100;
-    } catch (err) {
-        logger.error('Error fetching tax rate for quotes', { error: err.message });
-        return 0.13;
-    }
-};
+const { getTaxRate } = require('../utils/taxRate');
 
 const crypto = require('crypto');
 
@@ -112,7 +96,7 @@ exports.createQuote = async (req, res) => {
             });
         }
 
-        const defaultRate = await getDefaultTaxRate();
+        const defaultRate = await getTaxRate('quote');
         const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : defaultRate;
         const actualDiscount = discount_amount ? parseFloat(discount_amount) : 0;
         const { subtotal, taxAmount, total } = calculateTotals(items, actualTaxRate, actualDiscount);
@@ -940,7 +924,7 @@ exports.createInvoice = async (req, res) => {
             });
         }
 
-        const defaultRate = await getDefaultTaxRate();
+        const defaultRate = await getTaxRate('quote');
         const actualTaxRate = tax_rate !== undefined ? parseFloat(tax_rate) : defaultRate;
         const actualDiscount = discount_amount ? parseFloat(discount_amount) : 0;
         const { subtotal, taxAmount, total } = calculateTotals(items, actualTaxRate, actualDiscount);

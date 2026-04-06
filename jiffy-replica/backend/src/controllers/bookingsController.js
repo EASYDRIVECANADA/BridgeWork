@@ -6,28 +6,7 @@ const { sendNewBookingAdminEmail, sendProJobAlertEmail, sendProQuoteAssignmentEm
 const { writeAuditLog } = require('../services/auditService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
-
-// Helper function to get tax rate from platform_settings
-// serviceType: 'rate', 'quote', or 'emergency'
-const getTaxRate = async (serviceType = 'quote') => {
-    try {
-        const { data, error } = await supabaseAdmin
-            .from('platform_settings')
-            .select('value')
-            .eq('key', 'tax_rate')
-            .eq('service_type', serviceType)
-            .single();
-        
-        if (error || !data) {
-            // Return default 13% if not found
-            return 0.13;
-        }
-        return data.value / 100; // Convert percentage to decimal
-    } catch (err) {
-        logger.error('Error fetching tax rate', { error: err.message });
-        return 0.13; // Default 13%
-    }
-};
+const { getTaxRate } = require('../utils/taxRate');
 
 exports.createBooking = async (req, res) => {
     try {
@@ -1643,6 +1622,49 @@ exports.acceptQuotation = async (req, res) => {
                     .join(', ');
                 const itemDescription = quotation.description || `Accepted quote for ${booking.service_name}`;
 
+                // Parse extended data stored as JSON in the notes field (your_price, materials_list)
+                let yourPrice = price; // fallback to quoted_price (which is your_price + materials)
+                let materialsList = [];
+                if (quotation.notes) {
+                    try {
+                        const parsed = JSON.parse(quotation.notes);
+                        if (parsed && typeof parsed === 'object' && 'original_notes' in parsed) {
+                            if (parsed.your_price != null) {
+                                yourPrice = parseFloat(parsed.your_price);
+                            }
+                            if (Array.isArray(parsed.materials_list)) {
+                                materialsList = parsed.materials_list;
+                            }
+                        }
+                    } catch (_) {
+                        // notes is plain text, not JSON — keep defaults
+                    }
+                }
+
+                // Build line items: labour first, then each material
+                const invoiceItems = [
+                    {
+                        service: booking.service_name || 'Service',
+                        description: itemDescription,
+                        qty: 1,
+                        unit_cost: yourPrice,
+                        total: yourPrice,
+                    }
+                ];
+
+                for (const mat of materialsList) {
+                    const matPrice = parseFloat(mat.price) || 0;
+                    if (mat.name && matPrice > 0) {
+                        invoiceItems.push({
+                            service: 'Materials',
+                            description: mat.name,
+                            qty: 1,
+                            unit_cost: matPrice,
+                            total: matPrice,
+                        });
+                    }
+                }
+
                 await supabaseAdmin
                     .from('invoices')
                     .insert({
@@ -1658,15 +1680,7 @@ exports.acceptQuotation = async (req, res) => {
                         subtotal: price,
                         tax: tax,
                         total: finalPrice,
-                        items: [
-                            {
-                                service: booking.service_name || 'Service',
-                                description: itemDescription,
-                                qty: 1,
-                                unit_cost: price,
-                                total: price,
-                            }
-                        ]
+                        items: invoiceItems
                     });
             }
         } catch (invoiceErr) {
