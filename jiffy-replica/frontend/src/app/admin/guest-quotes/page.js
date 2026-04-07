@@ -56,6 +56,9 @@ export default function AdminGuestQuotesPage() {
   const [prosLoading, setProsLoading] = useState(false);
   const [showReassign, setShowReassign] = useState(null);
   const [guestCommissions, setGuestCommissions] = useState({}); // { [requestId]: { dollar: string, pct: string } }
+  const [guestProPrices, setGuestProPrices] = useState({}); // { [requestId]: string }
+  const [guestTaxRates, setGuestTaxRates] = useState({}); // { [requestId]: string (percentage, e.g. "13") }
+  const [guestQuoteEdits, setGuestQuoteEdits] = useState({}); // { [requestId]: { description, duration, warranty, notes } }
 
   useEffect(() => {
     if (!user || profile?.role !== 'admin') {
@@ -97,56 +100,132 @@ export default function AdminGuestQuotesPage() {
 
   const DEFAULT_GUEST_COMMISSION_RATE = 0.1722;
 
-  const computeGuestBreakdown = (proPrice, commissionDollar) => {
+  const computeGuestBreakdown = (reqId, proPrice, commissionDollar) => {
     const pro = parseFloat(proPrice) || 0;
     const comm = parseFloat(commissionDollar) || 0;
     const subtotal = pro + comm;
-    const total = subtotal * 1.13;
-    return { pro, comm, subtotal, total };
+    const taxPct = parseFloat(getGuestTaxRate(reqId)) || 0;
+    const taxRate = taxPct / 100;
+    const tax = subtotal * taxRate;
+    const total = subtotal + tax;
+    return { pro, comm, subtotal, tax, taxPct, total };
   };
 
-  const getGuestCommission = (reqId, proPrice) => {
+  const getGuestProPrice = (reqId, originalProPrice) => {
+    if (guestProPrices[reqId] !== undefined) return guestProPrices[reqId];
+    return parseFloat(originalProPrice).toFixed(2);
+  };
+
+  const getGuestTaxRate = (reqId) => {
+    if (guestTaxRates[reqId] !== undefined) return guestTaxRates[reqId];
+    return '13';
+  };
+
+  const getGuestCommission = (reqId, originalProPrice) => {
     if (guestCommissions[reqId]) return guestCommissions[reqId];
-    const pro = parseFloat(proPrice) || 0;
+    const pro = parseFloat(getGuestProPrice(reqId, originalProPrice)) || 0;
     const defaultDollar = (pro * DEFAULT_GUEST_COMMISSION_RATE).toFixed(2);
     return { dollar: defaultDollar, pct: (DEFAULT_GUEST_COMMISSION_RATE * 100).toFixed(2) };
   };
 
-  const setGuestCommissionDollar = (reqId, proPrice, dollarVal) => {
-    const pro = parseFloat(proPrice) || 0;
+  const setGuestCommissionDollar = (reqId, originalProPrice, dollarVal) => {
+    const pro = parseFloat(getGuestProPrice(reqId, originalProPrice)) || 0;
     const dollar = parseFloat(dollarVal) || 0;
     const pct = pro > 0 ? ((dollar / pro) * 100).toFixed(2) : '0.00';
     setGuestCommissions(prev => ({ ...prev, [reqId]: { dollar: dollarVal, pct } }));
   };
 
-  const setGuestCommissionPct = (reqId, proPrice, pctVal) => {
-    const pro = parseFloat(proPrice) || 0;
+  const setGuestCommissionPct = (reqId, originalProPrice, pctVal) => {
+    const pro = parseFloat(getGuestProPrice(reqId, originalProPrice)) || 0;
     const pct = parseFloat(pctVal) || 0;
     const dollar = ((pro * pct) / 100).toFixed(2);
     setGuestCommissions(prev => ({ ...prev, [reqId]: { dollar, pct: pctVal } }));
   };
 
-  const applyGuestPreset = (reqId, proPrice, pct) => {
-    setGuestCommissionPct(reqId, proPrice, String(pct));
+  const applyGuestPreset = (reqId, originalProPrice, pct) => {
+    setGuestCommissionPct(reqId, originalProPrice, String(pct));
   };
 
-  const handleSendQuote = async (id, proQuotedPrice) => {
-    const comm = getGuestCommission(id, proQuotedPrice);
-    const bd = computeGuestBreakdown(proQuotedPrice, comm.dollar);
+  const handleGuestProPriceChange = (reqId, originalProPrice, newPrice) => {
+    setGuestProPrices(prev => ({ ...prev, [reqId]: newPrice }));
+    // Recalculate commission at same rate
+    const comm = getGuestCommission(reqId, originalProPrice);
+    const oldPro = parseFloat(getGuestProPrice(reqId, originalProPrice)) || 0;
+    const rate = oldPro > 0 ? parseFloat(comm.dollar) / oldPro : DEFAULT_GUEST_COMMISSION_RATE;
+    const newPro = parseFloat(newPrice) || 0;
+    const newDollar = (newPro * rate).toFixed(2);
+    const newPct = newPro > 0 ? ((parseFloat(newDollar) / newPro) * 100).toFixed(2) : '0.00';
+    setGuestCommissions(prev => ({ ...prev, [reqId]: { dollar: newDollar, pct: newPct } }));
+  };
+
+  const getGuestQuoteEdit = (reqId, req) => {
+    if (guestQuoteEdits[reqId]) return guestQuoteEdits[reqId];
+    return {
+      description: req.pro_quote_description || '',
+      duration: req.pro_estimated_duration || '',
+      warranty: req.pro_warranty_info || '',
+      notes: req.pro_notes || '',
+    };
+  };
+
+  const updateGuestQuoteEdit = (reqId, field, value) => {
+    setGuestQuoteEdits(prev => ({
+      ...prev,
+      [reqId]: { ...getGuestQuoteEdit(reqId, {}), ...prev[reqId], [field]: value }
+    }));
+  };
+
+  const handleSendQuote = async (id, originalProQuotedPrice, req) => {
+    const effectiveProPrice = parseFloat(getGuestProPrice(id, originalProQuotedPrice)) || 0;
+    const comm = getGuestCommission(id, originalProQuotedPrice);
+    const bd = computeGuestBreakdown(id, effectiveProPrice, comm.dollar);
     const price = parseFloat(bd.subtotal.toFixed(2));
     if (!price || price <= 0) {
       toast.error('Please enter a valid quote price.');
       return;
     }
+
+    const taxPct = parseFloat(getGuestTaxRate(id)) || 0;
+    const taxRateDecimal = taxPct / 100;
+
     setActionLoading(id);
     try {
-      await guestQuotesAPI.sendQuote(id, {
+      const payload = {
         quoted_price: price,
         message: quoteMessage || undefined,
-      });
+        commission_amount: parseFloat(comm.dollar) || 0,
+      };
+      // Send edited pro price if different from original
+      if (effectiveProPrice !== parseFloat(originalProQuotedPrice)) {
+        payload.edited_pro_price = effectiveProPrice;
+      }
+      // Send custom tax rate if different from default 13%
+      if (Math.abs(taxRateDecimal - 0.13) > 0.0001) {
+        payload.tax_rate = taxRateDecimal;
+      }
+      // Send edited quote content fields if admin changed them
+      const edits = guestQuoteEdits[id];
+      if (edits) {
+        if (edits.description !== undefined && edits.description !== (req.pro_quote_description || '')) {
+          payload.pro_quote_description = edits.description;
+        }
+        if (edits.duration !== undefined && edits.duration !== (req.pro_estimated_duration || '')) {
+          payload.pro_estimated_duration = edits.duration;
+        }
+        if (edits.warranty !== undefined && edits.warranty !== (req.pro_warranty_info || '')) {
+          payload.pro_warranty_info = edits.warranty;
+        }
+        if (edits.notes !== undefined && edits.notes !== (req.pro_notes || '')) {
+          payload.pro_notes = edits.notes;
+        }
+      }
+      await guestQuotesAPI.sendQuote(id, payload);
       toast.success('Quote sent to guest via email.');
       setQuoteMessage('');
       setGuestCommissions(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setGuestProPrices(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setGuestTaxRates(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setGuestQuoteEdits(prev => { const n = { ...prev }; delete n[id]; return n; });
       loadRequests();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send quote.');
@@ -245,6 +324,18 @@ export default function AdminGuestQuotesPage() {
       setQuoteMessage('');
       setSelectedProId(null);
       setProSearch('');
+      // Initialize quote content edits from pro's submission
+      if (req.pro_quoted_price && req.status === 'pro_quoted') {
+        setGuestQuoteEdits(prev => ({
+          ...prev,
+          [id]: {
+            description: req.pro_quote_description || '',
+            duration: req.pro_estimated_duration || '',
+            warranty: req.pro_warranty_info || '',
+            notes: req.pro_notes || '',
+          }
+        }));
+      }
     }
   };
 
@@ -440,37 +531,80 @@ export default function AdminGuestQuotesPage() {
                       )}
 
                       {/* Pro's Quote Details (if pro has submitted) */}
-                      {req.pro_quoted_price && (
-                        <div className="bg-white rounded-lg p-4 border border-cyan-200">
-                          <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                            <Wrench className="w-4 h-4 text-cyan-600" /> Pro&apos;s Quotation
-                          </h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-600">Quoted Price:</span>
-                              <span className="font-bold text-lg text-cyan-700">{formatCurrency(req.pro_quoted_price)}</span>
+                      {req.pro_quoted_price && (() => {
+                        const isEditable = req.status === 'pro_quoted';
+                        const edit = getGuestQuoteEdit(req.id, req);
+                        return (
+                          <div className="bg-white rounded-lg p-4 border border-cyan-200">
+                            <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                              <Wrench className="w-4 h-4 text-cyan-600" /> Pro&apos;s Quotation
+                              {isEditable && <span className="text-xs font-normal text-orange-600 ml-1">(editable by admin)</span>}
+                            </h4>
+                            <div className="space-y-3 text-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-600">Quoted Price:</span>
+                                <span className="font-bold text-lg text-cyan-700">{formatCurrency(req.pro_quoted_price)}</span>
+                              </div>
+                              <div>
+                                <label className="text-gray-600 text-xs font-medium">Description:</label>
+                                {isEditable ? (
+                                  <textarea
+                                    rows={3}
+                                    value={edit.description}
+                                    onChange={(e) => updateGuestQuoteEdit(req.id, 'description', e.target.value)}
+                                    className="w-full mt-1 px-3 py-2 border-2 border-orange-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-300 bg-orange-50 resize-none"
+                                    placeholder="Quote description..."
+                                  />
+                                ) : (
+                                  req.pro_quote_description && <p className="text-gray-800 mt-0.5 p-2 bg-gray-50 rounded text-xs">{req.pro_quote_description}</p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="text-gray-600 text-xs font-medium">Estimated Duration:</label>
+                                {isEditable ? (
+                                  <input
+                                    type="text"
+                                    value={edit.duration}
+                                    onChange={(e) => updateGuestQuoteEdit(req.id, 'duration', e.target.value)}
+                                    className="w-full mt-1 px-3 py-2 border-2 border-orange-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                    placeholder="e.g. 2-3 hours"
+                                  />
+                                ) : (
+                                  req.pro_estimated_duration && <p className="text-gray-700 mt-0.5"><strong>Estimated Duration:</strong> {req.pro_estimated_duration}</p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="text-gray-600 text-xs font-medium">Warranty:</label>
+                                {isEditable ? (
+                                  <input
+                                    type="text"
+                                    value={edit.warranty}
+                                    onChange={(e) => updateGuestQuoteEdit(req.id, 'warranty', e.target.value)}
+                                    className="w-full mt-1 px-3 py-2 border-2 border-orange-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                    placeholder="e.g. 1 year warranty on parts and labor"
+                                  />
+                                ) : (
+                                  req.pro_warranty_info && <p className="text-gray-700 mt-0.5"><strong>Warranty:</strong> {req.pro_warranty_info}</p>
+                                )}
+                              </div>
+                              <div>
+                                <label className="text-gray-600 text-xs font-medium">Pro Notes:</label>
+                                {isEditable ? (
+                                  <textarea
+                                    rows={2}
+                                    value={edit.notes}
+                                    onChange={(e) => updateGuestQuoteEdit(req.id, 'notes', e.target.value)}
+                                    className="w-full mt-1 px-3 py-2 border-2 border-orange-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-300 bg-orange-50 resize-none"
+                                    placeholder="Additional notes..."
+                                  />
+                                ) : (
+                                  req.pro_notes && <p className="text-gray-800 mt-0.5 p-2 bg-gray-50 rounded text-xs">{req.pro_notes}</p>
+                                )}
+                              </div>
                             </div>
-                            {req.pro_quote_description && (
-                              <div>
-                                <span className="text-gray-600 text-xs">Description:</span>
-                                <p className="text-gray-800 mt-0.5 p-2 bg-gray-50 rounded text-xs">{req.pro_quote_description}</p>
-                              </div>
-                            )}
-                            {req.pro_estimated_duration && (
-                              <p className="text-gray-700"><strong>Estimated Duration:</strong> {req.pro_estimated_duration}</p>
-                            )}
-                            {req.pro_warranty_info && (
-                              <p className="text-gray-700"><strong>Warranty:</strong> {req.pro_warranty_info}</p>
-                            )}
-                            {req.pro_notes && (
-                              <div>
-                                <span className="text-gray-600 text-xs">Pro Notes:</span>
-                                <p className="text-gray-800 mt-0.5 p-2 bg-gray-50 rounded text-xs">{req.pro_notes}</p>
-                              </div>
-                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Price Summary (if quote has been sent to guest) */}
                       {req.quoted_price && (
@@ -773,19 +907,72 @@ export default function AdminGuestQuotesPage() {
 
                           {/* Send Quote to Guest (pro_quoted — pro has submitted their quote) */}
                           {req.status === 'pro_quoted' && (() => {
+                            const effectiveProPrice = getGuestProPrice(req.id, req.pro_quoted_price);
                             const comm = getGuestCommission(req.id, req.pro_quoted_price);
-                            const bd = computeGuestBreakdown(req.pro_quoted_price, comm.dollar);
+                            const bd = computeGuestBreakdown(req.id, effectiveProPrice, comm.dollar);
                             return (
                               <div className="border border-blue-100 rounded-lg p-4 bg-blue-50/50">
-                                <p className="text-sm font-semibold text-blue-800 mb-1">Add Commission &amp; Send Quote to Guest</p>
+                                <p className="text-sm font-semibold text-blue-800 mb-1">Edit Quote, Add Revenue &amp; Send to Client</p>
                                 <p className="text-xs text-gray-500 mb-4">
-                                  Pro quoted <strong>{formatCurrency(req.pro_quoted_price)}</strong>. Set your commission below — the guest will see the subtotal + tax.
+                                  Pro quoted <strong>{formatCurrency(req.pro_quoted_price)}</strong>. You can edit the price, set your revenue/commission, and adjust the tax rate before sending.
                                 </p>
+
+                                {/* Editable Pro Price + Tax Rate row */}
+                                <div className="flex gap-3 mb-4">
+                                  <div className="flex-1">
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Pro Price (CAD) — editable</label>
+                                    <div className="relative">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">$</span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={effectiveProPrice}
+                                        onChange={(e) => handleGuestProPriceChange(req.id, req.pro_quoted_price, e.target.value)}
+                                        className="w-full pl-7 pr-3 py-2 border-2 border-orange-400 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                      />
+                                    </div>
+                                    {parseFloat(effectiveProPrice) !== parseFloat(req.pro_quoted_price) && (
+                                      <p className="text-xs text-orange-600 mt-1">Original: {formatCurrency(req.pro_quoted_price)} — modified by admin</p>
+                                    )}
+                                  </div>
+                                  <div className="w-36">
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Tax Rate</label>
+                                    <div className="relative">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={getGuestTaxRate(req.id)}
+                                        onChange={(e) => setGuestTaxRates(prev => ({ ...prev, [req.id]: e.target.value }))}
+                                        className="w-full pl-3 pr-8 py-2 border-2 border-purple-400 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-purple-300 bg-purple-50"
+                                      />
+                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">%</span>
+                                    </div>
+                                    <div className="flex gap-1 mt-1">
+                                      {[0, 5, 13, 15].map(tr => (
+                                        <button
+                                          key={tr}
+                                          type="button"
+                                          onClick={() => setGuestTaxRates(prev => ({ ...prev, [req.id]: String(tr) }))}
+                                          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                            parseFloat(getGuestTaxRate(req.id)) === tr
+                                              ? 'bg-purple-600 text-white'
+                                              : 'bg-gray-100 text-gray-600 hover:bg-purple-100'
+                                          }`}
+                                        >
+                                          {tr}%
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
 
                                 {/* Commission inputs */}
                                 <div className="flex gap-3 mb-3">
                                   <div className="flex-1">
-                                    <label className="block text-xs text-gray-600 mb-1">Commission ($)</label>
+                                    <label className="block text-xs text-gray-600 mb-1">Revenue / Commission ($)</label>
                                     <input
                                       type="number"
                                       step="0.01"
@@ -796,7 +983,7 @@ export default function AdminGuestQuotesPage() {
                                     />
                                   </div>
                                   <div className="w-28">
-                                    <label className="block text-xs text-gray-600 mb-1">Commission (%)</label>
+                                    <label className="block text-xs text-gray-600 mb-1">Revenue (%)</label>
                                     <input
                                       type="number"
                                       step="0.01"
@@ -827,21 +1014,25 @@ export default function AdminGuestQuotesPage() {
                                 </div>
 
                                 {/* Breakdown cards */}
-                                <div className="grid grid-cols-4 gap-2 mb-4">
+                                <div className="grid grid-cols-5 gap-2 mb-4">
                                   <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
                                     <p className="text-xs text-gray-500 mb-0.5">Pro Price</p>
                                     <p className="text-sm font-bold text-gray-800">{formatCurrency(bd.pro)}</p>
                                   </div>
                                   <div className="bg-white rounded-lg p-2.5 border border-[#0E7480]/30 text-center">
-                                    <p className="text-xs text-gray-500 mb-0.5">Commission</p>
+                                    <p className="text-xs text-gray-500 mb-0.5">Revenue</p>
                                     <p className="text-sm font-bold text-[#0E7480]">{formatCurrency(bd.comm)}</p>
                                   </div>
                                   <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
                                     <p className="text-xs text-gray-500 mb-0.5">Subtotal</p>
                                     <p className="text-sm font-bold text-gray-800">{formatCurrency(bd.subtotal)}</p>
                                   </div>
+                                  <div className="bg-purple-50 rounded-lg p-2.5 border border-purple-200 text-center">
+                                    <p className="text-xs text-gray-500 mb-0.5">Tax ({bd.taxPct}%)</p>
+                                    <p className="text-sm font-bold text-purple-700">{formatCurrency(bd.tax)}</p>
+                                  </div>
                                   <div className="bg-[#0E7480]/5 rounded-lg p-2.5 border border-[#0E7480]/20 text-center">
-                                    <p className="text-xs text-gray-500 mb-0.5">Total (+HST)</p>
+                                    <p className="text-xs text-gray-500 mb-0.5">Client Total</p>
                                     <p className="text-sm font-bold text-[#0E7480]">{formatCurrency(bd.total)}</p>
                                   </div>
                                 </div>
@@ -859,12 +1050,12 @@ export default function AdminGuestQuotesPage() {
                                 </div>
 
                                 <button
-                                  onClick={() => handleSendQuote(req.id, req.pro_quoted_price)}
+                                  onClick={() => handleSendQuote(req.id, req.pro_quoted_price, req)}
                                   disabled={actionLoading === req.id}
                                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                                 >
                                   {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                  Send Quote Email ({formatCurrency(bd.total)} to guest)
+                                  Send Quote Email ({formatCurrency(bd.total)} to client)
                                 </button>
                               </div>
                             );

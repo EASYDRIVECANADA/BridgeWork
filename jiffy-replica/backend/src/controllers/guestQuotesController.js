@@ -206,7 +206,7 @@ exports.updateGuestQuote = async (req, res) => {
 exports.sendQuoteToGuest = async (req, res) => {
     try {
         const { id } = req.params;
-        const { quoted_price, message } = req.body;
+        const { quoted_price, message, tax_rate, commission_amount: commAmount, edited_pro_price, pro_quote_description, pro_estimated_duration, pro_warranty_info, pro_notes } = req.body;
 
         // Fetch the current request
         const { data: current, error: fetchErr } = await supabaseAdmin
@@ -225,19 +225,58 @@ exports.sendQuoteToGuest = async (req, res) => {
             return res.status(400).json({ success: false, message: 'A valid quoted price is required. Assign a pro and wait for their quotation first, or enter a price manually.' });
         }
 
-        // Calculate tax (13% HST)
-        const taxRate = await getTaxRate('quote');
+        // Determine tax rate: use admin-provided rate or platform default
+        let taxRate;
+        if (tax_rate !== undefined && tax_rate !== null && tax_rate !== '') {
+            taxRate = parseFloat(tax_rate);
+            if (isNaN(taxRate) || taxRate < 0 || taxRate > 1) {
+                return res.status(400).json({ success: false, message: 'tax_rate must be a decimal between 0 and 1 (e.g. 0.13 for 13%)' });
+            }
+        } else {
+            taxRate = await getTaxRate('quote');
+        }
         const taxAmount = Math.round(parseFloat(finalPrice) * taxRate * 100) / 100;
+
+        // Build update payload
+        const updatePayload = {
+            quoted_price: parseFloat(finalPrice),
+            tax_amount: taxAmount,
+            tax_rate_used: taxRate,
+            status: 'quoted',
+            updated_at: new Date().toISOString(),
+        };
+
+        // Store commission amount if provided
+        if (commAmount !== undefined && commAmount !== null) {
+            updatePayload.commission_amount = parseFloat(commAmount) || 0;
+        }
+
+        // Store admin-edited pro price if it differs from original
+        if (edited_pro_price !== undefined && edited_pro_price !== null && edited_pro_price !== '') {
+            const editedPrice = parseFloat(edited_pro_price);
+            if (current.pro_quoted_price && editedPrice !== parseFloat(current.pro_quoted_price)) {
+                updatePayload.admin_edited_pro_price = editedPrice;
+            }
+        }
+
+        // Store admin-edited quote content fields if provided
+        if (pro_quote_description !== undefined) {
+            updatePayload.pro_quote_description = pro_quote_description;
+        }
+        if (pro_estimated_duration !== undefined) {
+            updatePayload.pro_estimated_duration = pro_estimated_duration;
+        }
+        if (pro_warranty_info !== undefined) {
+            updatePayload.pro_warranty_info = pro_warranty_info;
+        }
+        if (pro_notes !== undefined) {
+            updatePayload.pro_notes = pro_notes;
+        }
 
         // Update request with price
         const { data: request, error } = await supabaseAdmin
             .from('guest_quote_requests')
-            .update({
-                quoted_price: parseFloat(finalPrice),
-                tax_amount: taxAmount,
-                status: 'quoted',
-                updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq('id', id)
             .select()
             .single();
@@ -249,7 +288,7 @@ exports.sendQuoteToGuest = async (req, res) => {
         // Send quote email to guest
         await sendGuestQuoteEmail(request.guest_email, request.guest_name, request, message || '');
 
-        logger.info('Quote sent to guest', { request_id: id, quoted_price: finalPrice, guest_email: request.guest_email });
+        logger.info('Quote sent to guest', { request_id: id, quoted_price: finalPrice, tax_rate: taxRate, guest_email: request.guest_email });
 
         res.json({ success: true, message: 'Quote sent to the guest.', data: { request } });
     } catch (error) {

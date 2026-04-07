@@ -2208,7 +2208,7 @@ exports.respondToCounterOffer = async (req, res) => {
 exports.approveQuotation = async (req, res) => {
     try {
         const { quotationId } = req.params;
-        const { commission_amount, admin_review_notes } = req.body;
+        const { commission_amount, admin_review_notes, edited_pro_price, tax_rate, description, estimated_duration, warranty_info } = req.body;
 
         const commissionAmt = parseFloat(commission_amount);
         if (isNaN(commissionAmt) || commissionAmt < 0) {
@@ -2243,23 +2243,62 @@ exports.approveQuotation = async (req, res) => {
             });
         }
 
-        const proPrice = parseFloat(quotation.quoted_price);
-        const adminPrice = proPrice + commissionAmt;
-        const effectiveRate = proPrice > 0 ? commissionAmt / proPrice : 0;
+        // Use admin-edited pro price if provided, otherwise use the original quoted_price
+        const originalProPrice = parseFloat(quotation.quoted_price);
+        const effectiveProPrice = (edited_pro_price !== undefined && edited_pro_price !== null && edited_pro_price !== '')
+            ? parseFloat(edited_pro_price)
+            : originalProPrice;
+
+        if (isNaN(effectiveProPrice) || effectiveProPrice <= 0) {
+            return res.status(400).json({ success: false, message: 'Pro price must be a positive number' });
+        }
+
+        const adminPrice = effectiveProPrice + commissionAmt;
+        const effectiveRate = effectiveProPrice > 0 ? commissionAmt / effectiveProPrice : 0;
+
+        // Determine tax rate: use admin-provided rate or fall back to platform setting
+        let taxRateDecimal;
+        if (tax_rate !== undefined && tax_rate !== null && tax_rate !== '') {
+            taxRateDecimal = parseFloat(tax_rate);
+            if (isNaN(taxRateDecimal) || taxRateDecimal < 0 || taxRateDecimal > 1) {
+                return res.status(400).json({ success: false, message: 'tax_rate must be a decimal between 0 and 1 (e.g. 0.13 for 13%)' });
+            }
+        } else {
+            taxRateDecimal = await getTaxRate('quote');
+        }
 
         // Update the quotation
+        const updatePayload = {
+            status: 'pending',
+            admin_price: adminPrice,
+            commission_amount: commissionAmt,
+            commission_rate: effectiveRate,
+            admin_approved_at: new Date().toISOString(),
+            admin_approved_by: req.user.id,
+            admin_review_notes: admin_review_notes || null,
+            tax_rate_used: taxRateDecimal,
+            updated_at: new Date().toISOString()
+        };
+        // Only store admin_edited_pro_price if admin actually changed the price
+        if (edited_pro_price !== undefined && edited_pro_price !== null && edited_pro_price !== '' && parseFloat(edited_pro_price) !== originalProPrice) {
+            updatePayload.admin_edited_pro_price = effectiveProPrice;
+        }
+
+        // Store admin-edited quote content fields if provided
+        if (description !== undefined) {
+            updatePayload.description = description;
+        }
+        if (estimated_duration !== undefined) {
+            const dur = estimated_duration === '' ? null : parseInt(estimated_duration, 10);
+            updatePayload.estimated_duration = isNaN(dur) ? null : dur;
+        }
+        if (warranty_info !== undefined) {
+            updatePayload.warranty_info = warranty_info;
+        }
+
         const { data: updatedQuotation, error: updateError } = await supabaseAdmin
             .from('booking_quotations')
-            .update({
-                status: 'pending',
-                admin_price: adminPrice,
-                commission_amount: commissionAmt,
-                commission_rate: effectiveRate,
-                admin_approved_at: new Date().toISOString(),
-                admin_approved_by: req.user.id,
-                admin_review_notes: admin_review_notes || null,
-                updated_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', quotationId)
             .select()
             .single();
@@ -2277,8 +2316,6 @@ exports.approveQuotation = async (req, res) => {
             .single();
 
         if (booking) {
-            // Calculate tax on the admin-set price
-            const taxRateDecimal = await getTaxRate('quote');
             const tax = adminPrice * taxRateDecimal;
             const finalPrice = adminPrice + tax;
 
@@ -2316,9 +2353,11 @@ exports.approveQuotation = async (req, res) => {
         logger.info('Quotation approved by admin', {
             quotationId,
             adminId: req.user.id,
-            proPrice,
+            originalProPrice,
+            effectiveProPrice,
             commissionAmt,
-            adminPrice
+            adminPrice,
+            taxRateDecimal
         });
 
         res.json({

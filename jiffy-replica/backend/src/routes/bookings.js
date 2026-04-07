@@ -157,6 +157,11 @@ router.post('/admin/quotations/:quotationId/approve',
         param('quotationId').isUUID(),
         body('commission_amount').isFloat({ min: 0 }).withMessage('commission_amount must be a non-negative number'),
         body('admin_review_notes').optional().trim(),
+        body('edited_pro_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('edited_pro_price must be a positive number'),
+        body('tax_rate').optional({ nullable: true }).isFloat({ min: 0, max: 1 }).withMessage('tax_rate must be between 0 and 1'),
+        body('description').optional().trim(),
+        body('estimated_duration').optional({ nullable: true }),
+        body('warranty_info').optional().trim(),
         validate
     ],
     bookingsController.approveQuotation

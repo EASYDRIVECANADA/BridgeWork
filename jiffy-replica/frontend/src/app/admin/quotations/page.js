@@ -39,10 +39,13 @@ export default function AdminQuotationsPage() {
 
   // Per-quotation commission editor state
   const [commissionInputs, setCommissionInputs] = useState({});
+  const [proPriceInputs, setProPriceInputs] = useState({});
+  const [taxRateInputs, setTaxRateInputs] = useState({});
   const [reviewNotes, setReviewNotes] = useState({});
   const [processingId, setProcessingId] = useState(null);
   const [rejectModalId, setRejectModalId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [quoteContentEdits, setQuoteContentEdits] = useState({}); // { [quotationId]: { description, estimated_duration, warranty_info } }
 
   useEffect(() => {
     if (!authInitialized) return;
@@ -82,54 +85,121 @@ export default function AdminQuotationsPage() {
     return true;
   });
 
+  const getProPriceInput = (quotationId, originalPrice) => {
+    if (proPriceInputs[quotationId] !== undefined) return proPriceInputs[quotationId];
+    return parseFloat(originalPrice).toFixed(2);
+  };
+
+  const getTaxRateInput = (quotationId) => {
+    if (taxRateInputs[quotationId] !== undefined) return taxRateInputs[quotationId];
+    return '13';
+  };
+
   const getCommissionInput = (quotationId, quotedPrice) => {
     if (commissionInputs[quotationId] !== undefined) return commissionInputs[quotationId];
-    return (parseFloat(quotedPrice) * DEFAULT_COMMISSION_RATE).toFixed(2);
+    const effectiveProPrice = parseFloat(getProPriceInput(quotationId, quotedPrice)) || 0;
+    return (effectiveProPrice * DEFAULT_COMMISSION_RATE).toFixed(2);
   };
 
   // When admin edits the dollar amount, sync the percentage display
-  const handleCommissionDollarChange = (quotationId, quotedPrice, dollarValue) => {
+  const handleCommissionDollarChange = (quotationId, dollarValue) => {
     setCommissionInputs((prev) => ({ ...prev, [quotationId]: dollarValue }));
   };
 
   // When admin edits the percentage, convert to dollars and update
   const handleCommissionPctChange = (quotationId, quotedPrice, pctValue) => {
-    const proPrice = parseFloat(quotedPrice) || 0;
+    const effectiveProPrice = parseFloat(getProPriceInput(quotationId, quotedPrice)) || 0;
     const pct = parseFloat(pctValue) || 0;
-    const dollars = ((pct / 100) * proPrice).toFixed(2);
+    const dollars = ((pct / 100) * effectiveProPrice).toFixed(2);
     setCommissionInputs((prev) => ({ ...prev, [quotationId]: dollars }));
+  };
+
+  // When admin edits the pro price, recalculate commission to maintain the same rate
+  const handleProPriceChange = (quotationId, originalPrice, newProPrice) => {
+    setProPriceInputs((prev) => ({ ...prev, [quotationId]: newProPrice }));
+    // Recalculate commission at the same effective rate
+    const currentCommission = parseFloat(getCommissionInput(quotationId, originalPrice)) || 0;
+    const oldProPrice = parseFloat(getProPriceInput(quotationId, originalPrice)) || 0;
+    const rate = oldProPrice > 0 ? currentCommission / oldProPrice : DEFAULT_COMMISSION_RATE;
+    const newPro = parseFloat(newProPrice) || 0;
+    setCommissionInputs((prev) => ({ ...prev, [quotationId]: (newPro * rate).toFixed(2) }));
   };
 
   // Apply a quick preset percentage
   const applyPreset = (quotationId, quotedPrice, pct) => {
-    const proPrice = parseFloat(quotedPrice) || 0;
-    const dollars = ((pct / 100) * proPrice).toFixed(2);
+    const effectiveProPrice = parseFloat(getProPriceInput(quotationId, quotedPrice)) || 0;
+    const dollars = ((pct / 100) * effectiveProPrice).toFixed(2);
     setCommissionInputs((prev) => ({ ...prev, [quotationId]: dollars }));
   };
 
-  const computeBreakdown = (quotedPrice, commissionInput) => {
-    const proPrice = parseFloat(quotedPrice) || 0;
+  const computeBreakdown = (quotationId, quotedPrice, commissionInput) => {
+    const proPrice = parseFloat(getProPriceInput(quotationId, quotedPrice)) || 0;
     const commission = parseFloat(commissionInput) || 0;
     const adminPrice = proPrice + commission;
-    const tax = adminPrice * 0.13;
+    const taxPct = parseFloat(getTaxRateInput(quotationId)) || 0;
+    const taxRate = taxPct / 100;
+    const tax = adminPrice * taxRate;
     const customerTotal = adminPrice + tax;
     const effectiveRate = proPrice > 0 ? ((commission / proPrice) * 100).toFixed(1) : '0.0';
     return { proPrice, commission, adminPrice, tax, customerTotal, effectiveRate };
   };
 
-  const handleApprove = async (quotationId, quotedPrice) => {
+  const getQuoteContentEdit = (quotationId, quote) => {
+    if (quoteContentEdits[quotationId]) return quoteContentEdits[quotationId];
+    return {
+      description: quote.description || '',
+      estimated_duration: quote.estimated_duration != null ? String(quote.estimated_duration) : '',
+      warranty_info: quote.warranty_info || '',
+    };
+  };
+
+  const updateQuoteContentEdit = (quotationId, field, value) => {
+    setQuoteContentEdits(prev => ({
+      ...prev,
+      [quotationId]: { ...(prev[quotationId] || {}), [field]: value }
+    }));
+  };
+
+  const handleApprove = async (quotationId, quotedPrice, quote) => {
     const commissionAmt = parseFloat(getCommissionInput(quotationId, quotedPrice));
     if (isNaN(commissionAmt) || commissionAmt < 0) {
       toast.error('Enter a valid commission amount (0 or more)');
       return;
     }
+    const editedProPrice = parseFloat(getProPriceInput(quotationId, quotedPrice));
+    const taxPct = parseFloat(getTaxRateInput(quotationId));
+    const taxRateDecimal = taxPct / 100;
+
     setProcessingId(quotationId);
     try {
-      await bookingsAPI.approveQuotation(quotationId, {
+      const payload = {
         commission_amount: commissionAmt,
         admin_review_notes: reviewNotes[quotationId] || ''
-      });
+      };
+      // Send edited pro price if different from original
+      if (editedProPrice !== parseFloat(quotedPrice)) {
+        payload.edited_pro_price = editedProPrice;
+      }
+      // Send tax rate if different from default 13%
+      if (Math.abs(taxRateDecimal - 0.13) > 0.0001) {
+        payload.tax_rate = taxRateDecimal;
+      }
+      // Send edited quote content fields if admin changed them
+      const edits = quoteContentEdits[quotationId];
+      if (edits) {
+        if (edits.description !== undefined && edits.description !== (quote.description || '')) {
+          payload.description = edits.description;
+        }
+        if (edits.estimated_duration !== undefined && edits.estimated_duration !== (quote.estimated_duration != null ? String(quote.estimated_duration) : '')) {
+          payload.estimated_duration = edits.estimated_duration;
+        }
+        if (edits.warranty_info !== undefined && edits.warranty_info !== (quote.warranty_info || '')) {
+          payload.warranty_info = edits.warranty_info;
+        }
+      }
+      await bookingsAPI.approveQuotation(quotationId, payload);
       toast.success('Quote approved and sent to customer!');
+      setQuoteContentEdits(prev => { const n = { ...prev }; delete n[quotationId]; return n; });
       fetchQuotations(pagination.offset);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to approve quotation');
@@ -375,7 +445,7 @@ export default function AdminQuotationsPage() {
                                 quote.id,
                                 quote.quoted_price
                               );
-                              const bd = computeBreakdown(quote.quoted_price, commissionVal);
+                              const bd = computeBreakdown(quote.id, quote.quoted_price, commissionVal);
 
                               return (
                                 <div
@@ -435,19 +505,127 @@ export default function AdminQuotationsPage() {
                                     </div>
                                   </div>
 
-                                  {quote.description && (
+                                  {quote.description && !isPendingReview && (
                                     <p className="text-sm text-gray-600 mb-3 italic">
                                       {quote.description}
                                     </p>
                                   )}
 
+                                  {/* EDITABLE QUOTE CONTENT — only for pending_admin_review */}
+                                  {isPendingReview && (() => {
+                                    const contentEdit = getQuoteContentEdit(quote.id, quote);
+                                    return (
+                                      <div className="bg-white rounded-lg border border-orange-200 p-4 mb-3">
+                                        <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-3">
+                                          Quote Content (editable by admin)
+                                        </p>
+                                        <div className="space-y-3">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                                            <textarea
+                                              rows={3}
+                                              value={contentEdit.description}
+                                              onChange={(e) => updateQuoteContentEdit(quote.id, 'description', e.target.value)}
+                                              className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-300 bg-orange-50 resize-none"
+                                              placeholder="Quote description..."
+                                            />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 mb-1">Estimated Duration (minutes)</label>
+                                              <input
+                                                type="text"
+                                                value={contentEdit.estimated_duration}
+                                                onChange={(e) => updateQuoteContentEdit(quote.id, 'estimated_duration', e.target.value)}
+                                                className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                                placeholder="e.g. 120"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 mb-1">Warranty Info</label>
+                                              <input
+                                                type="text"
+                                                value={contentEdit.warranty_info}
+                                                onChange={(e) => updateQuoteContentEdit(quote.id, 'warranty_info', e.target.value)}
+                                                className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                                placeholder="e.g. 1 year warranty"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+
                                   {/* COMMISSION CALCULATOR — only for pending_admin_review */}
                                   {isPendingReview ? (
                                     <div className="bg-white rounded-lg border border-amber-200 p-4 mb-3">
                                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                                        Commission Calculator
+                                        Quote Editor &amp; Commission Calculator
                                       </p>
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+
+                                      {/* Editable Pro Price + Tax Rate row */}
+                                      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                                        <div className="flex-1">
+                                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                                            Pro Price (CAD) — editable
+                                          </label>
+                                          <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">$</span>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={getProPriceInput(quote.id, quote.quoted_price)}
+                                              onChange={(e) => handleProPriceChange(quote.id, quote.quoted_price, e.target.value)}
+                                              className="w-full pl-7 pr-3 py-2.5 border-2 border-orange-400 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-300 bg-orange-50"
+                                              placeholder="0.00"
+                                            />
+                                          </div>
+                                          {parseFloat(getProPriceInput(quote.id, quote.quoted_price)) !== parseFloat(quote.quoted_price) && (
+                                            <p className="text-xs text-orange-600 mt-1">
+                                              Original: ${parseFloat(quote.quoted_price).toFixed(2)} — modified by admin
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="w-36">
+                                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                                            Tax Rate
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              max="100"
+                                              step="0.01"
+                                              value={getTaxRateInput(quote.id)}
+                                              onChange={(e) => setTaxRateInputs((prev) => ({ ...prev, [quote.id]: e.target.value }))}
+                                              className="w-full pl-3 pr-8 py-2.5 border-2 border-purple-400 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300 bg-purple-50"
+                                              placeholder="13"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">%</span>
+                                          </div>
+                                          <div className="flex gap-1 mt-1">
+                                            {[0, 5, 13, 15].map((tr) => (
+                                              <button
+                                                key={tr}
+                                                type="button"
+                                                onClick={() => setTaxRateInputs((prev) => ({ ...prev, [quote.id]: String(tr) }))}
+                                                className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                                                  parseFloat(getTaxRateInput(quote.id)) === tr
+                                                    ? 'bg-purple-600 text-white'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-purple-100'
+                                                }`}
+                                              >
+                                                {tr}%
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Breakdown cards */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm mb-4">
                                         <div className="bg-gray-50 rounded-lg p-3">
                                           <p className="text-xs text-gray-400 mb-1">Pro Price</p>
                                           <p className="font-bold text-gray-900 text-lg">
@@ -456,7 +634,7 @@ export default function AdminQuotationsPage() {
                                         </div>
                                         <div className="bg-[#0E7480]/10 rounded-lg p-3">
                                           <p className="text-xs text-[#0E7480] mb-1">
-                                            BridgeWork Commission
+                                            BridgeWork Revenue
                                           </p>
                                           <p className="font-bold text-[#0E7480] text-lg">
                                             ${bd.commission.toFixed(2)}
@@ -473,9 +651,17 @@ export default function AdminQuotationsPage() {
                                             ${bd.adminPrice.toFixed(2)}
                                           </p>
                                         </div>
+                                        <div className="bg-purple-50 rounded-lg p-3">
+                                          <p className="text-xs text-purple-500 mb-1">
+                                            Tax ({getTaxRateInput(quote.id)}%)
+                                          </p>
+                                          <p className="font-bold text-purple-700 text-lg">
+                                            ${bd.tax.toFixed(2)}
+                                          </p>
+                                        </div>
                                         <div className="bg-gray-900 rounded-lg p-3">
                                           <p className="text-xs text-gray-400 mb-1">
-                                            Customer Total (+13% HST)
+                                            Customer Total
                                           </p>
                                           <p className="font-bold text-white text-lg">
                                             ${bd.customerTotal.toFixed(2)}
@@ -485,7 +671,7 @@ export default function AdminQuotationsPage() {
 
                                       {/* Quick preset buttons */}
                                       <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-xs text-gray-500 mr-1">Quick set:</span>
+                                        <span className="text-xs text-gray-500 mr-1">Revenue preset:</span>
                                         {[10, 15, 17.22, 20, 25].map((pct) => (
                                           <button
                                             key={pct}
@@ -516,7 +702,6 @@ export default function AdminQuotationsPage() {
                                               onChange={(e) =>
                                                 handleCommissionDollarChange(
                                                   quote.id,
-                                                  quote.quoted_price,
                                                   e.target.value
                                                 )
                                               }
@@ -573,7 +758,7 @@ export default function AdminQuotationsPage() {
                                       <div className="flex gap-3 mt-4">
                                         <button
                                           onClick={() =>
-                                            handleApprove(quote.id, quote.quoted_price)
+                                            handleApprove(quote.id, quote.quoted_price, quote)
                                           }
                                           disabled={processingId === quote.id}
                                           className="flex items-center gap-2 px-5 py-2.5 bg-[#0E7480] text-white rounded-lg text-sm font-semibold hover:bg-[#0a5a63] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -599,23 +784,26 @@ export default function AdminQuotationsPage() {
                                     </div>
                                   ) : (
                                     /* Read-only price summary for processed quotes */
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                                       <div>
                                         <p className="text-gray-400 text-xs">Pro Price</p>
                                         <p className="font-bold text-gray-700">
-                                          ${parseFloat(quote.quoted_price).toFixed(2)}
+                                          ${parseFloat(quote.admin_edited_pro_price || quote.quoted_price).toFixed(2)}
                                         </p>
+                                        {quote.admin_edited_pro_price && parseFloat(quote.admin_edited_pro_price) !== parseFloat(quote.quoted_price) && (
+                                          <p className="text-[10px] text-orange-500">Original: ${parseFloat(quote.quoted_price).toFixed(2)}</p>
+                                        )}
                                       </div>
                                       {quote.commission_amount != null && (
                                         <div>
-                                          <p className="text-gray-400 text-xs">Commission</p>
+                                          <p className="text-gray-400 text-xs">Revenue</p>
                                           <p className="font-bold text-[#0E7480]">
                                             ${parseFloat(quote.commission_amount).toFixed(2)}
                                           </p>
                                         </div>
                                       )}
                                       <div>
-                                        <p className="text-gray-400 text-xs">Customer Subtotal</p>
+                                        <p className="text-gray-400 text-xs">Subtotal</p>
                                         <p className="font-bold text-blue-700">
                                           $
                                           {parseFloat(
@@ -625,14 +813,25 @@ export default function AdminQuotationsPage() {
                                       </div>
                                       <div>
                                         <p className="text-gray-400 text-xs">
-                                          Customer Total (+13% HST)
+                                          Tax ({quote.tax_rate_used ? (parseFloat(quote.tax_rate_used) * 100).toFixed(0) : '13'}%)
+                                        </p>
+                                        <p className="font-bold text-purple-700">
+                                          $
+                                          {(
+                                            parseFloat(quote.admin_price || quote.quoted_price) *
+                                            (quote.tax_rate_used ? parseFloat(quote.tax_rate_used) : 0.13)
+                                          ).toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-400 text-xs">
+                                          Customer Total
                                         </p>
                                         <p className="font-bold text-gray-900">
                                           $
                                           {(
-                                            parseFloat(
-                                              quote.admin_price || quote.quoted_price
-                                            ) * 1.13
+                                            parseFloat(quote.admin_price || quote.quoted_price) *
+                                            (1 + (quote.tax_rate_used ? parseFloat(quote.tax_rate_used) : 0.13))
                                           ).toFixed(2)}
                                         </p>
                                       </div>
