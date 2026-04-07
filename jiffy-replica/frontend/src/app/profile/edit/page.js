@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Lock, CreditCard, Shield, Camera } from 'lucide-react';
+import { MapPin, Lock, CreditCard, Shield, Camera, Download, Trash2 } from 'lucide-react';
 import { updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
+import { authAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 export default function EditProfilePage() {
@@ -35,6 +36,11 @@ export default function EditProfilePage() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvc, setCardCvc] = useState('');
 
+  // GDPR state
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     if (!user) {
       router.push('/login');
@@ -52,6 +58,41 @@ export default function EditProfilePage() {
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleExportData = async () => {
+    try {
+      const res = await authAPI.exportData();
+      const json = JSON.stringify(res.data.data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my-bridgework-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Your data has been downloaded.');
+    } catch {
+      toast.error('Failed to export data. Please try again.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error('Please enter your password to confirm deletion.');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await authAPI.deleteAccount({ password: deletePassword });
+      toast.success('Your account has been deleted.');
+      await supabase.auth.signOut();
+      router.push('/');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to delete account.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleAvatarChange = async (e) => {
@@ -287,7 +328,16 @@ export default function EditProfilePage() {
                     <button className="text-sm text-[#0E7480] hover:text-[#1e5bb8] font-medium hover:underline">
                       Change Password
                     </button>
-                    <button className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
+                    <button
+                      onClick={handleExportData}
+                      className="text-sm text-gray-500 hover:text-gray-700 font-medium hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Export My Data
+                    </button>
+                    <button
+                      onClick={() => setDeleteModal(true)}
+                      className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline"
+                    >
                       Delete Account
                     </button>
                   </div>
@@ -484,6 +534,46 @@ export default function EditProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Delete Account</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              This will permanently delete your account. All your data will be removed. This action cannot be undone.
+            </p>
+            <p className="text-sm text-gray-700 font-medium mb-2">Enter your password to confirm:</p>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={e => setDeletePassword(e.target.value)}
+              placeholder="Your password"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setDeleteModal(false); setDeletePassword(''); }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="px-5 py-2 bg-red-600 text-white text-sm rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete My Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

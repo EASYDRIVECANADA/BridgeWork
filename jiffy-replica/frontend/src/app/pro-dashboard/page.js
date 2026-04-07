@@ -9,7 +9,7 @@ import {
   MapPin, Star, Clock, DollarSign, Briefcase, Bell, MessageSquare,
   ChevronRight, CheckCircle, XCircle, Phone, Mail, Calendar,
   TrendingUp, Users, Award, Settings, Edit, LogOut, FileText, Loader2,
-  Camera, Upload, X, Plus, Image as ImageIcon, AlertTriangle
+  Camera, Upload, X, Plus, Image as ImageIcon, AlertTriangle, Download
 } from 'lucide-react';
 import { signOut, updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +17,7 @@ import { fetchProJobs, fetchProJobHistory, acceptJob, declineJob, fetchProStatis
 import { fetchConversations, fetchMessages, sendMessage } from '@/store/slices/messagesSlice';
 import { paymentsAPI, prosAPI, reviewsAPI, onboardingAPI, bookingsAPI, proProfileUpdatesAPI, payoutsAPI, invoiceAPI, servicesAPI, guestQuotesAPI } from '@/lib/api';
 import InvoiceModal from '@/components/InvoiceModal';
+import { generatePayoutReceiptPDF } from '@/utils/generatePayoutReceiptPDF';
 import { toast } from 'react-toastify';
 
 function getPrimaryReview(reviewData) {
@@ -107,6 +108,8 @@ export default function ProDashboardPage() {
   // Quote requests state
   const [quoteRequests, setQuoteRequests] = useState([]);
   const [quoteRequestsLoading, setQuoteRequestsLoading] = useState(false);
+  const [decliningQuote, setDecliningQuote] = useState(null);
+  const [respondingCounter, setRespondingCounter] = useState(null);
 
   // Guest quote assignments state
   const [guestQuoteAssignments, setGuestQuoteAssignments] = useState([]);
@@ -147,6 +150,10 @@ export default function ProDashboardPage() {
   // Payout method
   const [settingsPayoutMethod, setSettingsPayoutMethod] = useState('e_transfer');
   const [settingsEtransferEmail, setSettingsEtransferEmail] = useState('');
+  const [settingsPayoutDetails, setSettingsPayoutDetails] = useState({
+    cheque_payee: '', cheque_address: '',
+    bank_name: '', transit_number: '', account_number: '', institution_number: '',
+  });
   const [payoutMethodSaving, setPayoutMethodSaving] = useState(false);
   const [withdrawalSettings, setWithdrawalSettings] = useState(null);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
@@ -217,6 +224,33 @@ export default function ProDashboardPage() {
       setWithdrawalSettings(null);
     } finally {
       setEarningsLoading(false);
+    }
+  }, []);
+
+  const handleDeclineQuote = useCallback(async (bookingId) => {
+    setDecliningQuote(bookingId);
+    try {
+      await bookingsAPI.declineQuoteRequest(bookingId);
+      setQuoteRequests(prev => prev.filter(b => b.id !== bookingId));
+      toast.success('Quote assignment declined.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to decline assignment.');
+    } finally {
+      setDecliningQuote(null);
+    }
+  }, []);
+
+  const handleCounterOfferResponse = useCallback(async (quotationId, action) => {
+    setRespondingCounter(quotationId);
+    try {
+      await bookingsAPI.respondToCounterOffer(quotationId, { action });
+      toast.success(action === 'accept' ? 'Counter-offer accepted! Your quote has been updated.' : 'Counter-offer declined.');
+      const res = await bookingsAPI.getQuoteRequestsForPro();
+      setQuoteRequests(res.data?.data?.bookings || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to respond to counter-offer.');
+    } finally {
+      setRespondingCounter(null);
     }
   }, []);
 
@@ -315,7 +349,7 @@ export default function ProDashboardPage() {
     };
     fetchQuoteRequests();
 
-    // Fetch guest quote assignments for this pro
+    // Guest quote assignments for this pro
     const fetchGuestQuoteAssignments = async () => {
       try {
         setGuestQuotesLoading(true);
@@ -394,6 +428,9 @@ export default function ProDashboardPage() {
           setSettingsInsuranceDocUrl(pp.insurance_document_url || '');
           setSettingsPayoutMethod(pp.payout_method || 'e_transfer');
           setSettingsEtransferEmail(pp.etransfer_email || '');
+          if (pp.payout_details && typeof pp.payout_details === 'object') {
+            setSettingsPayoutDetails(prev => ({ ...prev, ...pp.payout_details }));
+          }
           // Check for pending update request
           try {
             const pendingRes = await proProfileUpdatesAPI.getMyPending();
@@ -599,15 +636,33 @@ export default function ProDashboardPage() {
       toast.error('You need to set up Stripe Connect first');
       return;
     }
+    if (settingsPayoutMethod === 'cheque') {
+      if (!settingsPayoutDetails.cheque_payee.trim() || !settingsPayoutDetails.cheque_address.trim()) {
+        toast.error('Please enter the payee name and mailing address for cheque payouts');
+        return;
+      }
+    }
+    if (settingsPayoutMethod === 'direct_deposit') {
+      if (!settingsPayoutDetails.bank_name.trim() || !settingsPayoutDetails.transit_number.trim() ||
+          !settingsPayoutDetails.account_number.trim() || !settingsPayoutDetails.institution_number.trim()) {
+        toast.error('Please fill in all bank account fields for direct deposit');
+        return;
+      }
+    }
     setPayoutMethodSaving(true);
     try {
-      await payoutsAPI.updatePayoutMethod({
-        payout_method: settingsPayoutMethod,
-        etransfer_email: settingsPayoutMethod === 'e_transfer' ? settingsEtransferEmail.trim() : undefined,
-      });
-      toast.success(settingsPayoutMethod === 'e_transfer'
-        ? 'Payout method updated to Interac e-Transfer'
-        : 'Payout method updated to Stripe Connect');
+      const payload = { payout_method: settingsPayoutMethod };
+      if (settingsPayoutMethod === 'e_transfer') payload.etransfer_email = settingsEtransferEmail.trim();
+      if (settingsPayoutMethod === 'cheque') payload.payout_details = { cheque_payee: settingsPayoutDetails.cheque_payee.trim(), cheque_address: settingsPayoutDetails.cheque_address.trim() };
+      if (settingsPayoutMethod === 'direct_deposit') payload.payout_details = {
+        bank_name: settingsPayoutDetails.bank_name.trim(),
+        transit_number: settingsPayoutDetails.transit_number.trim(),
+        account_number: settingsPayoutDetails.account_number.trim(),
+        institution_number: settingsPayoutDetails.institution_number.trim(),
+      };
+      await payoutsAPI.updatePayoutMethod(payload);
+      const labels = { e_transfer: 'Interac e-Transfer', stripe_connect: 'Stripe Connect', cheque: 'Cheque', direct_deposit: 'Direct Deposit' };
+      toast.success(`Payout method updated to ${labels[settingsPayoutMethod] || settingsPayoutMethod}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to update payout method');
     }
@@ -1319,6 +1374,41 @@ export default function ProDashboardPage() {
                                 <p>{booking.special_instructions}</p>
                               </div>
                             )}
+
+                            {/* Counter-offer response */}
+                            {booking.my_quote_status === 'counter_offered' && booking.my_counter_offer_price && (
+                              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                                <p className="font-semibold text-amber-800 mb-1">Counter-Offer Received</p>
+                                <p className="text-amber-700">
+                                  Proposed:{' '}
+                                  <span className="font-bold">
+                                    {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(booking.my_counter_offer_price)}
+                                  </span>
+                                  {booking.my_quoted_price && (
+                                    <span className="text-xs ml-2 text-amber-600">(your original: {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(booking.my_quoted_price)})</span>
+                                  )}
+                                </p>
+                                {booking.my_counter_offer_message && (
+                                  <p className="text-amber-700 mt-1 italic">&ldquo;{booking.my_counter_offer_message}&rdquo;</p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <button
+                                    onClick={() => handleCounterOfferResponse(booking.my_quote_id, 'accept')}
+                                    disabled={respondingCounter === booking.my_quote_id}
+                                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                  >
+                                    {respondingCounter === booking.my_quote_id ? 'Processing…' : 'Accept Counter'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleCounterOfferResponse(booking.my_quote_id, 'decline')}
+                                    disabled={respondingCounter === booking.my_quote_id}
+                                    className="px-3 py-1.5 border border-amber-400 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                                  >
+                                    Decline Counter
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Actions */}
@@ -1333,15 +1423,15 @@ export default function ProDashboardPage() {
                             >
                               {booking.can_submit_quote ? 'Submit Quote' : booking.has_submitted_quote ? 'View Quote' : 'View Details'}
                             </Link>
-                            <button
-                              onClick={() => {
-                                // TODO: Implement decline quote
-                                toast.info('Decline feature coming soon');
-                              }}
-                              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              Decline
-                            </button>
+                            {booking.can_submit_quote && (
+                              <button
+                                onClick={() => handleDeclineQuote(booking.id)}
+                                disabled={decliningQuote === booking.id}
+                                className="px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                              >
+                                {decliningQuote === booking.id ? 'Declining…' : 'Decline'}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2086,38 +2176,82 @@ export default function ProDashboardPage() {
                       const isPayout = item.type === 'payout';
                       const status = item.status || 'completed';
                       const arr = earnings.records;
+                      const booking = item.bookings;
+                      const commRate = item.commission_rate ?? earnings?.commissionRate ?? 0.13;
+                      const platformFee = parseFloat(item.platform_fee || 0);
+                      const jobTotal = booking?.total_price || booking?.base_price
+                        ? parseFloat(booking.total_price || booking.base_price)
+                        : null;
 
                       return (
                         <div
                           key={item.id}
-                          className={`flex items-center justify-between px-5 py-4 ${
+                          className={`px-5 py-4 ${
                             index < arr.length - 1 ? 'border-b border-gray-100' : ''
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              status === 'completed' ? (isPayout ? 'bg-blue-100' : 'bg-green-100') : status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
-                            }`}>
-                              <DollarSign className={`w-5 h-5 ${
-                                status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-600'
-                              }`} />
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                status === 'completed' ? (isPayout ? 'bg-blue-100' : 'bg-green-100') : status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
+                              }`}>
+                                <DollarSign className={`w-5 h-5 ${
+                                  status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-600'
+                                }`} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {isPayout ? 'Payout Sent' : (booking?.service_name || 'Earning Added')}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {booking?.booking_number
+                                    ? `#${booking.booking_number} • `
+                                    : item.booking_id
+                                      ? `Booking ${item.booking_id.slice(0, 8)}… • `
+                                      : ''}
+                                  {formatDateLabel(item.created_at)}
+                                </p>
+                                {!isPayout && platformFee > 0 && (
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    Platform fee: {formatCurrency(platformFee)} ({(commRate * 100).toFixed(0)}%)
+                                    {jobTotal ? ` · Job total: ${formatCurrency(jobTotal)}` : ''}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{isPayout ? 'Payout Sent' : 'Earning Added'}</p>
-                              <p className="text-xs text-gray-500">
-                                {item.booking_id ? `Booking ${item.booking_id} • ` : ''}{formatDateLabel(item.created_at)}
-                              </p>
+                            <div className="flex items-start gap-2 flex-shrink-0">
+                              <div className="text-right">
+                                <p className={`text-sm font-bold ${
+                                  status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-500'
+                                }`}>
+                                  {isPayout ? '-' : '+'}{formatCurrency(item.amount)}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {isPayout ? 'Payout' : 'Your share'} • {status}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => generatePayoutReceiptPDF({
+                                  proName: profile?.full_name || '',
+                                  proEmail: profile?.email || '',
+                                  type: item.type,
+                                  amount: item.amount,
+                                  platformFee: item.platform_fee || 0,
+                                  commissionRate: item.commission_rate ?? earnings?.commissionRate ?? 0.13,
+                                  status: item.status || 'completed',
+                                  payoutMethod: item.payout_method || 'e_transfer',
+                                  createdAt: item.created_at,
+                                  serviceName: item.bookings?.service_name,
+                                  bookingNumber: item.bookings?.booking_number,
+                                  bookingId: item.booking_id,
+                                  entryId: item.id,
+                                })}
+                                title="Download receipt"
+                                className="mt-0.5 p-1.5 rounded-lg text-gray-400 hover:text-[#0E7480] hover:bg-teal-50 transition-colors"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm font-bold ${
-                              status === 'completed' ? (isPayout ? 'text-blue-600' : 'text-green-600') : status === 'pending' ? 'text-yellow-600' : 'text-red-500'
-                            }`}>
-                              {isPayout ? '-' : '+'}{formatCurrency(item.amount)}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {isPayout ? 'Payout' : 'Earning'} • {status}
-                            </p>
                           </div>
                         </div>
                       );
@@ -2556,6 +2690,128 @@ export default function ProDashboardPage() {
                             )}
                             {settingsPayoutMethod === 'stripe_connect' && connectStatus?.connected && !connectStatus?.payouts_enabled && (
                               <p className="text-xs text-amber-600 mt-2 font-medium">⚠ Stripe connected but payouts paused — complete verification in Earnings tab</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cheque Option */}
+                      <div
+                        onClick={() => setSettingsPayoutMethod('cheque')}
+                        className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                          settingsPayoutMethod === 'cheque'
+                            ? 'border-[#0E7480] bg-[#0E7480]/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                            settingsPayoutMethod === 'cheque' ? 'border-[#0E7480]' : 'border-gray-300'
+                          }`}>
+                            {settingsPayoutMethod === 'cheque' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 text-sm">Cheque</p>
+                            <p className="text-xs text-gray-500 mt-1">Admin mails a cheque to your address. Allow additional processing time.</p>
+                            {settingsPayoutMethod === 'cheque' && (
+                              <div className="mt-3 space-y-2">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-700 mb-1">Payee Name *</label>
+                                  <input
+                                    type="text"
+                                    value={settingsPayoutDetails.cheque_payee}
+                                    onChange={e => setSettingsPayoutDetails(p => ({ ...p, cheque_payee: e.target.value }))}
+                                    onClick={e => e.stopPropagation()}
+                                    placeholder="Full name or business name on cheque"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-700 mb-1">Mailing Address *</label>
+                                  <input
+                                    type="text"
+                                    value={settingsPayoutDetails.cheque_address}
+                                    onChange={e => setSettingsPayoutDetails(p => ({ ...p, cheque_address: e.target.value }))}
+                                    onClick={e => e.stopPropagation()}
+                                    placeholder="123 Main St, Toronto, ON M1A 1A1"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Direct Deposit Option */}
+                      <div
+                        onClick={() => setSettingsPayoutMethod('direct_deposit')}
+                        className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                          settingsPayoutMethod === 'direct_deposit'
+                            ? 'border-[#0E7480] bg-[#0E7480]/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                            settingsPayoutMethod === 'direct_deposit' ? 'border-[#0E7480]' : 'border-gray-300'
+                          }`}>
+                            {settingsPayoutMethod === 'direct_deposit' && <div className="w-2.5 h-2.5 rounded-full bg-[#0E7480]" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 text-sm">Direct Deposit</p>
+                            <p className="text-xs text-gray-500 mt-1">Admin sends funds directly to your bank account via EFT.</p>
+                            {settingsPayoutMethod === 'direct_deposit' && (
+                              <div className="mt-3 space-y-2">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-700 mb-1">Bank Name *</label>
+                                  <input
+                                    type="text"
+                                    value={settingsPayoutDetails.bank_name}
+                                    onChange={e => setSettingsPayoutDetails(p => ({ ...p, bank_name: e.target.value }))}
+                                    onClick={e => e.stopPropagation()}
+                                    placeholder="e.g. TD Bank"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Institution # *</label>
+                                    <input
+                                      type="text"
+                                      value={settingsPayoutDetails.institution_number}
+                                      onChange={e => setSettingsPayoutDetails(p => ({ ...p, institution_number: e.target.value }))}
+                                      onClick={e => e.stopPropagation()}
+                                      placeholder="003"
+                                      maxLength={3}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Transit # *</label>
+                                    <input
+                                      type="text"
+                                      value={settingsPayoutDetails.transit_number}
+                                      onChange={e => setSettingsPayoutDetails(p => ({ ...p, transit_number: e.target.value }))}
+                                      onClick={e => e.stopPropagation()}
+                                      placeholder="12345"
+                                      maxLength={5}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Account # *</label>
+                                    <input
+                                      type="text"
+                                      value={settingsPayoutDetails.account_number}
+                                      onChange={e => setSettingsPayoutDetails(p => ({ ...p, account_number: e.target.value }))}
+                                      onClick={e => e.stopPropagation()}
+                                      placeholder="1234567"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>

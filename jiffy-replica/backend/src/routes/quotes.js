@@ -138,4 +138,10 @@ router.patch('/invoices/:id/status', authenticate, authorize('pro', 'admin'),
     quotesController.updateInvoiceStatus
 );
 
+// Create Stripe payment link for an invoice (Customer only)
+router.post('/invoices/:id/payment-link', authenticate, authorize('user'),
+    [param('id').isUUID(), validate],
+    quotesController.createInvoicePaymentLink
+);
+
 module.exports = router;

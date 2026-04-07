@@ -18,9 +18,9 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-export async function generateInvoicePDF(invoice, options = {}) {
+export async function generateQuotePDF(quote, options = {}) {
   const { download = true, filename } = options;
-  
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -44,42 +44,42 @@ export async function generateInvoicePDF(invoice, options = {}) {
     });
     doc.addImage(img, 'PNG', margin, yPos, 40, 15);
   } catch (e) {
-    // If logo fails to load, just use text
     doc.setFontSize(20);
     doc.setTextColor(...primaryColor);
     doc.setFont('helvetica', 'bold');
     doc.text(COMPANY_NAME, margin, yPos + 10);
   }
 
-  // Invoice title on the right
+  // Quote title on the right
   doc.setFontSize(28);
   doc.setTextColor(...primaryColor);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVOICE', pageWidth - margin, yPos + 10, { align: 'right' });
+  doc.text('QUOTE', pageWidth - margin, yPos + 10, { align: 'right' });
 
   yPos += 25;
 
-  // Invoice number and status
+  // Quote number and status
   doc.setFontSize(10);
   doc.setTextColor(...grayColor);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Invoice #: ${invoice.invoice_number || 'N/A'}`, pageWidth - margin, yPos, { align: 'right' });
-  
+  doc.text(`Quote #: ${quote.quote_number || 'N/A'}`, pageWidth - margin, yPos, { align: 'right' });
+
   yPos += 6;
-  
+
   // Status badge
-  const status = invoice.status?.toUpperCase() || 'DRAFT';
+  const status = quote.status?.toUpperCase() || 'DRAFT';
   const statusColors = {
-    'PAID': [34, 197, 94],
+    'ACCEPTED': [34, 197, 94],
     'SENT': [59, 130, 246],
-    'OVERDUE': [239, 68, 68],
+    'DECLINED': [239, 68, 68],
     'DRAFT': [156, 163, 175],
-    'PARTIALLY_PAID': [234, 179, 8],
+    'EXPIRED': [234, 179, 8],
+    'VIEWED': [99, 102, 241],
   };
   const statusColor = statusColors[status] || grayColor;
   doc.setTextColor(...statusColor);
   doc.setFont('helvetica', 'bold');
-  doc.text(status.replace('_', ' '), pageWidth - margin, yPos, { align: 'right' });
+  doc.text(status, pageWidth - margin, yPos, { align: 'right' });
 
   yPos += 15;
 
@@ -103,51 +103,46 @@ export async function generateInvoicePDF(invoice, options = {}) {
   doc.setTextColor(...darkColor);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  const proName = invoice.pro_profiles?.business_name || invoice.pro_profiles?.profiles?.full_name || 'Service Professional';
+  const proName = quote.pro_profiles?.business_name || quote.pro_profiles?.profiles?.full_name || 'Service Professional';
   doc.text(proName, margin, yPos);
 
   yPos += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...grayColor);
-  if (invoice.pro_profiles?.profiles?.email) {
-    doc.text(invoice.pro_profiles.profiles.email, margin, yPos);
+  if (quote.pro_profiles?.profiles?.email) {
+    doc.text(quote.pro_profiles.profiles.email, margin, yPos);
     yPos += 4;
   }
-  if (invoice.pro_profiles?.profiles?.phone) {
-    doc.text(invoice.pro_profiles.profiles.phone, margin, yPos);
+  if (quote.pro_profiles?.profiles?.phone) {
+    doc.text(quote.pro_profiles.profiles.phone, margin, yPos);
     yPos += 4;
   }
 
-  // TO section (same row as FROM)
+  // TO section
   let toYPos = yPos - 15;
   doc.setFontSize(9);
   doc.setTextColor(...primaryColor);
   doc.setFont('helvetica', 'bold');
-  doc.text('BILL TO', margin + colWidth, toYPos);
+  doc.text('PREPARED FOR', margin + colWidth, toYPos);
 
   toYPos += 6;
   doc.setTextColor(...darkColor);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  const customerName = invoice.customer?.full_name || 'Customer';
+  const customerName = quote.customer?.full_name || 'Customer';
   doc.text(customerName, margin + colWidth, toYPos);
 
   toYPos += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...grayColor);
-  if (invoice.customer?.email) {
-    doc.text(invoice.customer.email, margin + colWidth, toYPos);
+  if (quote.customer?.email) {
+    doc.text(quote.customer.email, margin + colWidth, toYPos);
     toYPos += 4;
   }
-  if (invoice.customer?.phone) {
-    doc.text(invoice.customer.phone, margin + colWidth, toYPos);
-    toYPos += 4;
-  }
-  if (invoice.customer?.address) {
-    const address = `${invoice.customer.address}, ${invoice.customer.city || ''} ${invoice.customer.state || ''} ${invoice.customer.zip_code || ''}`.trim();
-    doc.text(address, margin + colWidth, toYPos);
+  if (quote.customer?.phone) {
+    doc.text(quote.customer.phone, margin + colWidth, toYPos);
     toYPos += 4;
   }
 
@@ -158,42 +153,46 @@ export async function generateInvoicePDF(invoice, options = {}) {
   doc.roundedRect(margin, yPos, pageWidth - margin * 2, 20, 3, 3, 'F');
 
   yPos += 7;
-  const dateColWidth = (pageWidth - margin * 2) / 4;
+  const dateColWidth = (pageWidth - margin * 2) / 3;
 
   doc.setFontSize(8);
   doc.setTextColor(...grayColor);
   doc.setFont('helvetica', 'normal');
   doc.text('Issue Date', margin + 5, yPos);
-  doc.text('Due Date', margin + dateColWidth + 5, yPos);
-  if (invoice.sent_at) doc.text('Sent', margin + dateColWidth * 2 + 5, yPos);
-  if (invoice.paid_at) doc.text('Paid', margin + dateColWidth * 3 + 5, yPos);
+  doc.text('Valid Until', margin + dateColWidth + 5, yPos);
+  if (quote.sent_at) doc.text('Sent', margin + dateColWidth * 2 + 5, yPos);
 
   yPos += 5;
   doc.setTextColor(...darkColor);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text(formatDate(invoice.issue_date), margin + 5, yPos);
-  doc.text(formatDate(invoice.due_date), margin + dateColWidth + 5, yPos);
-  if (invoice.sent_at) doc.text(formatDate(invoice.sent_at), margin + dateColWidth * 2 + 5, yPos);
-  if (invoice.paid_at) {
-    doc.setTextColor(34, 197, 94);
-    doc.text(formatDate(invoice.paid_at), margin + dateColWidth * 3 + 5, yPos);
-  }
+  doc.text(formatDate(quote.issue_date || quote.created_at), margin + 5, yPos);
+  doc.text(formatDate(quote.valid_until), margin + dateColWidth + 5, yPos);
+  if (quote.sent_at) doc.text(formatDate(quote.sent_at), margin + dateColWidth * 2 + 5, yPos);
 
   yPos += 18;
 
+  // Title
+  if (quote.title) {
+    doc.setFontSize(12);
+    doc.setTextColor(...darkColor);
+    doc.setFont('helvetica', 'bold');
+    doc.text(quote.title, margin, yPos);
+    yPos += 8;
+  }
+
   // Description
-  if (invoice.description) {
+  if (quote.description) {
     doc.setFontSize(9);
     doc.setTextColor(...grayColor);
     doc.setFont('helvetica', 'italic');
-    const descLines = doc.splitTextToSize(invoice.description, pageWidth - margin * 2);
+    const descLines = doc.splitTextToSize(quote.description, pageWidth - margin * 2);
     doc.text(descLines, margin, yPos);
     yPos += descLines.length * 5 + 5;
   }
 
   // Items table
-  const items = invoice.invoice_items || [];
+  const items = quote.quote_items || [];
   const tableData = items.map((item, idx) => [
     idx + 1,
     item.description,
@@ -234,7 +233,6 @@ export async function generateInvoicePDF(invoice, options = {}) {
 
   // Totals section
   const totalsX = pageWidth - margin - 80;
-  const totalsWidth = 80;
 
   // Subtotal
   doc.setFontSize(9);
@@ -242,24 +240,24 @@ export async function generateInvoicePDF(invoice, options = {}) {
   doc.setFont('helvetica', 'normal');
   doc.text('Subtotal:', totalsX, yPos);
   doc.setTextColor(...darkColor);
-  doc.text(formatCurrency(invoice.subtotal), pageWidth - margin, yPos, { align: 'right' });
+  doc.text(formatCurrency(quote.subtotal), pageWidth - margin, yPos, { align: 'right' });
   yPos += 6;
 
   // Discount
-  if (parseFloat(invoice.discount_amount) > 0) {
+  if (parseFloat(quote.discount_amount) > 0) {
     doc.setTextColor(...grayColor);
     doc.text('Discount:', totalsX, yPos);
     doc.setTextColor(34, 197, 94);
-    doc.text(`-${formatCurrency(invoice.discount_amount)}`, pageWidth - margin, yPos, { align: 'right' });
+    doc.text(`-${formatCurrency(quote.discount_amount)}`, pageWidth - margin, yPos, { align: 'right' });
     yPos += 6;
   }
 
   // Tax
-  const taxRate = ((parseFloat(invoice.tax_rate) || 0) * 100).toFixed(0);
+  const taxRate = ((parseFloat(quote.tax_rate) || 0) * 100).toFixed(0);
   doc.setTextColor(...grayColor);
   doc.text(`Tax (${taxRate}%):`, totalsX, yPos);
   doc.setTextColor(...darkColor);
-  doc.text(formatCurrency(invoice.tax_amount), pageWidth - margin, yPos, { align: 'right' });
+  doc.text(formatCurrency(quote.tax_amount), pageWidth - margin, yPos, { align: 'right' });
   yPos += 8;
 
   // Total line
@@ -273,43 +271,20 @@ export async function generateInvoicePDF(invoice, options = {}) {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...darkColor);
   doc.text('Total:', totalsX, yPos);
-  doc.text(formatCurrency(invoice.total), pageWidth - margin, yPos, { align: 'right' });
-  yPos += 8;
+  doc.text(formatCurrency(quote.total), pageWidth - margin, yPos, { align: 'right' });
+  yPos += 15;
 
-  // Amount Paid
-  if (parseFloat(invoice.amount_paid) > 0) {
+  // Notes
+  if (quote.notes) {
     doc.setFontSize(9);
-    doc.setTextColor(34, 197, 94);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Amount Paid:', totalsX, yPos);
-    doc.text(formatCurrency(invoice.amount_paid), pageWidth - margin, yPos, { align: 'right' });
-    yPos += 6;
-  }
-
-  // Amount Due
-  if (parseFloat(invoice.amount_due) > 0 && invoice.status !== 'paid') {
-    doc.setFontSize(11);
+    doc.setTextColor(...primaryColor);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(234, 88, 12);
-    doc.text('Amount Due:', totalsX, yPos);
-    doc.text(formatCurrency(invoice.amount_due), pageWidth - margin, yPos, { align: 'right' });
-    yPos += 10;
-  }
-
-  // Payment status banner
-  if (invoice.status === 'paid') {
-    yPos += 10;
-    doc.setFillColor(220, 252, 231);
-    doc.roundedRect(margin, yPos, pageWidth - margin * 2, 25, 3, 3, 'F');
-    doc.setFontSize(14);
-    doc.setTextColor(22, 163, 74);
-    doc.setFont('helvetica', 'bold');
-    doc.text('✓ PAID IN FULL', pageWidth / 2, yPos + 10, { align: 'center' });
-    doc.setFontSize(9);
+    doc.text('Notes:', margin, yPos);
+    yPos += 5;
+    doc.setTextColor(...grayColor);
     doc.setFont('helvetica', 'normal');
-    if (invoice.payment_method) {
-      doc.text(`Payment method: ${invoice.payment_method}`, pageWidth / 2, yPos + 18, { align: 'center' });
-    }
+    const noteLines = doc.splitTextToSize(quote.notes, pageWidth - margin * 2);
+    doc.text(noteLines, margin, yPos);
   }
 
   // Footer
@@ -317,12 +292,12 @@ export async function generateInvoicePDF(invoice, options = {}) {
   doc.setFontSize(8);
   doc.setTextColor(...grayColor);
   doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for your business!', pageWidth / 2, footerY - 5, { align: 'center' });
+  doc.text('Thank you for your interest!', pageWidth / 2, footerY - 5, { align: 'center' });
   doc.text(`${COMPANY_NAME} | ${COMPANY_EMAIL} | ${COMPANY_PHONE}`, pageWidth / 2, footerY, { align: 'center' });
 
   // Save or return
-  const pdfFilename = filename || `Invoice-${invoice.invoice_number || invoice.id}.pdf`;
-  
+  const pdfFilename = filename || `Quote-${quote.quote_number || quote.id}.pdf`;
+
   if (download) {
     doc.save(pdfFilename);
     return null;
@@ -331,4 +306,4 @@ export async function generateInvoicePDF(invoice, options = {}) {
   }
 }
 
-export default generateInvoicePDF;
+export default generateQuotePDF;

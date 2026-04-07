@@ -3,8 +3,8 @@
 import jsPDF from 'jspdf';
 
 const COMPANY_NAME = 'BridgeWork Services';
-const COMPANY_EMAIL = 'support@bridgework.ca';
-const COMPANY_PHONE = '(416) 555-0100';
+const COMPANY_EMAIL = 'support@bridgeworkservices.com';
+const COMPANY_PHONE = '1 (647) 370-1010';
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(parseFloat(amount || 0));

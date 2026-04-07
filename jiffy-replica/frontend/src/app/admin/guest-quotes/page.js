@@ -8,7 +8,7 @@ import {
   FileText, Clock, User, MapPin, Calendar, DollarSign, Loader2,
   ChevronDown, ChevronUp, CheckCircle, XCircle, Send, AlertTriangle,
   Mail, Phone, CreditCard, Receipt, MessageSquare, ExternalLink,
-  UserPlus, Briefcase, Star, Search, Wrench
+  UserPlus, Briefcase, Star, Search, Wrench, RefreshCw
 } from 'lucide-react';
 import { guestQuotesAPI, prosAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
@@ -54,6 +54,7 @@ export default function AdminGuestQuotesPage() {
   const [selectedProId, setSelectedProId] = useState(null);
   const [proSearch, setProSearch] = useState('');
   const [prosLoading, setProsLoading] = useState(false);
+  const [showReassign, setShowReassign] = useState(null);
 
   useEffect(() => {
     if (!user || profile?.role !== 'admin') {
@@ -333,7 +334,7 @@ export default function AdminGuestQuotesPage() {
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="bg-white rounded-lg p-4 border border-gray-100">
                           <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                            <User className="w-4 h-4 text-[#0E7480]" /> Guest Information
+                            <User className="w-4 h-4 text-[#0E7480]" /> Client Information
                           </h4>
                           <div className="space-y-2 text-sm">
                             <p className="flex items-center gap-2 text-gray-700">
@@ -569,15 +570,166 @@ export default function AdminGuestQuotesPage() {
                             </div>
                           )}
 
-                          {/* Waiting for pro (pro_assigned) */}
+                          {/* Waiting for pro (pro_assigned) — with re-assign option */}
                           {req.status === 'pro_assigned' && (
                             <div className="border border-amber-100 rounded-lg p-4 bg-amber-50/50">
-                              <p className="text-sm font-medium text-amber-800 mb-1 flex items-center gap-2">
-                                <Clock className="w-4 h-4" /> Awaiting Pro Quotation
-                              </p>
-                              <p className="text-xs text-gray-600">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
+                                  <Clock className="w-4 h-4" /> Awaiting Pro Quotation
+                                </p>
+                                <button
+                                  onClick={() => setShowReassign(showReassign === req.id ? null : req.id)}
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                                >
+                                  <RefreshCw className="w-3 h-3" /> Re-assign
+                                </button>
+                              </div>
+                              <p className="text-xs text-gray-600 mb-3">
                                 {req.pro_profiles?.business_name || 'The assigned pro'} has been notified and will submit their quotation.
                               </p>
+                              {showReassign === req.id && (
+                                <div className="border-t border-amber-200 pt-3 mt-2">
+                                  <p className="text-xs text-gray-600 mb-2">Select a different pro to re-assign this request. The current pro&apos;s assignment will be removed.</p>
+                                  <div className="relative mb-3">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search pros by name or business..."
+                                      value={proSearch}
+                                      onChange={(e) => setProSearch(e.target.value)}
+                                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                  </div>
+                                  <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
+                                    {prosLoading ? (
+                                      <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>
+                                    ) : (
+                                      prosList
+                                        .filter(p => {
+                                          const term = proSearch.toLowerCase();
+                                          return !term || (p.business_name || '').toLowerCase().includes(term) || (p.profiles?.full_name || '').toLowerCase().includes(term);
+                                        })
+                                        .map(pro => (
+                                          <button
+                                            key={pro.id}
+                                            type="button"
+                                            onClick={() => setSelectedProId(pro.id)}
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors flex items-center gap-3 ${
+                                              selectedProId === pro.id
+                                                ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                                                : 'border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${
+                                              selectedProId === pro.id ? 'border-indigo-600 bg-indigo-600' : 'border-gray-400'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-medium text-gray-900 truncate">
+                                                {pro.business_name || pro.profiles?.full_name}
+                                              </p>
+                                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                {pro.rating > 0 && (
+                                                  <span className="flex items-center gap-0.5">
+                                                    <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {Number(pro.rating).toFixed(1)}
+                                                  </span>
+                                                )}
+                                                <span>{pro.completed_jobs || 0} jobs</span>
+                                                {pro.profiles?.city && <span>{pro.profiles.city}</span>}
+                                              </div>
+                                            </div>
+                                          </button>
+                                        ))
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => { handleAssignPro(req.id); setShowReassign(null); }}
+                                    disabled={actionLoading === req.id || !selectedProId}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                                  >
+                                    {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                    Re-assign Pro
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Re-assign option for pro_quoted */}
+                          {req.status === 'pro_quoted' && (
+                            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50 mb-4">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-gray-600">Want a different pro? You can re-assign this request.</p>
+                                <button
+                                  onClick={() => setShowReassign(showReassign === req.id ? null : req.id)}
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                                >
+                                  <RefreshCw className="w-3 h-3" /> Re-assign Pro
+                                </button>
+                              </div>
+                              {showReassign === req.id && (
+                                <div className="border-t border-gray-200 pt-3 mt-2">
+                                  <p className="text-xs text-gray-600 mb-2">The current pro&apos;s quote will be discarded and the new pro will start fresh.</p>
+                                  <div className="relative mb-3">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search pros by name or business..."
+                                      value={proSearch}
+                                      onChange={(e) => setProSearch(e.target.value)}
+                                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                  </div>
+                                  <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
+                                    {prosLoading ? (
+                                      <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>
+                                    ) : (
+                                      prosList
+                                        .filter(p => {
+                                          const term = proSearch.toLowerCase();
+                                          return !term || (p.business_name || '').toLowerCase().includes(term) || (p.profiles?.full_name || '').toLowerCase().includes(term);
+                                        })
+                                        .map(pro => (
+                                          <button
+                                            key={pro.id}
+                                            type="button"
+                                            onClick={() => setSelectedProId(pro.id)}
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors flex items-center gap-3 ${
+                                              selectedProId === pro.id
+                                                ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                                                : 'border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${
+                                              selectedProId === pro.id ? 'border-indigo-600 bg-indigo-600' : 'border-gray-400'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-medium text-gray-900 truncate">
+                                                {pro.business_name || pro.profiles?.full_name}
+                                              </p>
+                                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                {pro.rating > 0 && (
+                                                  <span className="flex items-center gap-0.5">
+                                                    <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {Number(pro.rating).toFixed(1)}
+                                                  </span>
+                                                )}
+                                                <span>{pro.completed_jobs || 0} jobs</span>
+                                                {pro.profiles?.city && <span>{pro.profiles.city}</span>}
+                                              </div>
+                                            </div>
+                                          </button>
+                                        ))
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => { handleAssignPro(req.id); setShowReassign(null); }}
+                                    disabled={actionLoading === req.id || !selectedProId}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                                  >
+                                    {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                    Re-assign Pro
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -669,6 +821,77 @@ export default function AdminGuestQuotesPage() {
                                   Mark Completed
                                 </button>
                               </div>
+                            </div>
+                          )}
+
+                          {/* Re-assign / Reactivate (cancelled) */}
+                          {req.status === 'cancelled' && (
+                            <div className="border border-indigo-100 rounded-lg p-4 bg-indigo-50/50">
+                              <p className="text-sm font-medium text-indigo-800 mb-2 flex items-center gap-2">
+                                <RefreshCw className="w-4 h-4" /> Reactivate & Assign Pro
+                              </p>
+                              <p className="text-xs text-gray-600 mb-3">
+                                This request was cancelled. Select a pro to reactivate and assign it.
+                              </p>
+                              <div className="relative mb-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Search pros by name or business..."
+                                  value={proSearch}
+                                  onChange={(e) => setProSearch(e.target.value)}
+                                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400"
+                                />
+                              </div>
+                              <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
+                                {prosLoading ? (
+                                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-500" /></div>
+                                ) : (
+                                  prosList
+                                    .filter(p => {
+                                      const term = proSearch.toLowerCase();
+                                      return !term || (p.business_name || '').toLowerCase().includes(term) || (p.profiles?.full_name || '').toLowerCase().includes(term);
+                                    })
+                                    .map(pro => (
+                                      <button
+                                        key={pro.id}
+                                        type="button"
+                                        onClick={() => setSelectedProId(pro.id)}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors flex items-center gap-3 ${
+                                          selectedProId === pro.id
+                                            ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                                            : 'border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${
+                                          selectedProId === pro.id ? 'border-indigo-600 bg-indigo-600' : 'border-gray-400'
+                                        }`} />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-gray-900 truncate">
+                                            {pro.business_name || pro.profiles?.full_name}
+                                          </p>
+                                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            {pro.rating > 0 && (
+                                              <span className="flex items-center gap-0.5">
+                                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {Number(pro.rating).toFixed(1)}
+                                              </span>
+                                            )}
+                                            <span>{pro.completed_jobs || 0} jobs</span>
+                                            {pro.profiles?.city && <span>{pro.profiles.city}</span>}
+                                          </div>
+                                        </div>
+                                      </button>
+                                    ))
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleAssignPro(req.id)}
+                                disabled={actionLoading === req.id || !selectedProId}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                              >
+                                {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                Reactivate & Assign
+                              </button>
                             </div>
                           )}
 

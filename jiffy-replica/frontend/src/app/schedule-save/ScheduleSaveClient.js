@@ -46,7 +46,7 @@ function ScheduleModal({ service, onClose, onConfirm }) {
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [monthScrollStart, setMonthScrollStart] = useState(0);
   const [addressMode, setAddressMode] = useState('existing');
-  const [savedAddress] = useState('9019 Bayview Avenue, Richmond Hill ON');
+  const [savedAddress] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newUnit, setNewUnit] = useState('');
   const [chosenAddress, setChosenAddress] = useState('');

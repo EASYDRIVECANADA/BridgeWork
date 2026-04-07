@@ -14,7 +14,7 @@ export default function BridgeWorkPlusTermsPage() {
         {/* Introduction */}
         <div className="text-sm text-gray-700 leading-relaxed space-y-4 mb-8">
           <p>
-            BridgeWork Inc. and its corporate affiliates (collectively, "us" or the "Companies") offer the BridgeWork+ subscription plan ("BridgeWork+") in connection with its BridgeWork web platform and mobile applications (collectively, the "App") for homeowners. In addition to these BridgeWork+ Terms and Conditions (the "BridgeWork+ Terms"), BridgeWork+ is governed by BridgeWork's standard Terms and Conditions available at <Link href="https://bridgework.com/terms_and_conditions" className="text-[#0E7480] hover:underline">https://bridgework.com/terms_and_conditions</Link>.
+            BridgeWork Inc. and its corporate affiliates (collectively, "us" or the "Companies") offer the BridgeWork+ subscription plan ("BridgeWork+") in connection with its BridgeWork web platform (collectively, the "Platform") for homeowners. In addition to these BridgeWork+ Terms and Conditions (the "BridgeWork+ Terms"), BridgeWork+ is governed by BridgeWork's standard Terms and Conditions available at <Link href="https://bridgeworkservices.com/terms" className="text-[#0E7480] hover:underline">https://bridgeworkservices.com/terms</Link>.
           </p>
         </div>
 

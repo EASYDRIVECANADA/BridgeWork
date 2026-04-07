@@ -95,7 +95,7 @@ export default function ProProfilePage() {
   const ownerName = pro.profiles?.full_name || '';
   const proAvatar = pro.profiles?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200';
   const proCover = 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=1200';
-  const proLocation = pro.service_area || pro.profiles?.city || 'Toronto, ON';
+  const proLocation = pro.service_area || pro.profiles?.city || 'Ontario, Canada';
   const proRating = pro.rating || 0;
   const proTotalReviews = pro.total_reviews || 0;
   const proTotalJobs = pro.total_jobs || 0;

@@ -16,6 +16,7 @@ import {
   FileText,
   Briefcase,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 import { bookingsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
@@ -393,13 +394,29 @@ export default function AdminProofsPage() {
                       href={photo}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-80 transition-opacity"
+                      className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-80 transition-opacity group block"
                     >
                       <img
                         src={photo}
                         alt={`Proof ${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
+                      <button
+                        className="absolute bottom-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const resp = await fetch(photo);
+                            const blob = await resp.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url; a.download = `proof-${idx + 1}.jpg`; a.click();
+                            URL.revokeObjectURL(url);
+                          } catch { window.open(photo, '_blank'); }
+                        }}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
                     </a>
                   ))}
                 </div>

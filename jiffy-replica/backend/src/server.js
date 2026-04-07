@@ -33,6 +33,7 @@ const adminManageRoutes = require('./routes/adminManage');
 const notificationsRoutes = require('./routes/notifications');
 const guestQuotesRoutes = require('./routes/guestQuotes');
 const { startHoldExpirationJob } = require('./services/holdExpirationJob');
+const socketHelper = require('./utils/socketHelper');
 
 const app = express();
 
@@ -314,6 +315,7 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 app.set('userSockets', userSockets);
+socketHelper.setIO(io, userSockets);
 
 app.use(notFound);
 app.use(errorHandler);

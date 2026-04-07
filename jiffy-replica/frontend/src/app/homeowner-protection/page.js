@@ -180,8 +180,8 @@ export default function HomeownerProtectionPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-sm text-gray-700">
             If you have any questions about the BridgeWork Homeowner Protection Promise, you may email us at{' '}
-            <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
-              info@BridgeWork.com
+            <a href="mailto:bridgeworkservice@gmail.com" className="text-[#0E7480] hover:underline">
+              bridgeworkservice@gmail.com
             </a>
             .
           </p>

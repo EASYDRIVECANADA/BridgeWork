@@ -20,7 +20,7 @@ const poppins = Poppins({
 export const metadata = {
   metadataBase: new URL('https://bridgeworkservices.com'),
   title: 'BridgeWork - Easy Home Maintenance',
-  description: 'BridgeWork is a web and mobile platform that connects homeowners with service providers in real time, based on proximity and availability.',
+  description: 'BridgeWork is a web platform that connects homeowners with service providers in real time, based on proximity and availability.',
   keywords: ['home maintenance', 'handyman', 'repairs', 'home services', 'professionals'],
   authors: [{ name: 'BridgeWork Team' }],
   manifest: '/manifest.json',

@@ -194,6 +194,16 @@ export default function CheckoutClient() {
           return;
         }
 
+        // Guard: free-quote bookings have no price until a quote is accepted
+        const bookingAmount = bookingData.updated_total_price || bookingData.total_price;
+        if (!bookingAmount || bookingAmount <= 0) {
+          setPaymentUnavailableMessage(
+            'Payment is not available yet for this booking. Funds will be requested after a quote is accepted and the pro submits proof of work.'
+          );
+          setLoading(false);
+          return;
+        }
+
         // Create payment intent
         setCreatingIntent(true);
         setPaymentInitError(null);

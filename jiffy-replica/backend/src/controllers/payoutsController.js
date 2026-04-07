@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { sendProPayoutNotificationEmail } = require('../services/emailService');
 const { createNotification, createBulkNotifications } = require('../services/notificationService');
+const { writeAuditLog } = require('../services/auditService');
 
 const DEFAULT_MINIMUM_WITHDRAWAL = 50;
 
@@ -135,7 +136,15 @@ function getNextPayoutDate(calendarEntries) {
 async function getLedgerRecords(proProfileId) {
     const { data, error } = await supabaseAdmin
         .from('pro_payouts')
-        .select('*')
+        .select(`
+            *,
+            bookings (
+                booking_number,
+                service_name,
+                total_price,
+                base_price
+            )
+        `)
         .eq('pro_profile_id', proProfileId)
         .order('created_at', { ascending: false });
 
@@ -203,6 +212,7 @@ async function createManualPayoutRecord({
     securityQuestion,
     securityAnswer,
     adminId,
+    payoutMethod,
 }) {
     const { data, error } = await supabaseAdmin
         .from('pro_payouts')
@@ -211,7 +221,7 @@ async function createManualPayoutRecord({
             user_id: pro.user_id,
             type: 'payout',
             amount: roundAmount(amount),
-            payout_method: 'e_transfer',
+            payout_method: payoutMethod || pro.payout_method || 'e_transfer',
             payout_reference: payoutReference || null,
             paid_by: adminId,
             paid_at: new Date().toISOString(),
@@ -271,7 +281,7 @@ exports.getMyEarnings = async (req, res) => {
 
         const { data: proProfile, error: proErr } = await supabaseAdmin
             .from('pro_profiles')
-            .select('id, payout_method, etransfer_email, stripe_account_id, commission_rate')
+            .select('id, payout_method, etransfer_email, stripe_account_id, commission_rate, payout_details')
             .eq('user_id', userId)
             .single();
 
@@ -287,6 +297,7 @@ exports.getMyEarnings = async (req, res) => {
                 summary,
                 payoutMethod: proProfile.payout_method || 'e_transfer',
                 etransferEmail: proProfile.etransfer_email,
+                payoutDetails: proProfile.payout_details || {},
                 stripeConnected: !!proProfile.stripe_account_id,
                 commissionRate: proProfile.commission_rate,
                 records,
@@ -488,12 +499,13 @@ exports.requestWithdrawal = async (req, res) => {
 exports.updatePayoutMethod = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { payout_method, etransfer_email } = req.body;
+        const { payout_method, etransfer_email, payout_details } = req.body;
 
-        if (!payout_method || !['e_transfer', 'stripe_connect'].includes(payout_method)) {
+        const VALID_METHODS = ['e_transfer', 'stripe_connect', 'cheque', 'direct_deposit'];
+        if (!payout_method || !VALID_METHODS.includes(payout_method)) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid payout method. Must be e_transfer or stripe_connect.'
+                message: 'Invalid payout method. Must be e_transfer, stripe_connect, cheque, or direct_deposit.'
             });
         }
 
@@ -502,6 +514,25 @@ exports.updatePayoutMethod = async (req, res) => {
                 success: false,
                 message: 'e-Transfer email is required when using Interac e-Transfer.'
             });
+        }
+
+        if (payout_method === 'cheque') {
+            if (!payout_details?.cheque_payee?.trim() || !payout_details?.cheque_address?.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Payee name and mailing address are required for cheque payouts.'
+                });
+            }
+        }
+
+        if (payout_method === 'direct_deposit') {
+            if (!payout_details?.bank_name?.trim() || !payout_details?.transit_number?.trim() ||
+                !payout_details?.account_number?.trim() || !payout_details?.institution_number?.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Bank name, transit number, account number, and institution number are required for direct deposit.'
+                });
+            }
         }
 
         if (payout_method === 'stripe_connect') {
@@ -528,11 +559,15 @@ exports.updatePayoutMethod = async (req, res) => {
             updateData.etransfer_email = etransfer_email;
         }
 
+        if (['cheque', 'direct_deposit'].includes(payout_method) && payout_details) {
+            updateData.payout_details = payout_details;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('pro_profiles')
             .update(updateData)
             .eq('user_id', userId)
-            .select('payout_method, etransfer_email, stripe_account_id')
+            .select('payout_method, etransfer_email, stripe_account_id, payout_details')
             .single();
 
         if (error) {
@@ -540,10 +575,17 @@ exports.updatePayoutMethod = async (req, res) => {
             return res.status(500).json({ success: false, message: 'Failed to update payout method' });
         }
 
+        const methodLabels = {
+            e_transfer: 'Interac e-Transfer',
+            stripe_connect: 'Stripe Connect',
+            cheque: 'Cheque',
+            direct_deposit: 'Direct Deposit',
+        };
+
         logger.info('Payout method updated', { userId, payoutMethod: payout_method });
         res.json({
             success: true,
-            message: `Payout method updated to ${payout_method === 'e_transfer' ? 'Interac e-Transfer' : 'Stripe Connect'}`,
+            message: `Payout method updated to ${methodLabels[payout_method] || payout_method}`,
             data
         });
     } catch (error) {
@@ -565,6 +607,7 @@ exports.adminGetPendingPayouts = async (req, res) => {
                     business_name,
                     etransfer_email,
                     payout_method,
+                    payout_details,
                     profiles!pro_profiles_user_id_fkey (full_name, email)
                 )
             `)
@@ -606,6 +649,7 @@ exports.adminGetWithdrawalRequests = async (req, res) => {
                     business_name,
                     etransfer_email,
                     payout_method,
+                    payout_details,
                     profiles!pro_profiles_user_id_fkey (full_name, email)
                 )
             `)
@@ -643,19 +687,23 @@ exports.adminGetWithdrawalRequests = async (req, res) => {
 
 exports.adminGetPayoutHistory = async (req, res) => {
     try {
-        const { data: payouts, error } = await supabaseAdmin
+        const { limit = 50, offset = 0 } = req.query;
+        const parsedLimit = Math.min(parseInt(limit, 10) || 50, 200);
+        const parsedOffset = parseInt(offset, 10) || 0;
+
+        const { data: payouts, error, count } = await supabaseAdmin
             .from('pro_payouts')
-            .select('*, pro_profiles(business_name, profiles!pro_profiles_user_id_fkey(full_name, email))')
+            .select('*, pro_profiles(business_name, profiles!pro_profiles_user_id_fkey(full_name, email))', { count: 'exact' })
             .eq('type', 'payout')
             .order('created_at', { ascending: false })
-            .limit(100);
+            .range(parsedOffset, parsedOffset + parsedLimit - 1);
 
         if (error) {
             logger.error('adminGetPayoutHistory error', { error: error.message });
             return res.status(500).json({ success: false, message: 'Failed to load payout history' });
         }
 
-        res.json({ success: true, data: { payouts: payouts || [] } });
+        res.json({ success: true, data: { payouts: payouts || [], total: count || 0, limit: parsedLimit, offset: parsedOffset } });
     } catch (error) {
         logger.error('adminGetPayoutHistory controller error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to load payout history' });
@@ -1026,6 +1074,8 @@ exports.adminApproveWithdrawalRequest = async (req, res) => {
         }
 
         res.json({ success: true, message: 'Withdrawal request approved.', data: { withdrawalRequest: data } });
+
+        await writeAuditLog(req.user.id, 'approve_withdrawal_request', 'withdrawal_request', withdrawalRequestId, { amount: withdrawalRequest.amount, pro_profile_id: withdrawalRequest.pro_profile_id }).catch(() => {});
     } catch (error) {
         logger.error('adminApproveWithdrawalRequest controller error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to approve withdrawal request' });
@@ -1085,6 +1135,8 @@ exports.adminRejectWithdrawalRequest = async (req, res) => {
         }
 
         res.json({ success: true, message: 'Withdrawal request rejected.', data: { withdrawalRequest: data } });
+
+        await writeAuditLog(req.user.id, 'reject_withdrawal_request', 'withdrawal_request', withdrawalRequestId, { amount: withdrawalRequest.amount, reason: adminNotes }).catch(() => {});
     } catch (error) {
         logger.error('adminRejectWithdrawalRequest controller error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to reject withdrawal request' });
@@ -1105,6 +1157,7 @@ exports.adminProcessWithdrawalRequest = async (req, res) => {
                     user_id,
                     business_name,
                     payout_method,
+                    payout_details,
                     etransfer_email,
                     profiles!pro_profiles_user_id_fkey (full_name, email)
                 )
@@ -1137,6 +1190,7 @@ exports.adminProcessWithdrawalRequest = async (req, res) => {
             securityQuestion: security_question,
             securityAnswer: security_answer,
             adminId: req.user.id,
+            payoutMethod: pro.payout_method || 'e_transfer',
         });
 
         const { data: updatedRequest, error: updateError } = await supabaseAdmin
@@ -1181,6 +1235,8 @@ exports.adminProcessWithdrawalRequest = async (req, res) => {
                 withdrawalRequest: updatedRequest,
             }
         });
+
+        await writeAuditLog(req.user.id, 'process_withdrawal_request', 'withdrawal_request', withdrawalRequestId, { amount: withdrawalRequest.amount, payout_id: payout.id, payout_reference }).catch(() => {});
     } catch (error) {
         logger.error('adminProcessWithdrawalRequest controller error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to process withdrawal request' });
@@ -1189,7 +1245,7 @@ exports.adminProcessWithdrawalRequest = async (req, res) => {
 
 exports.adminRecordPayout = async (req, res) => {
     try {
-        const { pro_profile_id, amount, payout_reference, notes, security_question, security_answer, send_email } = req.body;
+        const { pro_profile_id, amount, payout_reference, notes, security_question, security_answer, send_email, payout_method } = req.body;
 
         if (!pro_profile_id || !amount || amount <= 0) {
             return res.status(400).json({
@@ -1224,6 +1280,7 @@ exports.adminRecordPayout = async (req, res) => {
             securityQuestion: security_question,
             securityAnswer: security_answer,
             adminId: req.user.id,
+            payoutMethod: payout_method || pro.payout_method || 'e_transfer',
         });
 
         await notifyPayoutProcessed({
@@ -1247,6 +1304,8 @@ exports.adminRecordPayout = async (req, res) => {
             message: `Payout of ${formatCurrency(amount)} recorded for ${pro.business_name}.`,
             data: { payout }
         });
+
+        await writeAuditLog(req.user.id, 'record_payout', 'pro_payout', payout.id, { pro_profile_id, amount, payout_reference }).catch(() => {});
     } catch (error) {
         logger.error('adminRecordPayout error', { error: error.message });
         res.status(500).json({ success: false, message: 'Failed to record payout' });

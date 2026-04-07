@@ -1512,6 +1512,78 @@ async function sendAdminProGuestQuoteSubmittedEmail(adminEmails, request, proBus
     }
 }
 
+// ─── Customer: Formal Quote Received (Pro-Generated) ────────────────────────
+function formalQuoteEmailHTML(customerName, proName, quote) {
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bridgeworkservices.com';
+    const items = (quote.quote_items || []).map(i => `
+        <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#374151;">${i.description}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#374151;text-align:right;">${i.quantity}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#374151;text-align:right;">$${parseFloat(i.amount || 0).toFixed(2)}</td>
+        </tr>
+    `).join('');
+
+    return wrapInLayout(`
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">You've Received a Quote 📋</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
+            Hi ${customerName}, <strong>${proName}</strong> has sent you a quote for "<strong>${quote.title || 'Home Service'}</strong>".
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+            <thead>
+                <tr style="background:#f3f4f6;">
+                    <th style="padding:8px 12px;text-align:left;font-size:13px;color:#6b7280;">Description</th>
+                    <th style="padding:8px 12px;text-align:right;font-size:13px;color:#6b7280;">Qty</th>
+                    <th style="padding:8px 12px;text-align:right;font-size:13px;color:#6b7280;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>${items}</tbody>
+        </table>
+
+        <table style="width:100%;margin-bottom:24px;">
+            <tr>
+                <td style="padding:6px 0;font-size:14px;color:#374151;">Subtotal</td>
+                <td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">$${parseFloat(quote.subtotal || 0).toFixed(2)}</td>
+            </tr>
+            <tr>
+                <td style="padding:6px 0;font-size:14px;color:#374151;">Tax</td>
+                <td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">$${parseFloat(quote.tax_amount || 0).toFixed(2)}</td>
+            </tr>
+            <tr style="border-top:2px solid #0E7480;">
+                <td style="padding:10px 0;font-size:16px;font-weight:700;color:#0E7480;">Total</td>
+                <td style="padding:10px 0;font-size:16px;font-weight:700;color:#0E7480;text-align:right;">$${parseFloat(quote.total || 0).toFixed(2)} CAD</td>
+            </tr>
+        </table>
+
+        ${quote.valid_until ? `<p style="margin:0 0 20px;color:#6b7280;font-size:13px;">This quote is valid until <strong>${new Date(quote.valid_until).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>.</p>` : ''}
+
+        <div style="text-align:center;margin-top:24px;">
+            <a href="${frontendUrl}/dashboard/quotes/${quote.id}"
+               style="display:inline-block;padding:12px 32px;background:#0E7480;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
+                View Quote Details
+            </a>
+        </div>
+    `);
+}
+
+async function sendFormalQuoteEmail(customerEmail, customerName, proName, quote) {
+    try {
+        if (!resend) { logger.warn('Resend not configured, skipping formal quote email'); return { success: false, error: 'Email service not configured' }; }
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: customerEmail,
+            subject: `[BridgeWork] New Quote from ${proName}: ${quote.title || 'Home Service'}`,
+            html: formalQuoteEmailHTML(customerName, proName, quote),
+        });
+        if (error) { logger.error('Failed to send formal quote email', { error: error.message }); return { success: false, error: error.message }; }
+        logger.info('Formal quote email sent', { to: customerEmail, quoteId: quote.id, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Formal quote email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
 module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
@@ -1536,4 +1608,5 @@ module.exports = {
     sendGuestInvoiceEmail,
     sendProGuestQuoteAssignmentEmail,
     sendAdminProGuestQuoteSubmittedEmail,
+    sendFormalQuoteEmail,
 };

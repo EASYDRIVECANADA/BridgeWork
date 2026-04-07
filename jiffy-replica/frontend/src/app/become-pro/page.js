@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Facebook, Twitter, Linkedin, Instagram, CheckCircle, Mail } from 'lucide-react';
+import { Facebook, Instagram, CheckCircle, Mail } from 'lucide-react';
 import { signUp } from '@/store/slices/authSlice';
 import { toast } from 'react-toastify';
 
@@ -645,16 +645,10 @@ export default function BecomeProPage() {
 
             {/* Right: Social Icons */}
             <div className="flex justify-end gap-4">
-              <Link href="#" className="text-gray-500 hover:text-gray-700">
+              <Link href="https://www.facebook.com/bridgeworkservices" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-700">
                 <Facebook className="w-8 h-8" />
               </Link>
-              <Link href="#" className="text-gray-500 hover:text-gray-700">
-                <Twitter className="w-8 h-8" />
-              </Link>
-              <Link href="#" className="text-gray-500 hover:text-gray-700">
-                <Linkedin className="w-8 h-8" />
-              </Link>
-              <Link href="#" className="text-gray-500 hover:text-gray-700">
+              <Link href="https://www.instagram.com/bridgeworkservices" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-700">
                 <Instagram className="w-8 h-8" />
               </Link>
             </div>
@@ -663,10 +657,7 @@ export default function BecomeProPage() {
           {/* Service Links */}
           <div className="mt-8 text-xs text-gray-600">
             <p className="mb-2">
-              <Link href="/services/furniture-assembly" className="hover:text-[#0E7480] mr-2">Furniture Assembly</Link>
-              <Link href="/services/junk-removal" className="hover:text-[#0E7480] mr-2">Junk Removal</Link>
-              <Link href="/services/tv-mounting" className="hover:text-[#0E7480] mr-2">TV Mounting</Link>
-              {/* Add more service links as needed */}
+              <Link href="/services" className="hover:text-[#0E7480] mr-2">View All Services</Link>
             </p>
           </div>
 

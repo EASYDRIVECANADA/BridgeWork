@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { notificationsAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { getSocket } from '@/lib/socket';
 
 export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -28,6 +29,23 @@ export default function NotificationBell() {
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);
+
+  // Real-time: listen for new notifications via Socket.IO
+  useEffect(() => {
+    const s = getSocket();
+
+    const handleNewNotification = (notification) => {
+      setUnreadCount((prev) => prev + 1);
+      // If panel is open, prepend to visible list
+      setNotifications((prev) => {
+        if (prev.length === 0) return prev; // panel not loaded yet — let it load fresh on open
+        return [notification, ...prev.slice(0, 9)];
+      });
+    };
+
+    s.on('notification:new', handleNewNotification);
+    return () => s.off('notification:new', handleNewNotification);
+  }, []);
 
   // Close panel on outside click
   useEffect(() => {

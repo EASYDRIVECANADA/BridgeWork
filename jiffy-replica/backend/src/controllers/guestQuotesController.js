@@ -400,7 +400,7 @@ exports.assignProToGuestQuote = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Request not found.' });
         }
 
-        if (!['pending', 'pro_assigned'].includes(request.status)) {
+        if (!['pending', 'pro_assigned', 'pro_quoted', 'cancelled'].includes(request.status)) {
             return res.status(400).json({ success: false, message: 'This request cannot be assigned in its current status.' });
         }
 

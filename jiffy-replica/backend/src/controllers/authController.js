@@ -665,3 +665,97 @@ exports.searchUsers = async (req, res) => {
         });
     }
 };
+
+exports.exportData = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const [
+            { data: profile },
+            { data: bookings },
+            { data: reviews },
+            { data: messages },
+            { data: transactions },
+        ] = await Promise.all([
+            supabaseAdmin.from('profiles').select('id, full_name, email, phone, city, role, created_at').eq('id', userId).single(),
+            supabaseAdmin.from('bookings').select('id, booking_number, status, total_price, scheduled_datetime, created_at').eq('user_id', userId),
+            supabaseAdmin.from('reviews').select('id, rating, comment, created_at').eq('user_id', userId),
+            supabaseAdmin.from('messages').select('id, message, created_at').eq('sender_id', userId),
+            supabaseAdmin.from('transactions').select('id, amount, status, created_at').eq('user_id', userId),
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                exportedAt: new Date().toISOString(),
+                profile: profile || {},
+                bookings: bookings || [],
+                reviews: reviews || [],
+                messages: messages || [],
+                transactions: transactions || [],
+            }
+        });
+
+        logger.info('GDPR data export', { userId });
+    } catch (error) {
+        logger.error('exportData controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to export data' });
+    }
+};
+
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { password } = req.body;
+
+        // Verify password before deletion
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Account not found' });
+        }
+
+        // Verify password (persistSession: false on both clients, so no session leakage)
+        const { error: authError } = await supabase.auth.signInWithPassword({
+            email: profile.email,
+            password,
+        });
+
+        if (authError) {
+            return res.status(401).json({ success: false, message: 'Incorrect password' });
+        }
+
+        // Check for active bookings that would be disrupted
+        const { data: activeBookings } = await supabaseAdmin
+            .from('bookings')
+            .select('id')
+            .eq('user_id', userId)
+            .in('status', ['pending', 'accepted', 'in_progress', 'proof_submitted', 'disputed']);
+
+        if (activeBookings && activeBookings.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: 'You have active bookings. Please wait for them to complete or cancel them before deleting your account.'
+            });
+        }
+
+        // Soft-delete: deactivate and obfuscate email for GDPR
+        // Do NOT hard-delete from Supabase Auth — keeps account recoverable by superadmin
+        // The authenticate middleware blocks deactivated users (is_active: false → 403)
+        await supabaseAdmin
+            .from('profiles')
+            .update({ is_active: false, email: `deleted_${userId}_${profile.email}`, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        logger.info('Account deleted (GDPR)', { userId });
+
+        res.json({ success: true, message: 'Your account has been deleted.' });
+    } catch (error) {
+        logger.error('deleteAccount controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to delete account' });
+    }
+};

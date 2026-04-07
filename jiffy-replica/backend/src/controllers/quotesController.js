@@ -1,6 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const stripe = require('../config/stripe');
 const { createNotification } = require('../services/notificationService');
+const { sendFormalQuoteEmail } = require('../services/emailService');
 const { getTaxRate } = require('../utils/taxRate');
 
 const crypto = require('crypto');
@@ -587,6 +589,31 @@ exports.sendQuote = async (req, res) => {
             link: `/dashboard/quotes/${quote.id}`,
             data: { quote_id: quote.id }
         });
+
+        // Send email to customer
+        try {
+            const { data: customer } = await supabaseAdmin
+                .from('profiles')
+                .select('full_name, email')
+                .eq('id', quote.customer_id)
+                .single();
+
+            const { data: quoteItems } = await supabaseAdmin
+                .from('quote_items')
+                .select('*')
+                .eq('quote_id', id);
+
+            if (customer?.email) {
+                await sendFormalQuoteEmail(
+                    customer.email,
+                    customer.full_name || 'Homeowner',
+                    proProfile.business_name || 'A service professional',
+                    { ...updated, quote_items: quoteItems || [] }
+                );
+            }
+        } catch (emailErr) {
+            logger.warn('Failed to send quote email, continuing', { error: emailErr.message });
+        }
 
         logger.info('Quote sent', { quoteId: id, customerId: quote.customer_id });
 
@@ -1362,6 +1389,94 @@ exports.updateInvoiceStatus = async (req, res) => {
             success: false,
             message: 'Failed to update invoice'
         });
+    }
+};
+
+// Create a Stripe Checkout payment link for an invoice (Customer only)
+exports.createInvoicePaymentLink = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: invoice, error: fetchError } = await supabaseAdmin
+            .from('invoices')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    business_name,
+                    profiles!pro_profiles_user_id_fkey (full_name, email)
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !invoice) {
+            return res.status(404).json({ success: false, message: 'Invoice not found.' });
+        }
+
+        // Only the invoice's customer may pay it
+        if (invoice.customer_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied.' });
+        }
+
+        if (!['sent', 'overdue', 'partially_paid'].includes(invoice.status)) {
+            return res.status(400).json({ success: false, message: 'This invoice is not payable in its current status.' });
+        }
+
+        const amountDue = parseFloat(invoice.amount_due);
+        if (!amountDue || amountDue <= 0) {
+            return res.status(400).json({ success: false, message: 'There is no outstanding balance on this invoice.' });
+        }
+
+        const totalAmountCents = Math.round(amountDue * 100);
+        const proName = invoice.pro_profiles?.business_name || invoice.pro_profiles?.profiles?.full_name || 'Service Professional';
+
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'cad',
+                        product_data: {
+                            name: `Invoice ${invoice.invoice_number} — ${invoice.title}`,
+                            description: `Service by ${proName}`,
+                        },
+                        unit_amount: totalAmountCents,
+                    },
+                    quantity: 1,
+                },
+            ],
+            metadata: {
+                type: 'invoice',
+                invoice_id: invoice.id,
+                invoice_number: invoice.invoice_number,
+                customer_id: invoice.customer_id,
+            },
+            success_url: `${process.env.FRONTEND_URL}/invoice-payment-success?invoice=${invoice.invoice_number}`,
+            cancel_url: `${process.env.FRONTEND_URL}/dashboard/invoices/${invoice.id}`,
+        });
+
+        // Store session ID in invoice metadata so webhook can look it up
+        const existingMeta = invoice.metadata || {};
+        await supabaseAdmin
+            .from('invoices')
+            .update({
+                metadata: { ...existingMeta, stripe_session_id: session.id, stripe_payment_url: session.url },
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+
+        logger.info('Invoice payment link created', { invoiceId: id, sessionId: session.id });
+
+        res.json({
+            success: true,
+            message: 'Payment link created.',
+            data: { url: session.url },
+        });
+    } catch (error) {
+        logger.error('createInvoicePaymentLink error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to create payment link.' });
     }
 };
 

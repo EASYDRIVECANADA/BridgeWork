@@ -85,8 +85,13 @@ function ServicesPageContent() {
 
   const handleServiceClick = (e, service) => {
     e.preventDefault();
-    // Always navigate directly to the service booking page
-    // The service type selection (Free Quote vs Emergency) will be shown on that page
+    // If the service supports emergency pricing, show the rate-type selection modal
+    if (service.emergency) {
+      setSelectedService(service);
+      setShowServiceModal(true);
+      return;
+    }
+    // Otherwise navigate directly to the service booking page
     router.push(`/services/${service.id}`);
   };
 

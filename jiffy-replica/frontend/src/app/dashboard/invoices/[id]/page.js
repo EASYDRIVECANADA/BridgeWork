@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { fetchInvoiceById } from '@/store/slices/quotesSlice';
 import { generateInvoicePDF } from '@/utils/generateInvoicePDF';
+import { quotesAPI } from '@/lib/api';
 
 const statusColors = {
   draft: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -45,6 +46,7 @@ export default function CustomerInvoiceDetailPage() {
   const { user } = useSelector((state) => state.auth);
   const { currentInvoice: invoice, isLoading } = useSelector((state) => state.quotes);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [payingNow, setPayingNow] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -53,6 +55,18 @@ export default function CustomerInvoiceDetailPage() {
     }
     dispatch(fetchInvoiceById(id));
   }, [user, router, dispatch, id]);
+
+  const handlePayNow = async () => {
+    setPayingNow(true);
+    try {
+      const { data } = await quotesAPI.createInvoicePaymentLink(id);
+      if (data?.data?.url) {
+        window.location.href = data.data.url;
+      }
+    } catch {
+      setPayingNow(false);
+    }
+  };
 
   const handleDownloadPDF = async () => {
     if (!invoice) return;
@@ -283,24 +297,23 @@ export default function CustomerInvoiceDetailPage() {
           </div>
         )}
 
-        {/* Payment Instructions for sent/overdue */}
-        {(invoice.status === 'sent' || invoice.status === 'partially_paid' || invoice.status === 'overdue') && (
+        {/* Pay Now — for sent/overdue/partially_paid invoices with an outstanding balance */}
+        {['sent', 'partially_paid', 'overdue'].includes(invoice.status) && parseFloat(invoice.amount_due) > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <h3 className="font-semibold text-blue-900 mb-2">Payment Instructions</h3>
-            <p className="text-sm text-blue-700">
-              Please contact {proName} directly to arrange payment. 
-              Accepted methods may include e-transfer, credit card, cash, or cheque.
+            <h3 className="font-semibold text-blue-900 mb-1">Pay This Invoice</h3>
+            <p className="text-sm text-blue-700 mb-4">
+              Securely pay your outstanding balance of{' '}
+              <span className="font-semibold">{formatCurrency(invoice.amount_due)}</span> by card.
             </p>
-            {invoice.pro_profiles?.profiles?.email && (
-              <p className="text-sm text-blue-700 mt-2">
-                Email: <a href={`mailto:${invoice.pro_profiles.profiles.email}`} className="underline">{invoice.pro_profiles.profiles.email}</a>
-              </p>
-            )}
-            {invoice.pro_profiles?.profiles?.phone && (
-              <p className="text-sm text-blue-700">
-                Phone: <a href={`tel:${invoice.pro_profiles.profiles.phone}`} className="underline">{invoice.pro_profiles.profiles.phone}</a>
-              </p>
-            )}
+            <button
+              onClick={handlePayNow}
+              disabled={payingNow}
+              className="w-full sm:w-auto px-8 py-3 bg-[#0E7480] text-white rounded-lg font-semibold hover:bg-[#0c6670] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+            >
+              <DollarSign className="w-4 h-4" />
+              {payingNow ? 'Redirecting to payment...' : `Pay ${formatCurrency(invoice.amount_due)} Now`}
+            </button>
+            <p className="text-xs text-blue-500 mt-3">Powered by Stripe. Your card details are never stored by BridgeWork.</p>
           </div>
         )}
       </div>

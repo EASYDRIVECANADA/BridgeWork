@@ -64,8 +64,8 @@ export default function AboutPage() {
       quote: 'The app spares appraisal trips, negotiations and the base costs many charge just to show up.'
     },
     {
-      logo: 'TORONTO LIFE',
-      quote: 'Whatever the crisis yes, putting together IKEA furniture counts), a highly rated handyperson can be there in an hour to solve it.'
+      logo: 'CANADIAN CONTRACTOR',
+      quote: 'The platform bridges the gap between homeowners and skilled professionals — making it easier than ever to get quality work done without the usual hassle.'
     }
   ];
 
@@ -207,65 +207,28 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* App Download Section */}
-      <section className="py-20 bg-[#4a4a4a]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left - Phone Mockups */}
-            <div className="flex justify-center gap-8">
-              <div className="relative">
-                <Image
-                  src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=300"
-                  alt="App Screenshot 1"
-                  width={200}
-                  height={400}
-                  className="rounded-3xl shadow-2xl"
-                />
-              </div>
-              <div className="relative mt-12">
-                <Image
-                  src="https://images.unsplash.com/photo-1551650975-87deedd944c3?q=80&w=300"
-                  alt="App Screenshot 2"
-                  width={200}
-                  height={400}
-                  className="rounded-3xl shadow-2xl"
-                />
-              </div>
-            </div>
-
-            {/* Right - Download Info */}
-            <div className="text-center md:text-left">
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Download the app<br />on Apple or Android:
-              </h2>
-              
-              <div className="flex gap-6 justify-center md:justify-start mb-8">
-                <Link href="#" className="hover:opacity-80 transition-opacity">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                    </svg>
-                  </div>
-                </Link>
-                <Link href="#" className="hover:opacity-80 transition-opacity">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
-                    </svg>
-                  </div>
-                </Link>
-              </div>
-
-              <div className="flex justify-center md:justify-start">
-                <Image
-                  src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=300"
-                  alt="BridgeWork Character"
-                  width={200}
-                  height={250}
-                  className="w-48"
-                />
-              </div>
-            </div>
+      {/* CTA Section */}
+      <section className="py-20 bg-[#0E7480]">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to get started?
+          </h2>
+          <p className="text-white/80 text-lg mb-8 max-w-2xl mx-auto">
+            Book a trusted BridgeWork professional today and experience the difference.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/services"
+              className="px-8 py-4 bg-white text-[#0E7480] font-bold rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Book a Service
+            </Link>
+            <Link
+              href="/become-pro"
+              className="px-8 py-4 bg-white/15 text-white font-bold rounded-xl hover:bg-white/25 transition-colors border border-white/30"
+            >
+              Become a Pro
+            </Link>
           </div>
         </div>
       </section>

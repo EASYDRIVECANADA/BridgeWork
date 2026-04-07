@@ -5,6 +5,23 @@ exports.createReview = async (req, res) => {
     try {
         const { booking_id, rating, comment, images } = req.body;
 
+        // Validate rating range
+        const parsedRating = parseInt(rating, 10);
+        if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating must be a whole number between 1 and 5'
+            });
+        }
+
+        // Validate comment length
+        if (comment && comment.length > 1000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Review comment cannot exceed 1000 characters'
+            });
+        }
+
         const { data: booking, error: bookingError } = await supabaseAdmin
             .from('bookings')
             .select('*, pro_profiles(id)')
@@ -39,8 +56,8 @@ exports.createReview = async (req, res) => {
                 booking_id,
                 user_id: req.user.id,
                 pro_id: booking.pro_profiles.id,
-                rating,
-                comment,
+                rating: parsedRating,
+                comment: comment || null,
                 images: images || []
             })
             .select()

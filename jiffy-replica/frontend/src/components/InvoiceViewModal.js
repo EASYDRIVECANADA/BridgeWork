@@ -56,7 +56,7 @@ export default function InvoiceViewModal({ isOpen, onClose, invoice }) {
     doc.setTextColor(...lightGray);
     doc.setFont('helvetica', 'normal');
     doc.text('Professional Home Services', 15, 51);
-    doc.text('support@bridgework.com', 15, 56);
+    doc.text('bridgeworkservice@gmail.com', 15, 56);
     
     // ===== RECIPIENT & INVOICE INFO SECTION =====
     // Recipient label

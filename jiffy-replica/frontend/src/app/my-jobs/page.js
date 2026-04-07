@@ -5,13 +5,14 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign, Receipt } from 'lucide-react';
+import { X, Search, ChevronDown, Calendar, Clock, MapPin, Briefcase, MessageSquare, Loader2, CreditCard, CheckCircle, AlertTriangle, Eye, ShieldCheck, ShieldAlert, Star, FileText, User, DollarSign, Receipt, Download } from 'lucide-react';
 import { fetchBookings, cancelBooking } from '@/store/slices/bookingsSlice';
 import { servicesAPI, paymentsAPI, prosAPI, reviewsAPI, bookingsAPI, invoiceAPI } from '@/lib/api';
 import ReviewModal from '@/components/ReviewModal';
 import InvoiceViewModal from '@/components/InvoiceViewModal';
 import { generateReceiptPDF } from '@/utils/generateReceiptPDF';
 import { toast } from 'react-toastify';
+import { getSocket, joinBookingRoom, leaveBookingRoom } from '@/lib/socket';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -82,6 +83,26 @@ export default function MyJobsPage() {
     }
     dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
   }, [user, router, dispatch, currentOffset]);
+
+  // Real-time: join rooms for active bookings and refresh on status change
+  useEffect(() => {
+    if (!bookings || !Array.isArray(bookings)) return;
+    const activeStatuses = ['pending', 'accepted', 'in_progress', 'proof_submitted', 'awaiting_quotes', 'quote_pending'];
+    const activeBookings = bookings.filter((b) => activeStatuses.includes(b.status));
+
+    activeBookings.forEach((b) => joinBookingRoom(b.id));
+
+    const s = getSocket();
+    const handleStatusUpdate = () => {
+      dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
+    };
+    s.on('booking:status_update', handleStatusUpdate);
+
+    return () => {
+      activeBookings.forEach((b) => leaveBookingRoom(b.id));
+      s.off('booking:status_update', handleStatusUpdate);
+    };
+  }, [bookings, dispatch, currentOffset]);
 
   // Check which completed bookings already have reviews
   useEffect(() => {
@@ -813,8 +834,24 @@ export default function MyJobsPage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 {(proofModal.proof?.photos || []).map((photo, i) => (
-                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
                     <Image src={photo} alt={`Proof ${i + 1}`} fill className="object-cover" unoptimized />
+                    <button
+                      className="absolute bottom-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const resp = await fetch(photo);
+                          const blob = await resp.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = `proof-${i + 1}.jpg`; a.click();
+                          URL.revokeObjectURL(url);
+                        } catch { window.open(photo, '_blank'); }
+                      }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
               </div>

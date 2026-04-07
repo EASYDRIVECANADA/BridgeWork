@@ -17,4 +17,19 @@ router.patch('/admins/:id/permissions', adminManageController.updateAdminPermiss
 // Toggle an admin's active status
 router.patch('/admins/:id/toggle-active', adminManageController.toggleAdminActive);
 
+// Send password reset email to an admin (SuperAdmin only)
+router.post('/admins/:id/send-password-reset', adminManageController.sendAdminPasswordReset);
+
+// List all homeowners
+router.get('/users', adminManageController.listHomeowners);
+
+// Toggle any user's (homeowner/pro) active status
+router.patch('/users/:id/toggle-active', adminManageController.toggleUserActive);
+
+// Send password reset to any user (homeowner/pro/admin)
+router.post('/users/:id/send-password-reset', adminManageController.sendUserPasswordReset);
+
+// Update any user's email
+router.patch('/users/:id/email', adminManageController.updateUserEmail);
+
 module.exports = router;

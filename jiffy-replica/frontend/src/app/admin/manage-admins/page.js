@@ -14,6 +14,7 @@ import {
   Crown,
   ToggleLeft,
   ToggleRight,
+  KeyRound,
 } from 'lucide-react';
 import { adminManageAPI } from '@/lib/api';
 
@@ -47,6 +48,7 @@ export default function ManageAdminsPage() {
   const [permissions, setPermissions] = useState(defaultPermissions());
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(null);
+  const [resetting, setResetting] = useState(null);
 
   useEffect(() => {
     if (!authInitialized) return;
@@ -109,6 +111,18 @@ export default function ManageAdminsPage() {
       toast.error(err.response?.data?.message || 'Failed to save permissions.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendPasswordReset = async (admin) => {
+    setResetting(admin.id);
+    try {
+      const res = await adminManageAPI.sendPasswordReset(admin.id);
+      toast.success(res.data.message || 'Password reset email sent.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send password reset email.');
+    } finally {
+      setResetting(null);
     }
   };
 
@@ -265,24 +279,39 @@ export default function ManageAdminsPage() {
                       <p className="text-sm text-gray-500">{selectedAdmin.email}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleToggleActive(selectedAdmin)}
-                    disabled={toggling === selectedAdmin.id}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      selectedAdmin.is_active
-                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                        : 'bg-green-50 text-green-600 hover:bg-green-100'
-                    }`}
-                  >
-                    {toggling === selectedAdmin.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : selectedAdmin.is_active ? (
-                      <ToggleRight className="w-4 h-4" />
-                    ) : (
-                      <ToggleLeft className="w-4 h-4" />
-                    )}
-                    {selectedAdmin.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSendPasswordReset(selectedAdmin)}
+                      disabled={resetting === selectedAdmin.id}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                      title="Send password reset email"
+                    >
+                      {resetting === selectedAdmin.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <KeyRound className="w-4 h-4" />
+                      )}
+                      Reset Password
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(selectedAdmin)}
+                      disabled={toggling === selectedAdmin.id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        selectedAdmin.is_active
+                          ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                          : 'bg-green-50 text-green-600 hover:bg-green-100'
+                      }`}
+                    >
+                      {toggling === selectedAdmin.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : selectedAdmin.is_active ? (
+                        <ToggleRight className="w-4 h-4" />
+                      ) : (
+                        <ToggleLeft className="w-4 h-4" />
+                      )}
+                      {selectedAdmin.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Permissions grid */}

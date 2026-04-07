@@ -202,7 +202,7 @@ export default function ContactPage() {
                   <MapPin className="w-5 h-5 text-[#0E7480] mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">Service Area</p>
-                    <p className="text-sm text-gray-600">Greater Toronto &amp; Ottawa Area</p>
+                    <p className="text-sm text-gray-600">Greater Ontario Area, Canada</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

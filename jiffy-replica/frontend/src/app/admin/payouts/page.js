@@ -10,6 +10,7 @@ import {
   Calendar,
   CheckCircle,
   DollarSign,
+  Download,
   Loader2,
   Mail,
   Search,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { payoutsAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
+import { generatePayoutReceiptPDF } from '@/utils/generatePayoutReceiptPDF';
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-CA', {
@@ -677,21 +679,45 @@ export default function AdminPayoutsPage() {
                     <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3">Reference</th>
                     <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3">Date</th>
                     <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3">Status</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {payoutHistory.map((payout) => (
-                    <tr key={payout.id} className="hover:bg-gray-50">
+                    <tr key={payout.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3">
                         <p className="text-sm font-medium text-gray-900">{payout.pro_profiles?.business_name || payout.pro_profiles?.profiles?.full_name || '—'}</p>
                         <p className="text-xs text-gray-400">{payout.pro_profiles?.profiles?.email}</p>
                       </td>
                       <td className="px-5 py-3 text-sm font-semibold text-gray-900">{formatCurrency(payout.amount)}</td>
-                      <td className="px-5 py-3 text-xs text-gray-500">{payout.payout_method}</td>
+                      <td className="px-5 py-3 text-xs text-gray-500">{({ e_transfer: 'e-Transfer', stripe_connect: 'Stripe Connect', cheque: 'Cheque', direct_deposit: 'Direct Deposit' }[payout.payout_method] || payout.payout_method)}</td>
                       <td className="px-5 py-3 text-xs text-gray-500">{payout.payout_reference || '—'}</td>
                       <td className="px-5 py-3 text-xs text-gray-500">{formatDateLabel(payout.paid_at)}</td>
                       <td className="px-5 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusClasses(payout.status)}`}>{payout.status}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={() => generatePayoutReceiptPDF({
+                            proName: payout.pro_profiles?.business_name || payout.pro_profiles?.profiles?.full_name || 'Pro',
+                            proEmail: payout.pro_profiles?.profiles?.email || '',
+                            type: payout.type || 'payout',
+                            amount: payout.amount,
+                            platformFee: payout.platform_fee || 0,
+                            commissionRate: payout.commission_rate || 0.13,
+                            status: payout.status,
+                            payoutMethod: payout.payout_method,
+                            createdAt: payout.paid_at || payout.created_at,
+                            serviceName: payout.service_name,
+                            bookingNumber: payout.booking_number,
+                            bookingId: payout.booking_id,
+                            entryId: payout.id,
+                          })}
+                          className="text-[#0E7480] hover:text-[#0a5a63] transition-colors"
+                          title="Download Receipt"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -732,7 +758,27 @@ export default function AdminPayoutsPage() {
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="text-sm font-semibold text-gray-900">{selectedRequest.pro_profiles?.business_name || selectedRequest.pro_profiles?.profiles?.full_name || 'Pro'}</p>
               <p className="text-xs text-gray-500">Amount: {formatCurrency(selectedRequest.amount)}</p>
-              <p className="text-xs text-blue-600 mt-1">e-Transfer to: {selectedRequest.pro_profiles?.etransfer_email || selectedRequest.pro_profiles?.profiles?.email || 'N/A'}</p>
+              {(() => {
+                const method = selectedRequest.pro_profiles?.payout_method || 'e_transfer';
+                const details = selectedRequest.pro_profiles?.payout_details || {};
+                if (method === 'cheque') {
+                  return (
+                    <div className="mt-1">
+                      <p className="text-xs text-blue-600">Cheque payable to: {details.cheque_payee || 'N/A'}</p>
+                      <p className="text-xs text-blue-600">Mail to: {details.cheque_address || 'N/A'}</p>
+                    </div>
+                  );
+                }
+                if (method === 'direct_deposit') {
+                  return (
+                    <div className="mt-1">
+                      <p className="text-xs text-blue-600">Direct Deposit — {details.bank_name || 'N/A'}</p>
+                      <p className="text-xs text-blue-600">Institution: {details.institution_number} | Transit: {details.transit_number} | Account: {details.account_number}</p>
+                    </div>
+                  );
+                }
+                return <p className="text-xs text-blue-600 mt-1">e-Transfer to: {selectedRequest.pro_profiles?.etransfer_email || selectedRequest.pro_profiles?.profiles?.email || 'N/A'}</p>;
+              })()}
             </div>
 
             <div className="space-y-4">

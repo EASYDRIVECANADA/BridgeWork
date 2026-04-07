@@ -63,6 +63,8 @@ export const authAPI = {
   changePassword: (data) => api.post('/auth/change-password', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
+  exportData: () => api.get('/auth/export-data'),
+  deleteAccount: (data) => api.delete('/auth/me', { data }),
 };
 
 export const servicesAPI = {
@@ -84,6 +86,7 @@ export const bookingsAPI = {
   getQuoteRequestsForPro: () => api.get('/bookings/pro/quote-requests'),
   getQuoteRequestDetail: (id) => api.get(`/bookings/pro/quote-requests/${id}`),
   submitQuotation: (id, data) => api.post(`/bookings/pro/quote-requests/${id}/submit`, data),
+  declineQuoteRequest: (id) => api.post(`/bookings/pro/quote-requests/${id}/decline`),
   getMyQuotations: () => api.get('/bookings/pro/my-quotations'),
   
   // Admin: Quote Assignment Management
@@ -223,6 +226,7 @@ export const quotesAPI = {
   getInvoiceById: (id) => api.get(`/quotes-invoices/invoices/${id}`),
   sendInvoice: (id) => api.post(`/quotes-invoices/invoices/${id}/send`),
   updateInvoiceStatus: (id, data) => api.patch(`/quotes-invoices/invoices/${id}/status`, data),
+  createInvoicePaymentLink: (id) => api.post(`/quotes-invoices/invoices/${id}/payment-link`),
   // Stats
   getStats: () => api.get('/quotes-invoices/stats'),
   // Admin: Quote Bookings as Invoices
@@ -283,6 +287,9 @@ export const settingsAPI = {
   updateTaxSetting: (serviceType, data) => api.put(`/settings/tax/${serviceType}`, data),
   // Public tax rate
   getTaxRate: (serviceType) => api.get(`/settings/tax/${serviceType}`),
+  // Notification email list (Admin)
+  getNotificationEmails: () => api.get('/settings/notifications/emails'),
+  updateNotificationEmails: (emails) => api.put('/settings/notifications/emails', { emails }),
 };
 
 export const invoiceAPI = {
@@ -294,6 +301,12 @@ export const adminManageAPI = {
   listAdmins: () => api.get('/admin/manage-admins/admins'),
   updatePermissions: (id, permissions) => api.patch(`/admin/manage-admins/admins/${id}/permissions`, { admin_permissions: permissions }),
   toggleActive: (id) => api.patch(`/admin/manage-admins/admins/${id}/toggle-active`),
+  sendPasswordReset: (id) => api.post(`/admin/manage-admins/admins/${id}/send-password-reset`),
+  // User management (homeowners + pros)
+  listHomeowners: () => api.get('/admin/manage-admins/users'),
+  toggleUserActive: (id) => api.patch(`/admin/manage-admins/users/${id}/toggle-active`),
+  sendUserPasswordReset: (id) => api.post(`/admin/manage-admins/users/${id}/send-password-reset`),
+  updateUserEmail: (id, email) => api.patch(`/admin/manage-admins/users/${id}/email`, { email }),
 };
 
 export const notificationsAPI = {

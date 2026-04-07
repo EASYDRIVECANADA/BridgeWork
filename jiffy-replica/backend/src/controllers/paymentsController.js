@@ -118,6 +118,15 @@ exports.createPaymentIntent = async (req, res) => {
         // Build payment intent params with MANUAL capture (escrow hold)
         // Use updated_total_price if additional invoice exists, otherwise use total_price
         const finalAmount = booking.updated_total_price || booking.total_price;
+
+        // Guard: free-quote bookings have total_price=0 until a quote is accepted
+        if (!finalAmount || finalAmount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No price has been set for this booking yet. Payment will be available after a quote is accepted and the pro completes the work.'
+            });
+        }
+
         const paymentIntentParams = {
             amount: Math.round(finalAmount * 100),
             currency: 'cad',
@@ -292,6 +301,8 @@ exports.handleWebhook = async (req, res) => {
                 if (session.metadata?.type === 'guest_quote') {
                     const { handleGuestQuotePayment } = require('./guestQuotesController');
                     await handleGuestQuotePayment(session);
+                } else if (session.metadata?.type === 'invoice') {
+                    await handleInvoiceCheckoutCompleted(session);
                 }
                 break;
             }
@@ -308,6 +319,64 @@ exports.handleWebhook = async (req, res) => {
         });
     }
 };
+
+// Webhook: Stripe Checkout completed for a pro-issued invoice
+async function handleInvoiceCheckoutCompleted(session) {
+    try {
+        const invoiceId = session.metadata?.invoice_id;
+        if (!invoiceId) return;
+
+        const { data: invoice, error: fetchErr } = await supabaseAdmin
+            .from('invoices')
+            .select('id, total, amount_paid, customer_id')
+            .eq('id', invoiceId)
+            .single();
+
+        if (fetchErr || !invoice) {
+            logger.error('handleInvoiceCheckoutCompleted: invoice not found', { invoiceId });
+            return;
+        }
+
+        const amountPaid = session.amount_total ? session.amount_total / 100 : parseFloat(invoice.total);
+        const newAmountPaid = parseFloat(invoice.amount_paid || 0) + amountPaid;
+        const amountDue = Math.max(0, parseFloat(invoice.total) - newAmountPaid);
+        const isPaid = amountDue <= 0.01;
+
+        const { error: updateErr } = await supabaseAdmin
+            .from('invoices')
+            .update({
+                status: isPaid ? 'paid' : 'partially_paid',
+                amount_paid: newAmountPaid,
+                amount_due: amountDue,
+                payment_method: 'stripe',
+                paid_at: isPaid ? new Date().toISOString() : null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', invoiceId);
+
+        if (updateErr) {
+            logger.error('handleInvoiceCheckoutCompleted: update failed', { error: updateErr.message });
+            return;
+        }
+
+        if (invoice.customer_id) {
+            const { createNotification } = require('../services/notificationService');
+            await createNotification(invoice.customer_id, {
+                type: 'payment',
+                title: isPaid ? 'Invoice Paid' : 'Partial Payment Received',
+                message: isPaid
+                    ? `Your invoice ${session.metadata?.invoice_number} has been paid in full.`
+                    : `A partial payment of $${amountPaid.toFixed(2)} was received for invoice ${session.metadata?.invoice_number}.`,
+                link: `/dashboard/invoices/${invoiceId}`,
+                data: { invoice_id: invoiceId },
+            });
+        }
+
+        logger.info('Invoice paid via Stripe Checkout', { invoiceId, amountPaid, isPaid });
+    } catch (error) {
+        logger.error('handleInvoiceCheckoutCompleted error', { error: error.message });
+    }
+}
 
 // Webhook: manual-capture hold confirmed on card
 async function handlePaymentHeld(paymentIntent) {
@@ -767,6 +836,23 @@ exports.capturePayment = async (req, res) => {
 
         if (bookingUpdateErr) {
             logger.error('capturePayment: booking update failed (non-fatal)', { error: bookingUpdateErr.message });
+        }
+
+        // Mark linked invoice as paid (best-effort)
+        try {
+            const capturedTotal = paymentIntent.amount_received / 100;
+            await supabaseAdmin
+                .from('invoices')
+                .update({
+                    status: 'paid',
+                    paid_at: new Date().toISOString(),
+                    amount_paid: capturedTotal,
+                    amount_due: 0
+                })
+                .eq('booking_id', booking_id)
+                .in('status', ['draft', 'sent', 'partially_paid', 'overdue']);
+        } catch (invErr) {
+            logger.error('capturePayment: invoice status update failed (non-fatal)', { error: invErr.message, bookingId: booking_id });
         }
 
         // Update pro stats (best-effort, don't let failures block the response)
@@ -1229,25 +1315,62 @@ exports.resolveDispute = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Disputed booking not found' });
         }
 
+        // Fetch any held or succeeded transaction for this booking
+        const { data: transaction } = await supabaseAdmin
+            .from('transactions')
+            .select('id, status, stripe_payment_intent_id, amount')
+            .eq('booking_id', booking_id)
+            .in('status', ['held', 'succeeded'])
+            .maybeSingle();
+
         let newStatus = 'disputed';
         let customerMessage = '';
         let proMessage = '';
 
         if (action === 'approve') {
-            // Admin approves the proof - customer must pay
-            newStatus = 'proof_submitted';
-            customerMessage = `Your dispute has been reviewed. The admin has approved the proof of work. Please proceed to payment.`;
-            proMessage = `The dispute for booking ${booking.booking_number} has been resolved in your favor. Customer will proceed to payment.`;
+            // Admin closes in pro's favour — capture hold if it exists, otherwise send customer back to pay
+            if (transaction?.stripe_payment_intent_id && transaction.status === 'held') {
+                try {
+                    const amountCents = Math.round(parseFloat(booking.updated_total_price || booking.total_price) * 100);
+                    await stripe.paymentIntents.capture(transaction.stripe_payment_intent_id, { amount_to_capture: amountCents });
+                    await supabaseAdmin.from('transactions').update({ status: 'succeeded' }).eq('id', transaction.id);
+                    newStatus = 'completed';
+                    customerMessage = `Your dispute has been reviewed. The admin has approved the proof of work and your payment has been processed.`;
+                    proMessage = `The dispute for booking ${booking.booking_number} has been resolved in your favor. Payment has been captured.`;
+                } catch (stripeErr) {
+                    logger.error('Failed to capture payment on dispute approval', { error: stripeErr.message, bookingId: booking_id });
+                    return res.status(500).json({ success: false, message: 'Failed to capture payment via Stripe' });
+                }
+            } else {
+                // No held payment — put back to proof_submitted so customer can pay
+                newStatus = 'proof_submitted';
+                customerMessage = `Your dispute has been reviewed. The admin has approved the proof of work. Please proceed to payment.`;
+                proMessage = `The dispute for booking ${booking.booking_number} has been resolved in your favor. Customer will proceed to payment.`;
+            }
         } else if (action === 'revision') {
             // Pro must redo the work
             newStatus = 'accepted';
             customerMessage = `Your dispute has been reviewed. The pro will revise their work and submit new proof.`;
             proMessage = `The dispute for booking ${booking.booking_number} requires you to revise your work. Please complete the revisions and submit new proof.`;
         } else if (action === 'refund') {
-            // Cancel the job
+            // Admin sides with customer — cancel hold or issue refund
+            if (transaction?.stripe_payment_intent_id) {
+                try {
+                    if (transaction.status === 'held') {
+                        await stripe.paymentIntents.cancel(transaction.stripe_payment_intent_id);
+                        await supabaseAdmin.from('transactions').update({ status: 'refunded' }).eq('id', transaction.id);
+                    } else if (transaction.status === 'succeeded') {
+                        await stripe.refunds.create({ payment_intent: transaction.stripe_payment_intent_id });
+                        await supabaseAdmin.from('transactions').update({ status: 'refunded' }).eq('id', transaction.id);
+                    }
+                } catch (stripeErr) {
+                    logger.error('Failed to process Stripe refund on dispute', { error: stripeErr.message, bookingId: booking_id });
+                    return res.status(500).json({ success: false, message: 'Failed to process Stripe refund' });
+                }
+            }
             newStatus = 'cancelled';
-            customerMessage = `Your dispute has been resolved. The job has been cancelled.`;
-            proMessage = `The dispute for booking ${booking.booking_number} has resulted in job cancellation.`;
+            customerMessage = `Your dispute has been resolved in your favor. The job has been cancelled and your payment refunded.`;
+            proMessage = `The dispute for booking ${booking.booking_number} has been resolved in the customer's favor. The booking has been cancelled.`;
         }
 
         await supabaseAdmin
@@ -1259,6 +1382,7 @@ exports.resolveDispute = async (req, res) => {
                 dispute_resolution: resolution,
                 dispute_admin_id: req.user.id,
                 ...(action === 'refund' ? { cancelled_at: new Date().toISOString() } : {}),
+                ...(action === 'approve' && newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
                 ...(action === 'revision' ? { proof_submitted_at: null } : {})
             })
             .eq('id', booking_id);

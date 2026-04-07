@@ -97,4 +97,12 @@ router.post('/reset-password',
 
 router.get('/search-users', authenticate, authController.searchUsers);
 
+router.get('/export-data', authenticate, authController.exportData);
+
+router.delete('/me',
+    authenticate,
+    [body('password').notEmpty().withMessage('Password is required'), validate],
+    authController.deleteAccount
+);
+
 module.exports = router;

@@ -34,6 +34,10 @@ import {
   Download,
   X,
   UserCog,
+  Bell,
+  Mail,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import { generateInvoicePDF } from '@/utils/generateInvoicePDF';
 
@@ -87,6 +91,12 @@ export default function AdminRevenuePage() {
   const [editTaxValue, setEditTaxValue] = useState('');
   const [savingTax, setSavingTax] = useState(false);
 
+  // Notification email state
+  const [notifEmails, setNotifEmails] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [newEmailInput, setNewEmailInput] = useState('');
+
   useEffect(() => {
     if (!authInitialized) return;
     if (!user) {
@@ -102,7 +112,50 @@ export default function AdminRevenuePage() {
     fetchPros();
     fetchQuotesInvoices();
     fetchTaxSettings();
+    fetchNotificationEmails();
   }, [user, authInitialized, profile, router]);
+
+  const fetchNotificationEmails = async () => {
+    setNotifLoading(true);
+    try {
+      const res = await settingsAPI.getNotificationEmails();
+      setNotifEmails(res.data?.data?.emails || []);
+    } catch (err) {
+      // silently fail
+    }
+    setNotifLoading(false);
+  };
+
+  const handleAddNotifEmail = () => {
+    const email = newEmailInput.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) return;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    if (notifEmails.includes(email)) {
+      toast.error('This email is already in the list');
+      return;
+    }
+    setNotifEmails(prev => [...prev, email]);
+    setNewEmailInput('');
+  };
+
+  const handleRemoveNotifEmail = (email) => {
+    setNotifEmails(prev => prev.filter(e => e !== email));
+  };
+
+  const handleSaveNotifEmails = async () => {
+    setNotifSaving(true);
+    try {
+      await settingsAPI.updateNotificationEmails(notifEmails);
+      toast.success('Notification emails saved');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to save notification emails');
+    }
+    setNotifSaving(false);
+  };
 
   const fetchTaxSettings = async () => {
     setTaxLoading(true);
@@ -345,6 +398,18 @@ export default function AdminRevenuePage() {
             <Calculator className="w-4 h-4" />
             <span className="hidden sm:inline">Tax Management</span>
             <span className="sm:hidden">Tax</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex-shrink-0 sm:flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${
+              activeTab === 'notifications'
+                ? 'bg-[#0E7480] text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">Notifications</span>
+            <span className="sm:hidden">Notif</span>
           </button>
         </div>
 
@@ -1072,6 +1137,107 @@ export default function AdminRevenuePage() {
                     <p className="text-xs text-amber-700 mt-1">
                       Tax rates are applied to the total service price at checkout. Changes will affect all new bookings immediately.
                       Existing bookings will retain their original tax rates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== NOTIFICATIONS TAB ==================== */}
+        {activeTab === 'notifications' && (
+          <div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Booking Notification Emails</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Extra email addresses that receive new booking notifications alongside admin accounts.</p>
+                </div>
+                <button
+                  onClick={fetchNotificationEmails}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Refresh"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {notifLoading ? (
+                <div className="px-6 py-12 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#0E7480] mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Loading...</p>
+                </div>
+              ) : (
+                <div className="px-6 py-5 space-y-4">
+                  {/* Current email list */}
+                  {notifEmails.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400">
+                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No extra notification emails added yet.</p>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+                      {notifEmails.map((email) => (
+                        <li key={email} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-teal-50 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Mail className="w-4 h-4 text-[#0E7480]" />
+                            </div>
+                            <span className="text-sm text-gray-800">{email}</span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveNotifEmail(email)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Add new email */}
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={newEmailInput}
+                      onChange={(e) => setNewEmailInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNotifEmail(); } }}
+                      placeholder="Enter email address"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-[#0E7480] outline-none"
+                    />
+                    <button
+                      onClick={handleAddNotifEmail}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Save button */}
+                  <div className="flex justify-end pt-2">
+                    <button
+                      onClick={handleSaveNotifEmails}
+                      disabled={notifSaving}
+                      className="px-5 py-2 bg-[#0E7480] text-white rounded-lg text-sm font-medium hover:bg-[#0a5a63] transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {notifSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="px-6 py-4 bg-blue-50 border-t border-blue-100">
+                <div className="flex items-start gap-3">
+                  <Bell className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">About Notification Emails</p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      These addresses are for people (e.g., managers or team members) who need to be notified of new bookings but do not have an admin account. They are merged with admin account emails when a new booking or quote request is created.
                     </p>
                   </div>
                 </div>

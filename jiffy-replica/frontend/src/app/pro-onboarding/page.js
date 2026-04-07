@@ -505,7 +505,7 @@ export default function ProOnboardingPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Business Address <span className="text-red-500">*</span></label>
                 <input type="text" value={businessAddress} onChange={e => setBusinessAddress(e.target.value)}
-                  placeholder="e.g. 123 Plumber's Lane, Toronto, ON, Canada" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
+                  placeholder="e.g. 123 Main Street, Ontario, Canada" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent outline-none" />
               </div>
               <div className="max-w-xs">
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Unit/Suite <span className="text-gray-400">(optional)</span></label>
@@ -535,7 +535,7 @@ export default function ProOnboardingPage() {
               </div>
             </div>
 
-            {/* Insurance Acknowledgment (like Jiffy) */}
+            {/* Insurance Acknowledgment */}
             <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800 leading-relaxed">
                 By checking this box you represent and warrant that you hold all required or industry standard insurance,

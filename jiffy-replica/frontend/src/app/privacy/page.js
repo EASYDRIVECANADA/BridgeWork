@@ -18,9 +18,9 @@ export default function PrivacyPolicyPage() {
       <div className="max-w-4xl mx-auto px-12 py-12">
         <div className="space-y-4">
           <p className="text-sm leading-7 text-gray-700 mb-6">
-            This Privacy Policy (this "Policy") describes the practices of BridgeWork Inc. and its corporate affiliates ("we", "us", "our") with respect to our collection, use, storage and disclosure of personal information provided to us from users of (a) the website operated at www.BridgeWork.com and such other locations as made available from time to time (the "Website"), (b) any "app" or other front-end software provided by us (for greater certainty, excluding third party software that may interact with the Website or the Service, as defined below) that interacts or interfaces with the Website (the "Software"), and (c) the services we provide through the Website and/or the Software (collectively, the "Service"). It also describes the choices available to you regarding our use of your personal information and how you can access and update this information. This Policy is incorporated by reference to the general Terms of Service for BridgeWork located at{' '}
+            This Privacy Policy (this "Policy") describes the practices of BridgeWork Inc. and its corporate affiliates ("we", "us", "our") with respect to our collection, use, storage and disclosure of personal information provided to us from users of (a) the website operated at www.bridgeworkservices.com and such other locations as made available from time to time (the "Website"), (b) any software provided by us (for greater certainty, excluding third party software that may interact with the Website or the Service, as defined below) that interacts or interfaces with the Website (the "Software"), and (c) the services we provide through the Website and/or the Software (collectively, the "Service"). It also describes the choices available to you regarding our use of your personal information and how you can access and update this information. This Policy is incorporated by reference to the general Terms of Service for BridgeWork located at{' '}
             <Link href="/terms" className="text-[#0E7480] hover:underline">
-              http://BridgeWork.com/terms_and_conditions
+              https://bridgeworkservices.com/terms
             </Link>
             , and forms an integral part of it. All capitalized terms not otherwise defined herein have the meaning provided in the Terms and Conditions for BridgeWork.
           </p>
@@ -165,8 +165,8 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-sm leading-7 text-gray-700 mb-4 pl-4">
               If you have any questions about security on our Website, you can contact us at{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
-                info@BridgeWork.com
+              <a href="mailto:bridgeworkservice@gmail.com" className="text-[#0E7480] hover:underline">
+                bridgeworkservice@gmail.com
               </a>
               .
             </p>
@@ -191,8 +191,8 @@ export default function PrivacyPolicyPage() {
             <h3 className="text-sm font-bold text-gray-900 mb-2 mt-4">c. Withdrawing Your Consent</h3>
             <p className="text-sm leading-7 text-gray-700 mb-4 pl-4">
               You may notify us at any time that you wish to withdraw or change your consent to our use and disclosure or your personal information. We will accommodate your request subject to legal and contractual restrictions. The most common way of indicating this withdrawal of consent is (i) by changing your privacy preferences to the extent such functionality is made available through the Service, or (ii) deleting your account with the Service and stopping use of the Service. In other situations, you may be able to opt out of the use of your personal information. For example, if you have "opted in" or subscribed to one of our mailing lists, we will always provide you the opportunity to "opt out" or unsubscribe. For example, if you receive emails from us, we will provide a link in the email which you can use to unsubscribe from that mailing list, or you may contact us at{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
-                info@BridgeWork.com
+              <a href="mailto:bridgeworkservice@gmail.com" className="text-[#0E7480] hover:underline">
+                bridgeworkservice@gmail.com
               </a>
               .
             </p>
@@ -234,8 +234,8 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-sm leading-7 text-gray-700">
               Email:{' '}
-              <a href="mailto:info@BridgeWork.com" className="text-[#0E7480] hover:underline">
-                info@BridgeWork.com
+              <a href="mailto:bridgeworkservice@gmail.com" className="text-[#0E7480] hover:underline">
+                bridgeworkservice@gmail.com
               </a>
             </p>
           </div>

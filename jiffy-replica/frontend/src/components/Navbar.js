@@ -257,6 +257,10 @@ export default function Navbar() {
                                 <Crown className="w-4 h-4" />
                                 Manage Admins
                               </Link>
+                              <Link href="/admin/manage-homeowners" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors" onClick={() => setActiveDropdown(null)}>
+                                <Users className="w-4 h-4" />
+                                Manage Homeowners
+                              </Link>
                             </>
                           )}
                         </div>
@@ -489,10 +493,16 @@ export default function Navbar() {
                     Pro Payouts
                   </Link>
                   {isSuperAdmin && (
-                    <Link href="/admin/manage-admins" className="flex items-center gap-3 px-4 py-2.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
-                      <Crown className="w-5 h-5" />
-                      Manage Admins
-                    </Link>
+                    <>
+                      <Link href="/admin/manage-admins" className="flex items-center gap-3 px-4 py-2.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <Crown className="w-5 h-5" />
+                        Manage Admins
+                      </Link>
+                      <Link href="/admin/manage-homeowners" className="flex items-center gap-3 px-4 py-2.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                        <Users className="w-5 h-5" />
+                        Manage Homeowners
+                      </Link>
+                    </>
                   )}
                   
                   {/* Sign Out */}

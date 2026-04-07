@@ -43,6 +43,17 @@ router.post('/pro/quote-requests/:id/submit',
     bookingsController.submitQuotation
 );
 
+// Decline a quote assignment
+router.post('/pro/quote-requests/:id/decline',
+    authenticate,
+    authorize('pro'),
+    [
+        param('id').isUUID(),
+        validate
+    ],
+    bookingsController.declineQuoteAssignment
+);
+
 // Get pro's own submitted quotations
 router.get('/pro/my-quotations',
     authenticate,

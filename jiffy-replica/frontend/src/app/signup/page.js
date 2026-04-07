@@ -8,6 +8,19 @@ import { signUp } from '@/store/slices/authSlice';
 import { toast } from 'react-toastify';
 import { CheckCircle, Clock, Mail } from 'lucide-react';
 
+function getPasswordStrength(pw) {
+  if (!pw) return null;
+  const long = pw.length >= 8;
+  const upper = /[A-Z]/.test(pw);
+  const digit = /\d/.test(pw);
+  const special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw);
+  const score = [long, upper, digit, special].filter(Boolean).length;
+  if (score <= 1) return { label: 'Weak', color: 'bg-red-500', width: 'w-1/4', text: 'text-red-600' };
+  if (score === 2) return { label: 'Fair', color: 'bg-yellow-400', width: 'w-2/4', text: 'text-yellow-600' };
+  if (score === 3) return { label: 'Good', color: 'bg-blue-500', width: 'w-3/4', text: 'text-blue-600' };
+  return { label: 'Strong', color: 'bg-green-500', width: 'w-full', text: 'text-green-600' };
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -257,6 +270,17 @@ export default function SignupPage() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0E7480]/35 focus:border-[#0E7480] transition text-base"
                       placeholder="Min 8 characters"
                     />
+                    {(() => {
+                      const strength = getPasswordStrength(formData.password);
+                      return strength ? (
+                        <div className="mt-2">
+                          <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-300 ${strength.color} ${strength.width}`} />
+                          </div>
+                          <p className={`text-xs mt-1 font-medium ${strength.text}`}>{strength.label}</p>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   <div>
                     <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-800 mb-1.5">

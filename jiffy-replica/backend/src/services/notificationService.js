@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
+const socketHelper = require('../utils/socketHelper');
 
 exports.createNotification = async (userId, notification) => {
     try {
@@ -22,6 +23,8 @@ exports.createNotification = async (userId, notification) => {
             logger.error('Create notification error', { error: error.message, userId });
             return null;
         }
+
+        socketHelper.emitToUser(userId, 'notification:new', result);
 
         return result;
     } catch (error) {
@@ -52,6 +55,8 @@ exports.createBulkNotifications = async (userIds, notification) => {
             logger.error('Create bulk notifications error', { error: error.message });
             return [];
         }
+
+        result.forEach(n => socketHelper.emitToUser(n.user_id, 'notification:new', n));
 
         return result;
     } catch (error) {

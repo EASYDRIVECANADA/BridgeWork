@@ -7,6 +7,7 @@ const { writeAuditLog } = require('../services/auditService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
 const { getTaxRate } = require('../utils/taxRate');
+const socketHelper = require('../utils/socketHelper');
 
 exports.createBooking = async (req, res) => {
     try {
@@ -129,7 +130,7 @@ exports.createBooking = async (req, res) => {
             });
         }
 
-        // Email all admins about the new booking
+        // Email all admins + notification list about the new booking
         try {
             const { data: adminProfiles } = await supabaseAdmin
                 .from('profiles')
@@ -138,9 +139,21 @@ exports.createBooking = async (req, res) => {
                 .eq('is_active', true);
 
             const adminEmails = (adminProfiles || []).map(a => a.email).filter(Boolean);
-            if (adminEmails.length > 0) {
+
+            // Also fetch extra notification emails from platform_settings
+            const { data: notifSetting } = await supabaseAdmin
+                .from('platform_settings')
+                .select('value')
+                .eq('key', 'notification_emails')
+                .eq('category', 'notifications')
+                .maybeSingle();
+            let extraEmails = [];
+            try { extraEmails = notifSetting?.value ? JSON.parse(notifSetting.value) : []; } catch (_) { /* ignore malformed JSON */ }
+            const allEmails = [...new Set([...adminEmails, ...extraEmails])];
+
+            if (allEmails.length > 0) {
                 await sendNewBookingAdminEmail(
-                    adminEmails,
+                    allEmails,
                     booking,
                     req.profile.full_name || 'Unknown',
                     req.profile.email || '',
@@ -452,6 +465,12 @@ exports.updateBookingStatus = async (req, res) => {
             data: { booking_id: booking.id }
         });
 
+        socketHelper.emitToRoom(`booking_${id}`, 'booking:status_update', {
+            bookingId: id,
+            status,
+            timestamp: new Date().toISOString()
+        });
+
         logger.info('Booking status updated', { bookingId: id, status });
 
         res.json({
@@ -582,6 +601,12 @@ exports.cancelBooking = async (req, res) => {
         }
 
         logger.info('Booking cancelled', { bookingId: id, userId: req.user.id });
+
+        socketHelper.emitToRoom(`booking_${id}`, 'booking:status_update', {
+            bookingId: id,
+            status: 'cancelled',
+            timestamp: new Date().toISOString()
+        });
 
         res.json({
             success: true,
@@ -917,7 +942,7 @@ exports.getQuoteRequestsForPro = async (req, res) => {
             const bookingIds = bookings.map(b => b.id);
             const { data: quotations } = await supabaseAdmin
                 .from('booking_quotations')
-                .select('id, booking_id, pro_id, status, quoted_price')
+                .select('id, booking_id, pro_id, status, quoted_price, counter_offer_price, counter_offer_message, counter_offered_at')
                 .in('booking_id', bookingIds);
             
             // Group quotations by booking_id
@@ -940,8 +965,11 @@ exports.getQuoteRequestsForPro = async (req, res) => {
                 ...booking,
                 assignment_status: assignmentMap[booking.id] || 'invited',
                 has_submitted_quote: !!myQuote,
+                my_quote_id: myQuote?.id || null,
                 my_quote_status: myQuote?.status || null,
                 my_quoted_price: myQuote?.quoted_price || null,
+                my_counter_offer_price: myQuote?.counter_offer_price || null,
+                my_counter_offer_message: myQuote?.counter_offer_message || null,
                 is_direct_assignment: isDirectAssignment,
                 can_submit_quote: canSubmitQuote,
                 can_edit_quote: canEditQuote,
@@ -1072,6 +1100,66 @@ exports.getQuoteRequestDetail = async (req, res) => {
             success: false,
             message: 'Failed to fetch quote request'
         });
+    }
+};
+
+/**
+ * Pro: Decline a quote assignment (opt out from bidding)
+ * POST /api/bookings/pro/quote-requests/:id/decline
+ */
+exports.declineQuoteAssignment = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: proProfile, error: proError } = await supabaseAdmin
+            .from('pro_profiles')
+            .select('id')
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (proError || !proProfile) {
+            return res.status(403).json({ success: false, message: 'Pro profile not found' });
+        }
+
+        const { data: assignment, error: assignError } = await supabaseAdmin
+            .from('quote_assignments')
+            .select('id, status')
+            .eq('booking_id', id)
+            .eq('pro_id', proProfile.id)
+            .maybeSingle();
+
+        if (assignError) {
+            logger.error('Decline quote assignment fetch error', { error: assignError.message });
+            return res.status(500).json({ success: false, message: 'Failed to find assignment' });
+        }
+
+        if (!assignment) {
+            return res.status(404).json({ success: false, message: 'Assignment not found' });
+        }
+
+        if (!['invited', 'viewed'].includes(assignment.status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot decline this assignment in its current state'
+            });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+            .from('quote_assignments')
+            .update({ status: 'declined', updated_at: new Date().toISOString() })
+            .eq('id', assignment.id);
+
+        if (updateError) {
+            logger.error('Decline quote assignment update error', { error: updateError.message });
+            return res.status(500).json({ success: false, message: 'Failed to decline assignment' });
+        }
+
+        logger.info('Pro declined quote assignment', { bookingId: id, proId: proProfile.id });
+
+        res.json({ success: true, message: 'Assignment declined successfully' });
+    } catch (error) {
+        logger.error('Decline quote assignment controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to decline assignment' });
     }
 };
 
