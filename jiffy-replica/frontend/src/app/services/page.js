@@ -85,13 +85,7 @@ function ServicesPageContent() {
 
   const handleServiceClick = (e, service) => {
     e.preventDefault();
-    // If the service supports emergency pricing, show the rate-type selection modal
-    if (service.emergency) {
-      setSelectedService(service);
-      setShowServiceModal(true);
-      return;
-    }
-    // Otherwise navigate directly to the service booking page
+    // Navigate directly to the service booking page — no intermediate modal
     router.push(`/services/${service.id}`);
   };
 

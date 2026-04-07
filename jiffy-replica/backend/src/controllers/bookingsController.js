@@ -1272,7 +1272,9 @@ exports.submitQuotation = async (req, res) => {
                 })
                 : notes || null;
 
-            const { data: updatedQuote, error: updateError } = await supabaseAdmin
+            // Attempt to set pending_admin_review; fall back to 'pending' if migration 035 not yet run
+            let updateStatus = 'pending_admin_review';
+            let { data: updatedQuote, error: updateError } = await supabaseAdmin
                 .from('booking_quotations')
                 .update({
                     quoted_price: parseFloat(quoted_price),
@@ -1281,11 +1283,32 @@ exports.submitQuotation = async (req, res) => {
                     materials_included: materials_included || false,
                     warranty_info: warranty_info || null,
                     notes: extendedNotesUpdate,
+                    status: updateStatus,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', existingQuote.id)
                 .select()
                 .single();
+
+            // error code 23514 = CHECK constraint violation (migration 035 not yet applied)
+            if (updateError && updateError.code === '23514') {
+                updateStatus = 'pending';
+                ({ data: updatedQuote, error: updateError } = await supabaseAdmin
+                    .from('booking_quotations')
+                    .update({
+                        quoted_price: parseFloat(quoted_price),
+                        description: description || null,
+                        estimated_duration: estimated_duration || null,
+                        materials_included: materials_included || false,
+                        warranty_info: warranty_info || null,
+                        notes: extendedNotesUpdate,
+                        status: 'pending',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingQuote.id)
+                    .select()
+                    .single());
+            }
 
             if (updateError) {
                 logger.error('Update quotation error', { error: updateError.message });
@@ -1294,6 +1317,21 @@ exports.submitQuotation = async (req, res) => {
                     message: 'Failed to update quotation'
                 });
             }
+
+            // Clear admin review columns (only available after migration 035 — ignore if not yet applied)
+            try {
+                await supabaseAdmin
+                    .from('booking_quotations')
+                    .update({
+                        admin_price: null,
+                        commission_amount: null,
+                        commission_rate: null,
+                        admin_approved_at: null,
+                        admin_approved_by: null,
+                        admin_review_notes: null
+                    })
+                    .eq('id', existingQuote.id);
+            } catch (_) { /* columns not yet in DB — safe to ignore */ }
 
             logger.info('Quotation updated', { 
                 quotationId: updatedQuote.id, 
@@ -1311,7 +1349,7 @@ exports.submitQuotation = async (req, res) => {
 
             return res.json({
                 success: true,
-                message: 'Quotation updated successfully',
+                message: 'Quotation updated successfully. It is now under review by the BridgeWork team.',
                 data: { quotation: updatedQuote }
             });
         }
@@ -1327,8 +1365,8 @@ exports.submitQuotation = async (req, res) => {
             })
             : notes || null;
 
-        // Create quotation with 'pending' status - awaiting homeowner acceptance
-        const { data: quotation, error: quotationError } = await supabaseAdmin
+        // Create quotation — use 'pending_admin_review' if migration 035 is applied, else fall back to 'pending'
+        let { data: quotation, error: quotationError } = await supabaseAdmin
             .from('booking_quotations')
             .insert({
                 booking_id: id,
@@ -1339,10 +1377,29 @@ exports.submitQuotation = async (req, res) => {
                 materials_included: materials_included || false,
                 warranty_info: warranty_info || null,
                 notes: extendedNotes,
-                status: 'pending'  // Awaiting homeowner review and acceptance
+                status: 'pending_admin_review'
             })
             .select()
             .single();
+
+        // error code 23514 = CHECK constraint violation (migration 035 not yet applied)
+        if (quotationError && quotationError.code === '23514') {
+            ({ data: quotation, error: quotationError } = await supabaseAdmin
+                .from('booking_quotations')
+                .insert({
+                    booking_id: id,
+                    pro_id: proProfile.id,
+                    quoted_price: parseFloat(quoted_price),
+                    description: description || null,
+                    estimated_duration: estimated_duration || null,
+                    materials_included: materials_included || false,
+                    warranty_info: warranty_info || null,
+                    notes: extendedNotes,
+                    status: 'pending'
+                })
+                .select()
+                .single());
+        }
 
         if (quotationError) {
             logger.error('Submit quotation error', { error: quotationError.message });
@@ -1360,55 +1417,22 @@ exports.submitQuotation = async (req, res) => {
             })
             .eq('id', assignment.id);
 
-        // Calculate final price with tax (for notification purposes)
+        // Calculate pro price (no tax yet — tax is added after admin sets commission)
         const price = parseFloat(quoted_price);
-        const taxRateDecimal = await getTaxRate('quote');
-        const tax = price * taxRateDecimal;
-        const finalPrice = price + tax;
 
-        // DO NOT update booking status yet - homeowner needs to accept the quote first
+        // DO NOT notify customer yet — quote goes to admin for commission review first
         // Booking stays in 'awaiting_quotes' status
 
-        // Notify customer - new quote available for review
-        await createNotification(booking.user_id, {
-            type: 'booking',
-            title: 'New Quote Received! 📋',
-            message: `${proProfile.business_name || 'A pro'} submitted a quote of $${finalPrice.toFixed(2)} for your ${booking.service_name}. Review and accept to proceed.`,
-            link: `/my-jobs`,
-            data: { booking_id: id, quotation_id: quotation.id }
-        });
-
-        // Email homeowner about the new quote
-        try {
-            const { data: homeowner } = await supabaseAdmin
-                .from('profiles')
-                .select('email, full_name')
-                .eq('id', booking.user_id)
-                .single();
-            if (homeowner?.email) {
-                await sendHomeownerQuoteReceivedEmail(
-                    homeowner.email,
-                    homeowner.full_name || 'Homeowner',
-                    booking,
-                    proProfile.business_name || 'A pro',
-                    price,
-                    finalPrice
-                );
-            }
-        } catch (emailErr) {
-            logger.error('Failed to send homeowner quote received email', { error: emailErr.message, bookingId: id });
-        }
-
-        // Notify pro - quote submitted, awaiting customer decision
+        // Notify pro — quote submitted, awaiting admin review
         await createNotification(proProfile.user_id, {
             type: 'booking',
-            title: 'Quote Submitted! ⏳',
-            message: `Your quote of $${price.toFixed(2)} for ${booking.service_name} has been sent to the customer. Waiting for their acceptance.`,
+            title: 'Quote Submitted — Under Review',
+            message: `Your quote of $${price.toFixed(2)} for ${booking.service_name} has been submitted and is under review. You'll be notified once it's forwarded to the customer.`,
             link: `/pro-dashboard/quote-requests`,
             data: { booking_id: id, quotation_id: quotation.id }
         });
 
-        // Notify admin about new quotation
+        // Notify admins — new quote needs commission review before customer can see it
         const { data: admins } = await supabaseAdmin
             .from('profiles')
             .select('id')
@@ -1417,24 +1441,23 @@ exports.submitQuotation = async (req, res) => {
         for (const admin of admins || []) {
             await createNotification(admin.id, {
                 type: 'system',
-                title: 'New Quote Submitted',
-                message: `${proProfile.business_name || 'A pro'} submitted a quote of $${quoted_price} for ${booking.service_name}. Awaiting customer acceptance.`,
+                title: 'New Quote Needs Review',
+                message: `${proProfile.business_name || 'A pro'} submitted a quote of $${price.toFixed(2)} for ${booking.service_name}. Review and set commission before forwarding to the customer.`,
                 link: `/admin/quotations`,
-                data: { booking_id: id, quotation_id: quotation.id }
+                data: { booking_id: id, quotation_id: quotation.id, type: 'pending_admin_review' }
             });
         }
 
-        logger.info('Quotation submitted - awaiting customer acceptance', { 
+        logger.info('Quotation submitted - awaiting admin commission review', { 
             quotationId: quotation.id, 
             bookingId: id, 
             proId: proProfile.id,
-            price: quoted_price,
-            finalPrice: finalPrice
+            price: quoted_price
         });
 
         res.status(201).json({
             success: true,
-            message: 'Quotation submitted successfully! Customer has been notified to review and accept.',
+            message: 'Quotation submitted successfully! It is now under review by the BridgeWork team before being forwarded to the customer.',
             data: { quotation }
         });
     } catch (error) {
@@ -1533,6 +1556,7 @@ exports.getBookingQuotations = async (req, res) => {
         }
 
         // Get all quotations for this booking with pro details
+        // Exclude 'pending_admin_review' quotes — homeowner only sees admin-approved ones
         const { data: quotations, error } = await supabaseAdmin
             .from('booking_quotations')
             .select(`
@@ -1547,6 +1571,7 @@ exports.getBookingQuotations = async (req, res) => {
                 )
             `)
             .eq('booking_id', id)
+            .neq('status', 'pending_admin_review')
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -1633,7 +1658,8 @@ exports.acceptQuotation = async (req, res) => {
         }
 
         // Calculate final price with tax
-        const price = parseFloat(quotation.quoted_price);
+        // Use admin_price (set during commission review) if available; fall back to quoted_price
+        const price = parseFloat(quotation.admin_price || quotation.quoted_price);
         const taxRateDecimal = await getTaxRate('quote');
         const tax = price * taxRateDecimal;
         const finalPrice = price + tax;
@@ -2173,6 +2199,219 @@ exports.respondToCounterOffer = async (req, res) => {
 };
 
 // ==================== ADMIN: MULTI-QUOTATION MANAGEMENT ====================
+
+/**
+ * Admin: Approve a quotation after setting the commission markup
+ * POST /api/bookings/admin/quotations/:quotationId/approve
+ * Body: { commission_amount, admin_review_notes }
+ */
+exports.approveQuotation = async (req, res) => {
+    try {
+        const { quotationId } = req.params;
+        const { commission_amount, admin_review_notes } = req.body;
+
+        const commissionAmt = parseFloat(commission_amount);
+        if (isNaN(commissionAmt) || commissionAmt < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'commission_amount must be a non-negative number'
+            });
+        }
+
+        // Fetch quotation + booking info
+        const { data: quotation, error: quotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                )
+            `)
+            .eq('id', quotationId)
+            .single();
+
+        if (quotationError || !quotation) {
+            return res.status(404).json({ success: false, message: 'Quotation not found' });
+        }
+
+        if (quotation.status !== 'pending_admin_review') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot approve a quotation with status "${quotation.status}". Only "pending_admin_review" quotations can be approved.`
+            });
+        }
+
+        const proPrice = parseFloat(quotation.quoted_price);
+        const adminPrice = proPrice + commissionAmt;
+        const effectiveRate = proPrice > 0 ? commissionAmt / proPrice : 0;
+
+        // Update the quotation
+        const { data: updatedQuotation, error: updateError } = await supabaseAdmin
+            .from('booking_quotations')
+            .update({
+                status: 'pending',
+                admin_price: adminPrice,
+                commission_amount: commissionAmt,
+                commission_rate: effectiveRate,
+                admin_approved_at: new Date().toISOString(),
+                admin_approved_by: req.user.id,
+                admin_review_notes: admin_review_notes || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', quotationId)
+            .select()
+            .single();
+
+        if (updateError) {
+            logger.error('Approve quotation update error', { error: updateError.message });
+            return res.status(500).json({ success: false, message: 'Failed to approve quotation' });
+        }
+
+        // Fetch booking for notification
+        const { data: booking } = await supabaseAdmin
+            .from('bookings')
+            .select('id, user_id, service_name, booking_number')
+            .eq('id', quotation.booking_id)
+            .single();
+
+        if (booking) {
+            // Calculate tax on the admin-set price
+            const taxRateDecimal = await getTaxRate('quote');
+            const tax = adminPrice * taxRateDecimal;
+            const finalPrice = adminPrice + tax;
+
+            // Now notify the customer
+            await createNotification(booking.user_id, {
+                type: 'booking',
+                title: 'New Quote Received!',
+                message: `${quotation.pro_profiles?.business_name || 'A pro'} submitted a quote of $${finalPrice.toFixed(2)} for your ${booking.service_name}. Review and accept to proceed.`,
+                link: `/my-jobs`,
+                data: { booking_id: booking.id, quotation_id: quotationId }
+            });
+
+            // Email homeowner about the approved quote
+            try {
+                const { data: homeowner } = await supabaseAdmin
+                    .from('profiles')
+                    .select('email, full_name')
+                    .eq('id', booking.user_id)
+                    .single();
+                if (homeowner?.email) {
+                    await sendHomeownerQuoteReceivedEmail(
+                        homeowner.email,
+                        homeowner.full_name || 'Homeowner',
+                        booking,
+                        quotation.pro_profiles?.business_name || 'A pro',
+                        adminPrice,
+                        finalPrice
+                    );
+                }
+            } catch (emailErr) {
+                logger.error('Failed to send homeowner quote received email after admin approval', { error: emailErr.message, bookingId: booking.id });
+            }
+        }
+
+        logger.info('Quotation approved by admin', {
+            quotationId,
+            adminId: req.user.id,
+            proPrice,
+            commissionAmt,
+            adminPrice
+        });
+
+        res.json({
+            success: true,
+            message: `Quotation approved. Customer total: $${(parseFloat(updatedQuotation.admin_price)).toFixed(2)} (excl. tax). Customer has been notified.`,
+            data: { quotation: updatedQuotation }
+        });
+    } catch (error) {
+        logger.error('Approve quotation controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to approve quotation' });
+    }
+};
+
+/**
+ * Admin: Reject a pending_admin_review quotation (will not be shown to customer)
+ * POST /api/bookings/admin/quotations/:quotationId/reject
+ * Body: { reason }
+ */
+exports.rejectQuotationByAdmin = async (req, res) => {
+    try {
+        const { quotationId } = req.params;
+        const { reason } = req.body;
+
+        const { data: quotation, error: quotationError } = await supabaseAdmin
+            .from('booking_quotations')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                )
+            `)
+            .eq('id', quotationId)
+            .single();
+
+        if (quotationError || !quotation) {
+            return res.status(404).json({ success: false, message: 'Quotation not found' });
+        }
+
+        if (quotation.status !== 'pending_admin_review') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot reject a quotation with status "${quotation.status}". Only "pending_admin_review" quotations can be rejected here.`
+            });
+        }
+
+        const { data: updatedQuotation, error: updateError } = await supabaseAdmin
+            .from('booking_quotations')
+            .update({
+                status: 'rejected',
+                admin_review_notes: reason || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', quotationId)
+            .select()
+            .single();
+
+        if (updateError) {
+            logger.error('Reject quotation by admin error', { error: updateError.message });
+            return res.status(500).json({ success: false, message: 'Failed to reject quotation' });
+        }
+
+        // Fetch booking details for the pro notification
+        const { data: booking } = await supabaseAdmin
+            .from('bookings')
+            .select('id, service_name, booking_number')
+            .eq('id', quotation.booking_id)
+            .single();
+
+        // Notify the pro that their quote was not approved
+        if (quotation.pro_profiles?.user_id) {
+            await createNotification(quotation.pro_profiles.user_id, {
+                type: 'booking',
+                title: 'Quote Not Approved',
+                message: `Your quote for ${booking?.service_name || 'a service'} was not approved by BridgeWork.${reason ? ` Reason: ${reason}` : ' Please contact support for details.'}`,
+                link: `/pro-dashboard/quote-requests`,
+                data: { booking_id: quotation.booking_id, quotation_id: quotationId }
+            });
+        }
+
+        logger.info('Quotation rejected by admin', { quotationId, adminId: req.user.id, reason });
+
+        res.json({
+            success: true,
+            message: 'Quotation rejected. The pro has been notified.',
+            data: { quotation: updatedQuotation }
+        });
+    } catch (error) {
+        logger.error('Reject quotation by admin controller error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to reject quotation' });
+    }
+};
 
 /**
  * Admin: Get all bookings with their quotations

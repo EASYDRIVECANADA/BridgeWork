@@ -149,6 +149,31 @@ router.get('/admin/quotations',
     bookingsController.getAllQuotations
 );
 
+// Approve a pending_admin_review quotation (set commission, release to customer)
+router.post('/admin/quotations/:quotationId/approve',
+    authenticate,
+    authorize('admin'),
+    [
+        param('quotationId').isUUID(),
+        body('commission_amount').isFloat({ min: 0 }).withMessage('commission_amount must be a non-negative number'),
+        body('admin_review_notes').optional().trim(),
+        validate
+    ],
+    bookingsController.approveQuotation
+);
+
+// Reject a pending_admin_review quotation (not forwarded to customer)
+router.post('/admin/quotations/:quotationId/reject',
+    authenticate,
+    authorize('admin'),
+    [
+        param('quotationId').isUUID(),
+        body('reason').optional().trim(),
+        validate
+    ],
+    bookingsController.rejectQuotationByAdmin
+);
+
 // Select a winning quotation
 router.put('/admin/quotations/:bookingId/select/:quotationId',
     authenticate,

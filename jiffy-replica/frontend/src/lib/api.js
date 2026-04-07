@@ -99,6 +99,8 @@ export const bookingsAPI = {
   
   // Admin: Multi-quotation management
   getAllQuotations: (params) => api.get('/bookings/admin/quotations', { params }),
+  approveQuotation: (quotationId, data) => api.post(`/bookings/admin/quotations/${quotationId}/approve`, data),
+  rejectQuotationByAdmin: (quotationId, data) => api.post(`/bookings/admin/quotations/${quotationId}/reject`, data),
   selectQuotation: (bookingId, quotationId, data) => api.put(`/bookings/admin/quotations/${bookingId}/select/${quotationId}`, data),
   
   // Admin: Legacy Quote Requests (backward compatibility)

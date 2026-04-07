@@ -1083,9 +1083,11 @@ export default function MyJobsPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-[#0E7480]">
-                              ${parseFloat(quote.quoted_price).toFixed(2)}
+                              ${(parseFloat(quote.admin_price || quote.quoted_price) * 1.13).toFixed(2)}
                             </p>
-                            <p className="text-xs text-gray-500">+ tax</p>
+                            <p className="text-xs text-gray-500">
+                              Subtotal: ${parseFloat(quote.admin_price || quote.quoted_price).toFixed(2)} + 13% HST
+                            </p>
                           </div>
                         </div>
 

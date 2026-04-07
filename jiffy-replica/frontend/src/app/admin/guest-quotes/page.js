@@ -55,6 +55,7 @@ export default function AdminGuestQuotesPage() {
   const [proSearch, setProSearch] = useState('');
   const [prosLoading, setProsLoading] = useState(false);
   const [showReassign, setShowReassign] = useState(null);
+  const [guestCommissions, setGuestCommissions] = useState({}); // { [requestId]: { dollar: string, pct: string } }
 
   useEffect(() => {
     if (!user || profile?.role !== 'admin') {
@@ -94,21 +95,58 @@ export default function AdminGuestQuotesPage() {
     }
   }, [statusFilter]);
 
+  const DEFAULT_GUEST_COMMISSION_RATE = 0.1722;
+
+  const computeGuestBreakdown = (proPrice, commissionDollar) => {
+    const pro = parseFloat(proPrice) || 0;
+    const comm = parseFloat(commissionDollar) || 0;
+    const subtotal = pro + comm;
+    const total = subtotal * 1.13;
+    return { pro, comm, subtotal, total };
+  };
+
+  const getGuestCommission = (reqId, proPrice) => {
+    if (guestCommissions[reqId]) return guestCommissions[reqId];
+    const pro = parseFloat(proPrice) || 0;
+    const defaultDollar = (pro * DEFAULT_GUEST_COMMISSION_RATE).toFixed(2);
+    return { dollar: defaultDollar, pct: (DEFAULT_GUEST_COMMISSION_RATE * 100).toFixed(2) };
+  };
+
+  const setGuestCommissionDollar = (reqId, proPrice, dollarVal) => {
+    const pro = parseFloat(proPrice) || 0;
+    const dollar = parseFloat(dollarVal) || 0;
+    const pct = pro > 0 ? ((dollar / pro) * 100).toFixed(2) : '0.00';
+    setGuestCommissions(prev => ({ ...prev, [reqId]: { dollar: dollarVal, pct } }));
+  };
+
+  const setGuestCommissionPct = (reqId, proPrice, pctVal) => {
+    const pro = parseFloat(proPrice) || 0;
+    const pct = parseFloat(pctVal) || 0;
+    const dollar = ((pro * pct) / 100).toFixed(2);
+    setGuestCommissions(prev => ({ ...prev, [reqId]: { dollar, pct: pctVal } }));
+  };
+
+  const applyGuestPreset = (reqId, proPrice, pct) => {
+    setGuestCommissionPct(reqId, proPrice, String(pct));
+  };
+
   const handleSendQuote = async (id, proQuotedPrice) => {
-    const price = quotePrice || proQuotedPrice;
-    if (!price || parseFloat(price) <= 0) {
+    const comm = getGuestCommission(id, proQuotedPrice);
+    const bd = computeGuestBreakdown(proQuotedPrice, comm.dollar);
+    const price = parseFloat(bd.subtotal.toFixed(2));
+    if (!price || price <= 0) {
       toast.error('Please enter a valid quote price.');
       return;
     }
     setActionLoading(id);
     try {
       await guestQuotesAPI.sendQuote(id, {
-        quoted_price: parseFloat(price),
+        quoted_price: price,
         message: quoteMessage || undefined,
       });
       toast.success('Quote sent to guest via email.');
-      setQuotePrice('');
       setQuoteMessage('');
+      setGuestCommissions(prev => { const n = { ...prev }; delete n[id]; return n; });
       loadRequests();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send quote.');
@@ -734,47 +772,103 @@ export default function AdminGuestQuotesPage() {
                           )}
 
                           {/* Send Quote to Guest (pro_quoted — pro has submitted their quote) */}
-                          {req.status === 'pro_quoted' && (
-                            <div className="border border-blue-100 rounded-lg p-4 bg-blue-50/50">
-                              <p className="text-sm font-medium text-blue-800 mb-2">Send Quote to Guest</p>
-                              <p className="text-xs text-gray-600 mb-3">
-                                Pro quoted <strong>{formatCurrency(req.pro_quoted_price)}</strong>. You can adjust the price or send it as is.
-                              </p>
-                              <div className="flex gap-2 mb-2">
-                                <div className="flex-1">
-                                  <label className="block text-xs text-gray-600 mb-1">Price (CAD)</label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    placeholder={String(req.pro_quoted_price)}
-                                    value={quotePrice}
-                                    onChange={(e) => setQuotePrice(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480]"
-                                  />
-                                  <p className="text-xs text-gray-400 mt-1">Leave blank to use pro&apos;s price ({formatCurrency(req.pro_quoted_price)})</p>
+                          {req.status === 'pro_quoted' && (() => {
+                            const comm = getGuestCommission(req.id, req.pro_quoted_price);
+                            const bd = computeGuestBreakdown(req.pro_quoted_price, comm.dollar);
+                            return (
+                              <div className="border border-blue-100 rounded-lg p-4 bg-blue-50/50">
+                                <p className="text-sm font-semibold text-blue-800 mb-1">Add Commission &amp; Send Quote to Guest</p>
+                                <p className="text-xs text-gray-500 mb-4">
+                                  Pro quoted <strong>{formatCurrency(req.pro_quoted_price)}</strong>. Set your commission below — the guest will see the subtotal + tax.
+                                </p>
+
+                                {/* Commission inputs */}
+                                <div className="flex gap-3 mb-3">
+                                  <div className="flex-1">
+                                    <label className="block text-xs text-gray-600 mb-1">Commission ($)</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={comm.dollar}
+                                      onChange={(e) => setGuestCommissionDollar(req.id, req.pro_quoted_price, e.target.value)}
+                                      className="w-full px-3 py-2 border-2 border-[#0E7480] rounded-lg text-sm font-semibold focus:ring-2 focus:ring-[#0E7480]"
+                                    />
+                                  </div>
+                                  <div className="w-28">
+                                    <label className="block text-xs text-gray-600 mb-1">Commission (%)</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={comm.pct}
+                                      onChange={(e) => setGuestCommissionPct(req.id, req.pro_quoted_price, e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480]"
+                                    />
+                                  </div>
                                 </div>
+
+                                {/* Preset buttons */}
+                                <div className="flex flex-wrap gap-1.5 mb-4">
+                                  {[10, 15, 17.22, 20, 25].map(pct => (
+                                    <button
+                                      key={pct}
+                                      type="button"
+                                      onClick={() => applyGuestPreset(req.id, req.pro_quoted_price, pct)}
+                                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                                        parseFloat(comm.pct) === pct
+                                          ? 'bg-[#0E7480] text-white border-[#0E7480]'
+                                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      {pct}%
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {/* Breakdown cards */}
+                                <div className="grid grid-cols-4 gap-2 mb-4">
+                                  <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
+                                    <p className="text-xs text-gray-500 mb-0.5">Pro Price</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatCurrency(bd.pro)}</p>
+                                  </div>
+                                  <div className="bg-white rounded-lg p-2.5 border border-[#0E7480]/30 text-center">
+                                    <p className="text-xs text-gray-500 mb-0.5">Commission</p>
+                                    <p className="text-sm font-bold text-[#0E7480]">{formatCurrency(bd.comm)}</p>
+                                  </div>
+                                  <div className="bg-white rounded-lg p-2.5 border border-gray-200 text-center">
+                                    <p className="text-xs text-gray-500 mb-0.5">Subtotal</p>
+                                    <p className="text-sm font-bold text-gray-800">{formatCurrency(bd.subtotal)}</p>
+                                  </div>
+                                  <div className="bg-[#0E7480]/5 rounded-lg p-2.5 border border-[#0E7480]/20 text-center">
+                                    <p className="text-xs text-gray-500 mb-0.5">Total (+HST)</p>
+                                    <p className="text-sm font-bold text-[#0E7480]">{formatCurrency(bd.total)}</p>
+                                  </div>
+                                </div>
+
+                                {/* Optional message */}
+                                <div className="mb-3">
+                                  <label className="block text-xs text-gray-600 mb-1">Message to guest (optional)</label>
+                                  <textarea
+                                    rows={2}
+                                    value={quoteMessage}
+                                    onChange={(e) => setQuoteMessage(e.target.value)}
+                                    placeholder="Any notes or details about the quote..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] resize-none"
+                                  />
+                                </div>
+
+                                <button
+                                  onClick={() => handleSendQuote(req.id, req.pro_quoted_price)}
+                                  disabled={actionLoading === req.id}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                  {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                  Send Quote Email ({formatCurrency(bd.total)} to guest)
+                                </button>
                               </div>
-                              <div className="mb-2">
-                                <label className="block text-xs text-gray-600 mb-1">Message to guest (optional)</label>
-                                <textarea
-                                  rows={2}
-                                  value={quoteMessage}
-                                  onChange={(e) => setQuoteMessage(e.target.value)}
-                                  placeholder="Any notes or details about the quote..."
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] resize-none"
-                                />
-                              </div>
-                              <button
-                                onClick={() => handleSendQuote(req.id, req.pro_quoted_price)}
-                                disabled={actionLoading === req.id}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                              >
-                                {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                Send Quote Email
-                              </button>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Send Payment Link (only if quoted) */}
                           {req.status === 'quoted' && (
