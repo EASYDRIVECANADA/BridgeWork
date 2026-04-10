@@ -86,6 +86,25 @@ router.delete('/quotes/:id', authenticate, authorize('pro', 'admin'),
     quotesController.deleteQuote
 );
 
+// ==================== PUBLIC QUOTE PORTAL (no auth) ====================
+
+// Get quote details by public token
+router.get('/portal/:token', quotesController.getQuoteByPublicToken);
+
+// Respond to quote (accept / decline) via public portal
+router.post('/portal/:token/respond',
+    [
+        body('action').isIn(['accept', 'decline']).withMessage('Action must be accept or decline'),
+        body('decline_reason').optional().trim(),
+        body('address').optional().trim(),
+        body('city').optional().trim(),
+        body('zip_code').optional().trim(),
+        body('preferred_date').optional().isDate().withMessage('preferred_date must be a valid date (YYYY-MM-DD)'),
+        validate
+    ],
+    quotesController.respondToQuoteByPublicToken
+);
+
 // ==================== ADMIN: QUOTE INVOICES ====================
 
 // Get quote bookings formatted as invoices (Admin only)

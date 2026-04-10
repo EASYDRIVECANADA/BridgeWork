@@ -233,6 +233,9 @@ export const quotesAPI = {
   getStats: () => api.get('/quotes-invoices/stats'),
   // Admin: Quote Bookings as Invoices
   getQuoteInvoices: (params) => api.get('/quotes-invoices/admin/quote-invoices', { params }),
+  // Public portal (no auth required)
+  getPortalQuote: (token) => api.get(`/quotes-invoices/portal/${token}`),
+  respondToPortalQuote: (token, data) => api.post(`/quotes-invoices/portal/${token}/respond`, data),
 };
 
 export const onboardingAPI = {
@@ -329,10 +332,20 @@ export const guestQuotesAPI = {
   sendQuote: (id, data) => api.post(`/guest-quotes/${id}/send-quote`, data),
   sendPaymentLink: (id) => api.post(`/guest-quotes/${id}/send-payment-link`),
   sendInvoice: (id) => api.post(`/guest-quotes/${id}/send-invoice`),
+  uploadPDF: (id, pdfBlob) => {
+    const formData = new FormData();
+    formData.append('pdf', pdfBlob, 'quotation.pdf');
+    return api.post(`/guest-quotes/${id}/upload-pdf`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   // Pro
   getProAssignments: () => api.get('/guest-quotes/pro/assignments'),
   getProAssignmentDetail: (id) => api.get(`/guest-quotes/pro/assignments/${id}`),
   proSubmitQuote: (id, data) => api.post(`/guest-quotes/${id}/pro-submit-quote`, data),
+  submitProof: (id, data) => api.post(`/guest-quotes/${id}/submit-proof`, data),
+  // Public portal (no auth)
+  getPortalQuote: (token) => api.get(`/guest-quotes/portal/${token}`),
 };
 
 export default api;

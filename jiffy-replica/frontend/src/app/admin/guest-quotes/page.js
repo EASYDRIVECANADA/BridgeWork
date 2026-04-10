@@ -8,10 +8,13 @@ import {
   FileText, Clock, User, MapPin, Calendar, DollarSign, Loader2,
   ChevronDown, ChevronUp, CheckCircle, XCircle, Send, AlertTriangle,
   Mail, Phone, CreditCard, Receipt, MessageSquare, ExternalLink,
-  UserPlus, Briefcase, Star, Search, Wrench, RefreshCw
+  UserPlus, Briefcase, Star, Search, Wrench, RefreshCw, Download
 } from 'lucide-react';
 import { guestQuotesAPI, prosAPI } from '@/lib/api';
 import { toast } from 'react-toastify';
+import { generateGuestQuotePDF } from '@/utils/generateGuestQuotePDF';
+import { generateGuestInvoicePDF } from '@/utils/generateGuestInvoicePDF';
+import { generatePayoutReceiptPDF } from '@/utils/generatePayoutReceiptPDF';
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
@@ -221,6 +224,88 @@ export default function AdminGuestQuotesPage() {
       }
       await guestQuotesAPI.sendQuote(id, payload);
       toast.success('Quote sent to guest via email.');
+
+      // Fire LeadConnector webhook (non-blocking)
+      try {
+        const req = requests.find(r => r.id === id);
+        if (req) {
+          const portalBase = typeof window !== 'undefined' ? window.location.origin : 'https://bridgeworkservices.com';
+          const quotePortalUrl = req.public_token
+            ? `${portalBase}/guest-quote/${req.public_token}`
+            : null;
+          fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/039eacdc-7770-4078-a409-f80bd2d6f758', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'guest_quote_sent',
+              // Portal link (fixed, permanent — use {{quote_portal_url}} in GHL)
+              quote_portal_url: quotePortalUrl,
+              // Request identifiers
+              request_id: req.id,
+              request_number: req.request_number,
+              status: req.status,
+              created_at: req.created_at,
+              updated_at: req.updated_at,
+              // Service
+              service_id: req.service_id,
+              service_name: req.service_name,
+              // Guest contact
+              guest_name: req.guest_name,
+              guest_email: req.guest_email,
+              guest_phone: req.guest_phone,
+              // Job location
+              address: req.address,
+              city: req.city,
+              state: req.state,
+              zip_code: req.zip_code,
+              // Guest request details
+              description: req.description || null,
+              preferred_date: req.preferred_date || null,
+              preferred_time: req.preferred_time || null,
+              // Pro quotation
+              pro: req.pro_profiles ? {
+                id: req.assigned_pro_id,
+                business_name: req.pro_profiles.business_name,
+                user_id: req.pro_profiles.user_id,
+              } : null,
+              assigned_at: req.assigned_at || null,
+              pro_quoted_price: req.pro_quoted_price ? parseFloat(req.pro_quoted_price) : null,
+              pro_work_price: req.pro_work_price ? parseFloat(req.pro_work_price) : null,
+              pro_materials_total: req.pro_materials_total ? parseFloat(req.pro_materials_total) : null,
+              pro_materials_list: (() => {
+                if (!req.pro_materials_list) return '';
+                try {
+                  const list = typeof req.pro_materials_list === 'string'
+                    ? JSON.parse(req.pro_materials_list)
+                    : req.pro_materials_list;
+                  return Array.isArray(list) ? list.map(m => m.name || '').filter(Boolean).join(', ') : '';
+                } catch (_) { return ''; }
+              })(),
+              pro_quote_description: req.pro_quote_description || null,
+              pro_estimated_duration: req.pro_estimated_duration || null,
+              pro_warranty_info: req.pro_warranty_info || null,
+              pro_notes: req.pro_notes || null,
+              pro_quote_submitted_at: req.pro_quote_submitted_at || null,
+              // Admin pricing (commission + finalized quote)
+              commission_dollar: parseFloat(bd.comm.toFixed(2)),
+              commission_rate_pct: parseFloat(comm.pct),
+              subtotal: price,
+              tax_amount: parseFloat((bd.total - price).toFixed(2)),
+              total_with_tax: parseFloat(bd.total.toFixed(2)),
+              admin_message: quoteMessage || null,
+              admin_notes: req.admin_notes || null,
+              // Payment / invoice tracking
+              stripe_session_id: req.stripe_session_id || null,
+              stripe_payment_url: req.stripe_payment_url || null,
+              stripe_payment_intent_id: req.stripe_payment_intent_id || null,
+              invoice_sent_at: req.invoice_sent_at || null,
+            }),
+          }).catch(() => {}); // fire-and-forget
+        }
+      } catch (_) {
+        // webhook failure must never break the send flow
+      }
+
       setQuoteMessage('');
       setGuestCommissions(prev => { const n = { ...prev }; delete n[id]; return n; });
       setGuestProPrices(prev => { const n = { ...prev }; delete n[id]; return n; });
@@ -256,6 +341,62 @@ export default function AdminGuestQuotesPage() {
     try {
       await guestQuotesAPI.sendPaymentLink(id);
       toast.success('Payment link sent to guest via email.');
+
+      // Fire LeadConnector webhook (non-blocking)
+      try {
+        const req = requests.find(r => r.id === id);
+        if (req) {
+          const portalBase = typeof window !== 'undefined' ? window.location.origin : 'https://bridgeworkservices.com';
+          const paymentPortalUrl = req.public_token
+            ? `${portalBase}/guest-payment/${req.public_token}`
+            : null;
+          fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/039eacdc-7770-4078-a409-f80bd2d6f758', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'payment_link_sent',
+              // Payment portal link — use {{payment_portal_url}} in GHL
+              payment_portal_url: paymentPortalUrl,
+              // Request identifiers
+              request_id: req.id,
+              request_number: req.request_number,
+              status: 'payment_sent',
+              created_at: req.created_at,
+              updated_at: new Date().toISOString(),
+              // Service
+              service_id: req.service_id,
+              service_name: req.service_name,
+              // Guest contact
+              guest_name: req.guest_name,
+              guest_email: req.guest_email,
+              guest_phone: req.guest_phone,
+              // Job location
+              address: req.address,
+              city: req.city,
+              state: req.state,
+              zip_code: req.zip_code,
+              // Pricing
+              quoted_price: req.quoted_price ? parseFloat(req.quoted_price) : null,
+              tax_amount: req.tax_amount ? parseFloat(req.tax_amount) : null,
+              total_with_tax: (req.quoted_price && req.tax_amount)
+                ? parseFloat((parseFloat(req.quoted_price) + parseFloat(req.tax_amount)).toFixed(2))
+                : null,
+              // Pro
+              pro: req.pro_profiles ? {
+                id: req.assigned_pro_id,
+                business_name: req.pro_profiles.business_name,
+                user_id: req.pro_profiles.user_id,
+              } : null,
+              // Stripe (may be null until page refreshes — backend sets this)
+              stripe_payment_url: req.stripe_payment_url || null,
+              stripe_session_id: req.stripe_session_id || null,
+            }),
+          }).catch(() => {}); // fire-and-forget
+        }
+      } catch (_) {
+        // webhook failure must never break the send flow
+      }
+
       loadRequests();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send payment link.');
@@ -534,12 +675,53 @@ export default function AdminGuestQuotesPage() {
                       {req.pro_quoted_price && (() => {
                         const isEditable = req.status === 'pro_quoted';
                         const edit = getGuestQuoteEdit(req.id, req);
+
+                        const handleDownloadAndStore = async () => {
+                          try {
+                            // Generate and download
+                            generateGuestQuotePDF(req);
+                            // Also generate as blob and upload to storage
+                            const blob = await generateGuestQuotePDF(req, { download: false });
+                            if (blob) {
+                              const res2 = await guestQuotesAPI.uploadPDF(req.id, blob);
+                              if (res2.data?.success) {
+                                toast.success('PDF saved to storage');
+                                loadRequests();
+                              }
+                            }
+                          } catch {
+                            // Download still worked, storage save failed silently
+                          }
+                        };
+
                         return (
                           <div className="bg-white rounded-lg p-4 border border-cyan-200">
-                            <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                              <Wrench className="w-4 h-4 text-cyan-600" /> Pro&apos;s Quotation
-                              {isEditable && <span className="text-xs font-normal text-orange-600 ml-1">(editable by admin)</span>}
-                            </h4>
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                <Wrench className="w-4 h-4 text-cyan-600" /> Pro&apos;s Quotation
+                                {isEditable && <span className="text-xs font-normal text-orange-600 ml-1">(editable by admin)</span>}
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                {req.quote_pdf_url && (
+                                  <a
+                                    href={req.quote_pdf_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                                    title="View stored PDF"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" /> View PDF
+                                  </a>
+                                )}
+                                <button
+                                  onClick={handleDownloadAndStore}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#0E7480] bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors"
+                                  title="Download quotation as PDF"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Download PDF
+                                </button>
+                              </div>
+                            </div>
                             <div className="space-y-3 text-sm">
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-600">Quoted Price:</span>
@@ -609,9 +791,50 @@ export default function AdminGuestQuotesPage() {
                       {/* Price Summary (if quote has been sent to guest) */}
                       {req.quoted_price && (
                         <div className="bg-white rounded-lg p-4 border border-gray-100">
-                          <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-[#0E7480]" /> Quote Summary
-                          </h4>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-[#0E7480]" /> Quote Summary
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              {req.quote_pdf_url && (
+                                <a
+                                  href={req.quote_pdf_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                                  title="View stored PDF"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> View PDF
+                                </a>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    generateGuestQuotePDF(req);
+                                    const blob = await generateGuestQuotePDF(req, { download: false });
+                                    if (blob) {
+                                      const res2 = await guestQuotesAPI.uploadPDF(req.id, blob);
+                                      if (res2.data?.success) {
+                                        toast.success('PDF saved to storage');
+                                        loadRequests();
+                                      }
+                                    }
+                                  } catch { /* download still worked */ }
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#0E7480] bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors"
+                                title="Download quote as PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" /> Quotation
+                              </button>
+                              <button
+                                onClick={() => generateGuestInvoicePDF(req)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
+                                title="Download invoice as PDF"
+                              >
+                                <Receipt className="w-3.5 h-3.5" /> Invoice
+                              </button>
+                            </div>
+                          </div>
                           <div className="grid grid-cols-3 gap-4 text-sm text-center">
                             <div>
                               <p className="text-gray-500 text-xs">Subtotal</p>
@@ -1061,25 +1284,63 @@ export default function AdminGuestQuotesPage() {
                             );
                           })()}
 
-                          {/* Send Payment Link (only if quoted) */}
-                          {req.status === 'quoted' && (
-                            <div className="border border-purple-100 rounded-lg p-4 bg-purple-50/50">
-                              <p className="text-sm font-medium text-purple-800 mb-2">
-                                Send Payment Link — {formatCurrency(total)}
-                              </p>
-                              <p className="text-xs text-gray-600 mb-3">
-                                Creates a Stripe Checkout session and emails the payment link to the guest.
-                              </p>
-                              <button
-                                onClick={() => handleSendPaymentLink(req.id)}
-                                disabled={actionLoading === req.id}
-                                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
-                              >
-                                {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                                Send Payment Link
-                              </button>
-                            </div>
-                          )}
+                          {/* Send Payment Link (only if quoted or proof_submitted) */}
+                          {['quoted', 'proof_submitted'].includes(req.status) && (() => {
+                            const hasProof = !!req.proof_submitted_at;
+                            const isSuperAdmin = profile?.is_superadmin === true;
+                            const canSend = hasProof || isSuperAdmin;                            return (
+                              <div className="border border-purple-100 rounded-lg p-4 bg-purple-50/50">
+                                <p className="text-sm font-medium text-purple-800 mb-2">
+                                  Send Payment Link — {formatCurrency(total)}
+                                </p>
+
+                                {/* Proof of work section */}
+                                {hasProof ? (
+                                  <div className="mb-3 bg-green-50 border border-green-200 rounded-lg p-3">
+                                    <p className="text-xs font-semibold text-green-700 mb-1 flex items-center gap-1">
+                                      <CheckCircle className="w-3.5 h-3.5" /> Proof of Work Submitted
+                                    </p>
+                                    {req.proof_description && (
+                                      <p className="text-xs text-green-800 mb-2">{req.proof_description}</p>
+                                    )}
+                                    {Array.isArray(req.proof_photos) && req.proof_photos.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {req.proof_photos.map((url, i) => (
+                                          <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                            <img src={url} alt={`Proof ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-green-200 hover:opacity-80 transition-opacity" />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                      <p className="text-xs text-amber-800">
+                                        {isSuperAdmin
+                                          ? 'Pro has not submitted proof yet. As SuperAdmin, you can override and send payment now.'
+                                          : 'Waiting for the pro to submit proof of completed work before sending payment.'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <p className="text-xs text-gray-600 mb-3">
+                                  Creates a Stripe Checkout session and emails the payment link to the guest.
+                                </p>
+                                <button
+                                  onClick={() => handleSendPaymentLink(req.id)}
+                                  disabled={actionLoading === req.id || !canSend}
+                                  title={!canSend ? 'Waiting for pro to submit proof of work' : (!hasProof ? 'SuperAdmin override — sending without proof' : undefined)}
+                                  className={`px-4 py-2 text-white rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${!hasProof && isSuperAdmin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                                >
+                                  {actionLoading === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                                  Send Payment Link
+                                </button>
+                              </div>
+                            );
+                          })()}
 
                           {/* Send Invoice (only if paid) */}
                           {req.status === 'paid' && (
@@ -1088,7 +1349,7 @@ export default function AdminGuestQuotesPage() {
                               <p className="text-xs text-gray-600 mb-3">
                                 Payment has been confirmed. Send the guest an invoice receipt via email.
                               </p>
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 <button
                                   onClick={() => handleSendInvoice(req.id)}
                                   disabled={actionLoading === req.id}
@@ -1105,7 +1366,61 @@ export default function AdminGuestQuotesPage() {
                                   <CheckCircle className="w-4 h-4" />
                                   Mark Completed
                                 </button>
+                                {req.pro_quoted_price && (
+                                  <button
+                                    onClick={() => generatePayoutReceiptPDF({
+                                      proName: req.pro_profiles?.business_name || req.pro_profiles?.profiles?.full_name || 'Pro',
+                                      proEmail: req.pro_profiles?.profiles?.email || '',
+                                      type: 'payout',
+                                      amount: parseFloat(req.pro_quoted_price),
+                                      platformFee: req.commission_amount ? parseFloat(req.commission_amount) : 0,
+                                      commissionRate: req.commission_amount && req.pro_quoted_price ? parseFloat(req.commission_amount) / parseFloat(req.pro_quoted_price) : 0,
+                                      status: 'completed',
+                                      payoutMethod: 'e_transfer',
+                                      createdAt: new Date().toISOString(),
+                                      serviceName: req.service_name,
+                                      bookingNumber: req.request_number,
+                                      entryId: req.id,
+                                    })}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                    Pro Payout Receipt
+                                  </button>
+                                )}
                               </div>
+                            </div>
+                          )}
+
+                          {/* Pro Payout Receipt (available once payment sent or later) */}
+                          {['payment_sent', 'paid', 'completed'].includes(req.status) && req.pro_quoted_price && (
+                            <div className="border border-blue-100 rounded-lg p-4 bg-blue-50/50">
+                              <p className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                                <Download className="w-4 h-4" /> Pro Payout Receipt
+                              </p>
+                              <p className="text-xs text-gray-600 mb-3">
+                                Download a payout receipt for the pro&apos;s payment of {formatCurrency(req.pro_quoted_price)}.
+                              </p>
+                              <button
+                                onClick={() => generatePayoutReceiptPDF({
+                                  proName: req.pro_profiles?.business_name || req.pro_profiles?.profiles?.full_name || 'Pro',
+                                  proEmail: req.pro_profiles?.profiles?.email || '',
+                                  type: 'payout',
+                                  amount: parseFloat(req.pro_quoted_price),
+                                  platformFee: req.commission_amount ? parseFloat(req.commission_amount) : 0,
+                                  commissionRate: req.commission_amount && req.pro_quoted_price ? parseFloat(req.commission_amount) / parseFloat(req.pro_quoted_price) : 0,
+                                  status: 'completed',
+                                  payoutMethod: 'e_transfer',
+                                  createdAt: new Date().toISOString(),
+                                  serviceName: req.service_name,
+                                  bookingNumber: req.request_number,
+                                  entryId: req.id,
+                                })}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download Payout Receipt ({formatCurrency(req.pro_quoted_price)})
+                              </button>
                             </div>
                           )}
 

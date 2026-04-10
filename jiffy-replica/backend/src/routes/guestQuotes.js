@@ -1,9 +1,22 @@
 const express = require('express');
 const { body, param } = require('express-validator');
+const multer = require('multer');
 const guestQuotesController = require('../controllers/guestQuotesController');
 const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const rateLimit = require('express-rate-limit');
+
+const pdfUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed'), false);
+        }
+    }
+});
 
 const router = express.Router();
 
@@ -141,5 +154,32 @@ router.post('/:id/pro-submit-quote',
     ],
     guestQuotesController.proSubmitGuestQuote
 );
+
+// Pro submits proof of completed work
+router.post('/:id/submit-proof',
+    authenticate,
+    authorize('pro'),
+    [
+        param('id').isUUID(),
+        body('description').optional().trim(),
+        body('photo_urls').optional().isArray().withMessage('photo_urls must be an array'),
+        validate,
+    ],
+    guestQuotesController.submitGuestQuoteProof
+);
+
+// Upload generated PDF for a guest quote request
+router.post('/:id/upload-pdf',
+    authenticate,
+    authorize('admin'),
+    pdfUpload.single('pdf'),
+    [param('id').isUUID(), validate],
+    guestQuotesController.uploadGuestQuotePDF
+);
+
+// ==================== PUBLIC GUEST QUOTE PORTAL (no auth) ====================
+
+// Get guest quote details by public token
+router.get('/portal/:token', guestQuotesController.getGuestQuoteByPublicToken);
 
 module.exports = router;

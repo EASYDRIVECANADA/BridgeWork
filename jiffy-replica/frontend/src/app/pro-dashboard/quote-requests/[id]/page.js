@@ -176,8 +176,10 @@ export default function SubmitQuotePage() {
 
     // Convert duration to minutes for storage
     let durationInMinutes = estimatedDuration ? parseInt(estimatedDuration) : null;
-    if (durationInMinutes && durationUnit === 'hours') {
-      durationInMinutes = durationInMinutes * 60;
+    if (durationInMinutes) {
+      if (durationUnit === 'hours') durationInMinutes = durationInMinutes * 60;
+      else if (durationUnit === 'days') durationInMinutes = durationInMinutes * 60 * 24;
+      else if (durationUnit === 'weeks') durationInMinutes = durationInMinutes * 60 * 24 * 7;
     }
 
     try {
@@ -523,6 +525,8 @@ export default function SubmitQuotePage() {
                   >
                     <option value="minutes">Minutes</option>
                     <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
                   </select>
                 </div>
               </div>

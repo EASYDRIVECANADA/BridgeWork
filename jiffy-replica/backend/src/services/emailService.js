@@ -1515,6 +1515,9 @@ async function sendAdminProGuestQuoteSubmittedEmail(adminEmails, request, proBus
 // ─── Customer: Formal Quote Received (Pro-Generated) ────────────────────────
 function formalQuoteEmailHTML(customerName, proName, quote) {
     const frontendUrl = process.env.FRONTEND_URL || 'https://bridgeworkservices.com';
+    const portalLink = quote.public_token
+        ? `${frontendUrl}/quote/${quote.public_token}`
+        : `${frontendUrl}/dashboard/quotes/${quote.id}`;
     const items = (quote.quote_items || []).map(i => `
         <tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:14px;color:#374151;">${i.description}</td>
@@ -1558,7 +1561,7 @@ function formalQuoteEmailHTML(customerName, proName, quote) {
         ${quote.valid_until ? `<p style="margin:0 0 20px;color:#6b7280;font-size:13px;">This quote is valid until <strong>${new Date(quote.valid_until).toLocaleDateString('en-CA', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>.</p>` : ''}
 
         <div style="text-align:center;margin-top:24px;">
-            <a href="${frontendUrl}/dashboard/quotes/${quote.id}"
+            <a href="${portalLink}"
                style="display:inline-block;padding:12px 32px;background:#0E7480;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
                 View Quote Details
             </a>

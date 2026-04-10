@@ -317,6 +317,15 @@ exports.sendPaymentLink = async (req, res) => {
             return res.status(400).json({ success: false, message: 'A quote must be sent before creating a payment link.' });
         }
 
+        if (!request.proof_submitted_at) {
+            // SuperAdmin can bypass proof requirement
+            const isSuperAdmin = req.profile?.is_superadmin === true;
+            if (!isSuperAdmin) {
+                return res.status(400).json({ success: false, message: 'The pro must submit proof of work before a payment link can be sent.' });
+            }
+            logger.info('SuperAdmin bypassing proof requirement for guest quote payment link', { requestId: id, adminId: req.profile?.id });
+        }
+
         const totalAmount = Math.round((request.quoted_price + (request.tax_amount || 0)) * 100); // cents
 
         // Create Stripe Checkout Session
@@ -596,7 +605,7 @@ exports.getProGuestQuoteAssignmentDetail = async (req, res) => {
 exports.proSubmitGuestQuote = async (req, res) => {
     try {
         const { id } = req.params;
-        const { quoted_price, description, estimated_duration, warranty_info, notes } = req.body;
+        const { quoted_price, description, estimated_duration, warranty_info, notes, materials_list, materials_total, work_price } = req.body;
 
         if (!quoted_price || parseFloat(quoted_price) <= 0) {
             return res.status(400).json({ success: false, message: 'A valid price greater than 0 is required.' });
@@ -638,6 +647,9 @@ exports.proSubmitGuestQuote = async (req, res) => {
                 pro_estimated_duration: estimated_duration || null,
                 pro_warranty_info: warranty_info || null,
                 pro_notes: notes || null,
+                pro_materials_list: materials_list || null,
+                pro_materials_total: materials_total != null ? parseFloat(materials_total) : null,
+                pro_work_price: work_price != null ? parseFloat(work_price) : null,
                 pro_quote_submitted_at: new Date().toISOString(),
                 status: 'pro_quoted',
                 updated_at: new Date().toISOString(),
@@ -736,5 +748,211 @@ exports.handleGuestQuotePayment = async (session) => {
         logger.info('Guest quote payment processed', { request_id: guestRequestId, amount: session.amount_total });
     } catch (error) {
         logger.error('Error handling guest quote payment webhook', { error: error.message });
+    }
+};
+
+// ==================== PRO: Submit proof of work ====================
+
+// POST /:id/submit-proof — pro uploads proof photos + description after completing the job
+exports.submitGuestQuoteProof = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { description, photo_urls } = req.body;
+        const proUserId = req.user.id;
+
+        // Fetch the assignment and validate ownership
+        const { data: assignment, error: fetchError } = await supabaseAdmin
+            .from('guest_quote_requests')
+            .select('id, status, assigned_pro_id, request_number, guest_name, service_name, pro_profiles!assigned_pro_id(user_id)')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !assignment) {
+            return res.status(404).json({ success: false, message: 'Assignment not found.' });
+        }
+
+        if (assignment.pro_profiles?.user_id !== proUserId) {
+            return res.status(403).json({ success: false, message: 'Access denied.' });
+        }
+
+        const allowedStatuses = ['quoted', 'payment_sent'];
+        if (!allowedStatuses.includes(assignment.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot submit proof for a request with status "${assignment.status}".`
+            });
+        }
+
+        const photos = Array.isArray(photo_urls) ? photo_urls : [];
+
+        const { data: updated, error: updateError } = await supabaseAdmin
+            .from('guest_quote_requests')
+            .update({
+                proof_submitted_at: new Date().toISOString(),
+                proof_description: description || null,
+                proof_photos: photos,
+                status: 'proof_submitted',
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateError) {
+            logger.error('Submit guest quote proof error', { error: updateError.message });
+            return res.status(500).json({ success: false, message: 'Failed to submit proof.' });
+        }
+
+        // Notify all admins
+        const { data: admins } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('role', 'admin')
+            .eq('is_active', true);
+
+        if (admins && admins.length > 0) {
+            await Promise.allSettled(
+                admins.map((admin) =>
+                    createNotification({
+                        userId: admin.id,
+                        type: 'guest_quote_proof_submitted',
+                        title: 'Proof of Work Submitted',
+                        message: `Pro submitted proof for guest request ${assignment.request_number} (${assignment.service_name}).`,
+                        link: '/admin/guest-quotes',
+                        data: { request_id: id, request_number: assignment.request_number },
+                    })
+                )
+            );
+        }
+
+        logger.info('Guest quote proof submitted', { request_id: id, pro_user_id: proUserId });
+
+        res.json({
+            success: true,
+            message: 'Proof submitted successfully. Admin will review and send the payment link.',
+            data: { request: updated }
+        });
+    } catch (error) {
+        logger.error('Submit guest quote proof error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to submit proof.' });
+    }
+};
+
+// ==================== PUBLIC GUEST QUOTE PORTAL (no auth required) ====================
+
+// GET /portal/:token — fetch guest quote details for the public portal
+exports.getGuestQuoteByPublicToken = async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        const { data: request, error } = await supabaseAdmin
+            .from('guest_quote_requests')
+            .select(`
+                *,
+                pro_profiles (
+                    id,
+                    business_name,
+                    profiles!pro_profiles_user_id_fkey (
+                        full_name,
+                        avatar_url
+                    )
+                )
+            `)
+            .eq('public_token', token)
+            .single();
+
+        if (error || !request) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quote not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { request }
+        });
+    } catch (error) {
+        logger.error('Get guest quote by public token error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve quote'
+        });
+    }
+};
+
+// ==================== PDF STORAGE ====================
+
+// POST /:id/upload-pdf — upload a generated quote PDF to Supabase Storage
+exports.uploadGuestQuotePDF = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No PDF file provided.' });
+        }
+
+        // Verify the guest quote exists
+        const { data: request, error: fetchError } = await supabaseAdmin
+            .from('guest_quote_requests')
+            .select('id, request_number')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !request) {
+            return res.status(404).json({ success: false, message: 'Guest quote request not found.' });
+        }
+
+        // Ensure bucket exists
+        const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+        const bucketExists = buckets?.some(b => b.name === 'documents');
+        if (!bucketExists) {
+            await supabaseAdmin.storage.createBucket('documents', {
+                public: true,
+                fileSizeLimit: 10 * 1024 * 1024,
+                allowedMimeTypes: ['application/pdf']
+            });
+        }
+
+        // Upload PDF
+        const fileName = `guest-quotes/${id}/${request.request_number || id}_quotation.pdf`;
+
+        // Remove old PDF if it exists (upsert)
+        await supabaseAdmin.storage.from('documents').remove([fileName]);
+
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from('documents')
+            .upload(fileName, req.file.buffer, {
+                contentType: 'application/pdf',
+                upsert: true
+            });
+
+        if (uploadError) {
+            logger.error('PDF upload error', { error: uploadError.message });
+            return res.status(500).json({ success: false, message: 'Failed to upload PDF.' });
+        }
+
+        // Get public URL
+        const { data: urlData } = supabaseAdmin.storage
+            .from('documents')
+            .getPublicUrl(fileName);
+
+        const pdfUrl = urlData.publicUrl;
+
+        // Save URL to guest_quote_requests
+        await supabaseAdmin
+            .from('guest_quote_requests')
+            .update({ quote_pdf_url: pdfUrl, updated_at: new Date().toISOString() })
+            .eq('id', id);
+
+        logger.info('Guest quote PDF uploaded', { requestId: id, pdfUrl });
+
+        res.json({
+            success: true,
+            message: 'PDF uploaded successfully.',
+            data: { pdf_url: pdfUrl }
+        });
+    } catch (error) {
+        logger.error('Upload guest quote PDF error', { error: error.message });
+        res.status(500).json({ success: false, message: 'Failed to upload PDF.' });
     }
 };

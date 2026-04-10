@@ -114,6 +114,11 @@ export default function ProDashboardPage() {
   // Guest quote assignments state
   const [guestQuoteAssignments, setGuestQuoteAssignments] = useState([]);
   const [guestQuotesLoading, setGuestQuotesLoading] = useState(false);
+  // Proof upload state for guest quotes
+  const [proofModal, setProofModal] = useState(null); // { id, request_number }
+  const [proofDescription, setProofDescription] = useState('');
+  const [guestProofFiles, setGuestProofFiles] = useState([]);
+  const [proofUploading, setProofUploading] = useState(false);
 
   // Pro profile settings state
   const avatarInputRef = useRef(null);
@@ -367,6 +372,37 @@ export default function ProDashboardPage() {
       window.removeEventListener('storage', handleStorage);
     };
   }, [user, router, dispatch, loadPayoutData, refreshReviewLinkedData]);
+
+  // Submit proof of work for a guest quote assignment
+  const handleSubmitGuestQuoteProof = async () => {
+    if (!proofModal) return;
+    setProofUploading(true);
+    try {
+      const photoUrls = [];
+      for (const file of guestProofFiles) {
+        const ext = file.name.split('.').pop();
+        const path = `guest-quote-proofs/${proofModal.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('proof-photos').upload(path, file, { upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('proof-photos').getPublicUrl(path);
+        photoUrls.push(urlData.publicUrl);
+      }
+      await guestQuotesAPI.submitProof(proofModal.id, {
+        description: proofDescription,
+        photo_urls: photoUrls,
+      });
+      toast.success('Proof submitted! Admin will review and send the payment link.');
+      setProofModal(null);
+      setProofDescription('');
+      setGuestProofFiles([]);
+      // Refresh assignments
+      const res = await guestQuotesAPI.getProAssignments();
+      setGuestQuoteAssignments(res.data?.data?.assignments || []);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to submit proof. Please try again.');
+    }
+    setProofUploading(false);
+  };
 
   // Handle return from Stripe onboarding (?stripe=success)
   useEffect(() => {
@@ -1466,6 +1502,11 @@ export default function ProDashboardPage() {
                       {guestQuoteAssignments.map((gq) => {
                         const isAssigned = gq.status === 'pro_assigned';
                         const isQuoted = gq.status === 'pro_quoted';
+                        const isQuotedAdmin = gq.status === 'quoted';
+                        const isPaymentSent = gq.status === 'payment_sent';
+                        const isProofSubmitted = gq.status === 'proof_submitted';
+                        const canSubmitProof = ['quoted', 'payment_sent'].includes(gq.status) && !gq.proof_submitted_at;
+                        const proofAlreadySubmitted = !!gq.proof_submitted_at;
 
                         return (
                           <div key={gq.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1481,13 +1522,19 @@ export default function ProDashboardPage() {
                                     <p className="text-sm text-gray-500 mt-0.5">Guest: {gq.guest_name}</p>
                                   </div>
                                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                                    isAssigned
-                                      ? 'bg-orange-100 text-orange-700'
-                                      : isQuoted
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-gray-100 text-gray-700'
+                                    isAssigned ? 'bg-orange-100 text-orange-700'
+                                    : isQuoted ? 'bg-green-100 text-green-700'
+                                    : isProofSubmitted ? 'bg-indigo-100 text-indigo-700'
+                                    : isPaymentSent ? 'bg-purple-100 text-purple-700'
+                                    : isQuotedAdmin ? 'bg-teal-100 text-teal-700'
+                                    : 'bg-gray-100 text-gray-700'
                                   }`}>
-                                    {isAssigned ? 'Awaiting Your Quote' : isQuoted ? 'Quote Submitted' : gq.status?.replace(/_/g, ' ')}
+                                    {isAssigned ? 'Awaiting Your Quote'
+                                      : isQuoted ? 'Quote Submitted'
+                                      : isProofSubmitted ? 'Proof Submitted'
+                                      : isPaymentSent ? 'Awaiting Payment'
+                                      : isQuotedAdmin ? 'Quote Sent to Guest'
+                                      : gq.status?.replace(/_/g, ' ')}
                                   </span>
                                 </div>
 
@@ -1511,14 +1558,27 @@ export default function ProDashboardPage() {
                                 )}
 
                                 {/* Quote Submitted Summary */}
-                                {isQuoted && gq.pro_quoted_price && (
+                                {(isQuoted || isQuotedAdmin || isProofSubmitted || isPaymentSent) && gq.pro_quoted_price && (
                                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
                                     <p className="font-medium text-green-800 mb-1">Your Submitted Quote:</p>
                                     <p className="text-green-700 text-lg font-bold">
                                       {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(gq.pro_quoted_price)}
                                     </p>
                                     {gq.pro_quote_description && <p className="text-green-700 mt-1">{gq.pro_quote_description}</p>}
-                                    <p className="text-xs text-green-600 mt-2">Waiting for admin to review and send to guest.</p>
+                                    {isQuoted && !proofAlreadySubmitted && (
+                                      <p className="text-xs text-amber-700 mt-2 font-medium">Once the job is complete, submit proof of work so the guest can pay.</p>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Proof already submitted */}
+                                {proofAlreadySubmitted && (
+                                  <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm">
+                                    <p className="font-medium text-indigo-800 flex items-center gap-1">
+                                      <CheckCircle className="w-3.5 h-3.5" /> Proof Submitted
+                                    </p>
+                                    {gq.proof_description && <p className="text-indigo-700 mt-1 text-xs">{gq.proof_description}</p>}
+                                    <p className="text-xs text-indigo-500 mt-1">Awaiting admin review before payment link is sent.</p>
                                   </div>
                                 )}
                               </div>
@@ -1535,6 +1595,18 @@ export default function ProDashboardPage() {
                                 >
                                   {isAssigned ? 'Submit Quote' : isQuoted ? 'View Quote' : 'View Details'}
                                 </Link>
+                                {canSubmitProof && (
+                                  <button
+                                    onClick={() => {
+                                      setProofModal({ id: gq.id, request_number: gq.request_number });
+                                      setProofDescription('');
+                                      setProofFiles([]);
+                                    }}
+                                    className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-center"
+                                  >
+                                    Submit Proof
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -3379,6 +3451,94 @@ export default function ProDashboardPage() {
         booking={invoiceModalBooking}
         onSubmit={handleInvoiceSubmit}
       />
+
+      {/* Guest Quote Proof Upload Modal */}
+      {proofModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Submit Proof of Work</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{proofModal.request_number}</p>
+              </div>
+              <button onClick={() => setProofModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Work Description</label>
+                <textarea
+                  rows={3}
+                  value={proofDescription}
+                  onChange={(e) => setProofDescription(e.target.value)}
+                  placeholder="Describe the work completed (optional)..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
+                />
+              </div>
+
+              {/* Photo upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photos (optional)</label>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-6 cursor-pointer hover:border-[#0E7480] transition-colors">
+                  <Camera className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload photos</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 5 files</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).slice(0, 5);
+                      setGuestProofFiles(files);
+                    }}
+                  />
+                </label>
+                {guestProofFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {guestProofFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700">
+                        <ImageIcon className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="max-w-[120px] truncate">{f.name}</span>
+                        <button
+                          onClick={() => setGuestProofFiles(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-gray-400 hover:text-red-500 ml-1"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-700">
+                Once submitted, the admin will review your proof and send the payment link to the guest.
+              </div>
+            </div>
+
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setProofModal(null)}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitGuestQuoteProof}
+                disabled={proofUploading}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {proofUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {proofUploading ? 'Submitting...' : 'Submit Proof'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

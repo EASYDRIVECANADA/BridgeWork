@@ -13,6 +13,7 @@ import InvoiceViewModal from '@/components/InvoiceViewModal';
 import { generateReceiptPDF } from '@/utils/generateReceiptPDF';
 import { toast } from 'react-toastify';
 import { getSocket, joinBookingRoom, leaveBookingRoom } from '@/lib/socket';
+import { supabase } from '@/lib/supabase';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -103,6 +104,28 @@ export default function MyJobsPage() {
       s.off('booking:status_update', handleStatusUpdate);
     };
   }, [bookings, dispatch, currentOffset]);
+
+  // Supabase Realtime: catch booking status changes that arrive outside Socket.IO
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`my-jobs-bookings-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          dispatch(fetchBookings({ limit: 20, offset: currentOffset }));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, dispatch, currentOffset]);
 
   // Check which completed bookings already have reviews
   useEffect(() => {
@@ -237,9 +260,12 @@ export default function MyJobsPage() {
       try {
         const acceptedQuote = quotations.find((q) => q.id === quotationId) || {};
         const booking = quotesModal.booking || {};
+        const portalBase = typeof window !== 'undefined' ? window.location.origin : 'https://bridgeworkservices.com';
         const webhookPayload = {
           event: 'quote_accepted',
           timestamp: new Date().toISOString(),
+          // Portal link — directs customer to their active jobs where they can track this booking
+          quote_portal_url: `${portalBase}/my-jobs`,
           booking: {
             id: booking.id,
             booking_number: booking.booking_number,

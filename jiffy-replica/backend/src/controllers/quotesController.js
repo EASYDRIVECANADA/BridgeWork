@@ -615,6 +615,69 @@ exports.sendQuote = async (req, res) => {
             logger.warn('Failed to send quote email, continuing', { error: emailErr.message });
         }
 
+        // Fire GHL (LeadConnector) webhook — fire-and-forget, must not block the response
+        try {
+            const frontendUrl = process.env.FRONTEND_URL || 'https://bridgeworkservices.com';
+            const portalUrl = updated.public_token
+                ? `${frontendUrl}/quote/${updated.public_token}`
+                : null;
+
+            const { data: customer2 } = await supabaseAdmin
+                .from('profiles')
+                .select('full_name, email, phone')
+                .eq('id', quote.customer_id)
+                .single();
+
+            const { data: quoteItemsGhl } = await supabaseAdmin
+                .from('quote_items')
+                .select('*')
+                .eq('quote_id', id);
+
+            fetch('https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/039eacdc-7770-4078-a409-f80bd2d6f758', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event: 'formal_quote_sent',
+                    // Quote identifiers
+                    quote_id: updated.id,
+                    quote_number: updated.quote_number,
+                    quote_title: updated.title,
+                    quote_status: updated.status,
+                    // Portal link (fixed, permanent)
+                    quote_portal_url: portalUrl,
+                    // Customer
+                    customer_name: customer2?.full_name || null,
+                    customer_email: customer2?.email || null,
+                    customer_phone: customer2?.phone || null,
+                    // Pro
+                    pro_business_name: proProfile.business_name || null,
+                    // Line items
+                    items: (quoteItemsGhl || []).map(i => ({
+                        description: i.description,
+                        quantity: i.quantity,
+                        unit_price: parseFloat(i.unit_price),
+                        amount: parseFloat(i.amount),
+                    })),
+                    // Pricing
+                    subtotal: parseFloat(updated.subtotal || 0),
+                    tax_rate: parseFloat(updated.tax_rate || 0.13),
+                    tax_amount: parseFloat(updated.tax_amount || 0),
+                    discount_amount: parseFloat(updated.discount_amount || 0),
+                    total: parseFloat(updated.total || 0),
+                    currency: updated.currency || 'CAD',
+                    // Validity
+                    valid_until: updated.valid_until || null,
+                    notes: updated.notes || null,
+                    created_at: updated.created_at,
+                    sent_at: updated.sent_at,
+                }),
+            }).catch((webhookErr) => {
+                logger.warn('GHL webhook failed for formal quote, continuing', { error: webhookErr.message });
+            });
+        } catch (webhookErr) {
+            logger.warn('GHL webhook setup failed for formal quote, continuing', { error: webhookErr.message });
+        }
+
         logger.info('Quote sent', { quoteId: id, customerId: quote.customer_id });
 
         res.json({
@@ -1751,6 +1814,280 @@ exports.getQuoteBookingsAsInvoices = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch quote invoices'
+        });
+    }
+};
+
+// ==================== PUBLIC QUOTE PORTAL (no auth required) ====================
+
+const generatePortalBookingNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    return `BW-${year}${month}${day}-${random}`;
+};
+
+// GET /portal/:token — fetch quote details for the public portal (no auth)
+exports.getQuoteByPublicToken = async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        const { data: quote, error } = await supabaseAdmin
+            .from('quotes')
+            .select(`
+                *,
+                quote_items (*),
+                pro_profiles (
+                    id,
+                    business_name,
+                    profiles!pro_profiles_user_id_fkey (
+                        full_name,
+                        avatar_url
+                    )
+                ),
+                customer:profiles!quotes_customer_id_fkey (
+                    id,
+                    full_name,
+                    email
+                )
+            `)
+            .eq('public_token', token)
+            .single();
+
+        if (error || !quote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quote not found'
+            });
+        }
+
+        // Auto-mark as viewed if it was sent
+        if (quote.status === 'sent') {
+            await supabaseAdmin
+                .from('quotes')
+                .update({ status: 'viewed' })
+                .eq('id', quote.id);
+            quote.status = 'viewed';
+        }
+
+        // Check if expired (only for quotes not yet responded to)
+        if (['sent', 'viewed'].includes(quote.status) && quote.valid_until && new Date(quote.valid_until) < new Date()) {
+            await supabaseAdmin
+                .from('quotes')
+                .update({ status: 'expired' })
+                .eq('id', quote.id);
+            quote.status = 'expired';
+        }
+
+        res.json({
+            success: true,
+            data: { quote }
+        });
+    } catch (error) {
+        logger.error('Get quote by public token error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve quote'
+        });
+    }
+};
+
+// POST /portal/:token/respond — accept or decline quote via public portal (no auth)
+exports.respondToQuoteByPublicToken = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { action, decline_reason, address, city, zip_code, preferred_date } = req.body;
+
+        if (!['accept', 'decline'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Action must be "accept" or "decline"'
+            });
+        }
+
+        const { data: quote, error: fetchError } = await supabaseAdmin
+            .from('quotes')
+            .select(`
+                *,
+                quote_items (*),
+                pro_profiles (
+                    id,
+                    user_id,
+                    business_name
+                ),
+                customer:profiles!quotes_customer_id_fkey (
+                    id,
+                    full_name,
+                    email
+                )
+            `)
+            .eq('public_token', token)
+            .single();
+
+        if (fetchError || !quote) {
+            return res.status(404).json({
+                success: false,
+                message: 'Quote not found'
+            });
+        }
+
+        if (!['sent', 'viewed'].includes(quote.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `This quote has already been ${quote.status}`
+            });
+        }
+
+        // Check expiry
+        if (quote.valid_until && new Date(quote.valid_until) < new Date()) {
+            await supabaseAdmin.from('quotes').update({ status: 'expired' }).eq('id', quote.id);
+            return res.status(400).json({
+                success: false,
+                message: 'This quote has expired and can no longer be accepted'
+            });
+        }
+
+        if (action === 'accept') {
+            // Require address/date fields so a booking can be created
+            if (!address || !city || !preferred_date) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Please provide your address, city, and preferred service date'
+                });
+            }
+
+            // Mark quote as accepted
+            await supabaseAdmin
+                .from('quotes')
+                .update({
+                    status: 'accepted',
+                    accepted_at: new Date().toISOString()
+                })
+                .eq('id', quote.id);
+
+            // Create a booking so the pro sees it in Active Jobs
+            const scheduledDate = preferred_date;
+            const scheduledTime = '09:00';
+            const scheduledDatetime = new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString();
+
+            const { data: newBooking, error: bookingError } = await supabaseAdmin
+                .from('bookings')
+                .insert({
+                    booking_number: generatePortalBookingNumber(),
+                    user_id: quote.customer_id || null,
+                    pro_id: quote.pro_id,
+                    service_id: quote.booking_id ? null : null,
+                    status: 'accepted',
+                    service_name: quote.title,
+                    service_description: quote.description || null,
+                    address: address,
+                    city: city,
+                    state: 'ON',
+                    zip_code: zip_code || 'N/A',
+                    scheduled_date: scheduledDate,
+                    scheduled_time: scheduledTime,
+                    scheduled_datetime: scheduledDatetime,
+                    base_price: parseFloat(quote.subtotal) || 0,
+                    tax: parseFloat(quote.tax_amount) || 0,
+                    total_price: parseFloat(quote.total) || 0,
+                    special_instructions: quote.notes || null,
+                    metadata: { quote_id: quote.id, source: 'quote_portal' }
+                })
+                .select()
+                .single();
+
+            if (bookingError) {
+                logger.error('Portal: failed to create booking from quote', { error: bookingError.message, quoteId: quote.id });
+                // Still mark the quote accepted even if booking creation fails
+            } else {
+                // Link booking back to the quote
+                await supabaseAdmin
+                    .from('quotes')
+                    .update({ booking_id: newBooking.id })
+                    .eq('id', quote.id);
+
+                // Notify the pro
+                if (quote.pro_profiles?.user_id) {
+                    await createNotification(quote.pro_profiles.user_id, {
+                        type: 'system',
+                        title: 'Quote Accepted — New Job Ready',
+                        message: `Your quote "${quote.title}" was accepted! A new booking (${newBooking.booking_number}) has been created and is ready to start.`,
+                        link: `/pro-dashboard?tab=jobs`,
+                        data: { quote_id: quote.id, booking_id: newBooking.id }
+                    });
+                }
+
+                // Notify the customer
+                if (quote.customer_id) {
+                    await createNotification(quote.customer_id, {
+                        type: 'system',
+                        title: 'Quote Accepted',
+                        message: `You have accepted the quote "${quote.title}". Booking reference: ${newBooking.booking_number}`,
+                        link: `/my-jobs`,
+                        data: { quote_id: quote.id, booking_id: newBooking.id }
+                    });
+                }
+
+                logger.info('Portal: quote accepted, booking created', {
+                    quoteId: quote.id,
+                    bookingId: newBooking.id,
+                    bookingNumber: newBooking.booking_number
+                });
+
+                return res.json({
+                    success: true,
+                    message: 'Quote accepted successfully',
+                    data: {
+                        action: 'accepted',
+                        booking_number: newBooking.booking_number,
+                        booking_id: newBooking.id
+                    }
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: 'Quote accepted successfully',
+                data: { action: 'accepted' }
+            });
+
+        } else {
+            // Decline
+            await supabaseAdmin
+                .from('quotes')
+                .update({
+                    status: 'declined',
+                    declined_at: new Date().toISOString(),
+                    decline_reason: decline_reason || null
+                })
+                .eq('id', quote.id);
+
+            // Notify the pro
+            if (quote.pro_profiles?.user_id) {
+                await createNotification(quote.pro_profiles.user_id, {
+                    type: 'system',
+                    title: 'Quote Declined',
+                    message: `Your quote "${quote.title}" was declined by the customer${decline_reason ? `: "${decline_reason}"` : ''}`,
+                    link: `/pro-dashboard?tab=quotes`,
+                    data: { quote_id: quote.id }
+                });
+            }
+
+            logger.info('Portal: quote declined', { quoteId: quote.id });
+
+            return res.json({
+                success: true,
+                message: 'Quote declined',
+                data: { action: 'declined' }
+            });
+        }
+    } catch (error) {
+        logger.error('Respond to quote by public token error', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process your response'
         });
     }
 };
