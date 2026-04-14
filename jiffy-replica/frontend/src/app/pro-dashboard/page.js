@@ -7,9 +7,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   MapPin, Star, Clock, DollarSign, Briefcase, Bell, MessageSquare,
-  ChevronRight, CheckCircle, XCircle, Phone, Mail, Calendar,
+  ChevronRight, ChevronDown, ChevronUp, CheckCircle, XCircle, Phone, Mail, Calendar,
   TrendingUp, Users, Award, Settings, Edit, LogOut, FileText, Loader2,
-  Camera, Upload, X, Plus, Image as ImageIcon, AlertTriangle, Download
+  Camera, Upload, X, Plus, Image as ImageIcon, AlertTriangle, Download, Search
 } from 'lucide-react';
 import { signOut, updateProfile } from '@/store/slices/authSlice';
 import { supabase } from '@/lib/supabase';
@@ -110,9 +110,13 @@ export default function ProDashboardPage() {
   const [quoteRequestsLoading, setQuoteRequestsLoading] = useState(false);
   const [decliningQuote, setDecliningQuote] = useState(null);
   const [respondingCounter, setRespondingCounter] = useState(null);
+  const [quoteRequestsCollapsed, setQuoteRequestsCollapsed] = useState(false);
+  const [quoteRequestsSearch, setQuoteRequestsSearch] = useState('');
 
   // Guest quote assignments state
   const [guestQuoteAssignments, setGuestQuoteAssignments] = useState([]);
+  const [guestQuoteCollapsed, setGuestQuoteCollapsed] = useState(false);
+  const [guestQuoteSearch, setGuestQuoteSearch] = useState('');
   const [guestQuotesLoading, setGuestQuotesLoading] = useState(false);
   // Proof upload state for guest quotes
   const [proofModal, setProofModal] = useState(null); // { id, request_number }
@@ -1327,16 +1331,61 @@ export default function ProDashboardPage() {
             {/* ==================== QUOTE REQUESTS TAB ==================== */}
             {activeTab === 'quotes' && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
-                  Quote Requests
-                  {quoteRequests.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-gray-500">
-                      ({quoteRequests.length} pending)
+                <div>
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => setQuoteRequestsCollapsed(!quoteRequestsCollapsed)}
+                    className="w-full flex items-center justify-between mb-3 group"
+                  >
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      Quote Requests
+                      {quoteRequests.length > 0 && (
+                        <span className="text-sm font-normal text-gray-500">
+                          {quoteRequestsSearch
+                            ? `(${quoteRequests.filter(b => {
+                                const q = quoteRequestsSearch.toLowerCase();
+                                return (
+                                  (b.service_name || b.services?.name || '').toLowerCase().includes(q) ||
+                                  (b.profiles?.full_name || '').toLowerCase().includes(q) ||
+                                  (b.city || '').toLowerCase().includes(q) ||
+                                  (b.address || '').toLowerCase().includes(q)
+                                );
+                              }).length} of ${quoteRequests.length})`
+                            : `(${quoteRequests.length} pending)`}
+                        </span>
+                      )}
+                    </h2>
+                    <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                      {quoteRequestsCollapsed
+                        ? <ChevronDown className="w-5 h-5" />
+                        : <ChevronUp className="w-5 h-5" />}
                     </span>
-                  )}
-                </h2>
+                  </button>
 
-                {quoteRequestsLoading ? (
+                  {/* Search bar — visible when expanded and items exist */}
+                  {!quoteRequestsCollapsed && quoteRequests.length > 0 && (
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by service, customer, or location…"
+                        value={quoteRequestsSearch}
+                        onChange={(e) => setQuoteRequestsSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480]/30 focus:border-[#0E7480] bg-white"
+                      />
+                      {quoteRequestsSearch && (
+                        <button
+                          onClick={() => setQuoteRequestsSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {!quoteRequestsCollapsed && (quoteRequestsLoading ? (
                   <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
                     <Loader2 className="w-8 h-8 text-[#0E7480] mx-auto mb-4 animate-spin" />
                     <p className="text-sm text-gray-500">Loading quote requests...</p>
@@ -1347,9 +1396,26 @@ export default function ProDashboardPage() {
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">No quote requests</h3>
                     <p className="text-sm text-gray-500">Quote requests assigned to you by admin will appear here.</p>
                   </div>
-                ) : (
+                ) : (() => {
+                  const filtered = quoteRequestsSearch
+                    ? quoteRequests.filter((b) => {
+                        const q = quoteRequestsSearch.toLowerCase();
+                        return (
+                          (b.service_name || b.services?.name || '').toLowerCase().includes(q) ||
+                          (b.profiles?.full_name || '').toLowerCase().includes(q) ||
+                          (b.city || '').toLowerCase().includes(q) ||
+                          (b.address || '').toLowerCase().includes(q)
+                        );
+                      })
+                    : quoteRequests;
+                  return filtered.length === 0 ? (
+                    <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+                      <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500">No quote requests match your search.</p>
+                    </div>
+                  ) : (
                   <div className="space-y-4">
-                    {quoteRequests.map((booking) => (
+                    {filtered.map((booking) => (
                       <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="flex">
                           {/* Service Image */}
@@ -1473,20 +1539,66 @@ export default function ProDashboardPage() {
                       </div>
                     ))}
                   </div>
+                  );
+                })()
                 )}
 
                 {/* Guest Quote Assignments */}
                 <div className="mt-8">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    Guest Quote Assignments
-                    {guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length > 0 && (
-                      <span className="ml-2 text-sm font-normal text-gray-500">
-                        ({guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length} awaiting your quote)
-                      </span>
-                    )}
-                  </h2>
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => setGuestQuoteCollapsed(!guestQuoteCollapsed)}
+                    className="w-full flex items-center justify-between mb-3 group"
+                  >
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      Guest Quote Assignments
+                      {guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length > 0 && (
+                        <span className="text-sm font-normal text-gray-500">
+                          {guestQuoteSearch
+                            ? `(${guestQuoteAssignments.filter(a => {
+                                const q = guestQuoteSearch.toLowerCase();
+                                return (
+                                  (a.service_name || '').toLowerCase().includes(q) ||
+                                  (a.guest_name || '').toLowerCase().includes(q) ||
+                                  (a.guest_city || '').toLowerCase().includes(q) ||
+                                  (a.guest_address || '').toLowerCase().includes(q) ||
+                                  (a.request_number || '').toLowerCase().includes(q)
+                                );
+                              }).length} of ${guestQuoteAssignments.length})`
+                            : `(${guestQuoteAssignments.filter(a => a.status === 'pro_assigned').length} awaiting your quote)`}
+                        </span>
+                      )}
+                    </h2>
+                    <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
+                      {guestQuoteCollapsed
+                        ? <ChevronDown className="w-5 h-5" />
+                        : <ChevronUp className="w-5 h-5" />}
+                    </span>
+                  </button>
 
-                  {guestQuotesLoading ? (
+                  {/* Search bar — visible when expanded and items exist */}
+                  {!guestQuoteCollapsed && guestQuoteAssignments.length > 0 && (
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by service, guest name, location, or request #…"
+                        value={guestQuoteSearch}
+                        onChange={(e) => setGuestQuoteSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E7480]/30 focus:border-[#0E7480] bg-white"
+                      />
+                      {guestQuoteSearch && (
+                        <button
+                          onClick={() => setGuestQuoteSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {!guestQuoteCollapsed && (guestQuotesLoading ? (
                     <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
                       <Loader2 className="w-8 h-8 text-[#0E7480] mx-auto mb-4 animate-spin" />
                       <p className="text-sm text-gray-500">Loading guest quote assignments...</p>
@@ -1497,9 +1609,27 @@ export default function ProDashboardPage() {
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">No guest quote assignments</h3>
                       <p className="text-sm text-gray-500">When admin assigns you to a guest quote request, it will appear here.</p>
                     </div>
-                  ) : (
+                  ) : (() => {
+                    const filteredGuest = guestQuoteSearch
+                      ? guestQuoteAssignments.filter((a) => {
+                          const q = guestQuoteSearch.toLowerCase();
+                          return (
+                            (a.service_name || '').toLowerCase().includes(q) ||
+                            (a.guest_name || '').toLowerCase().includes(q) ||
+                            (a.guest_city || '').toLowerCase().includes(q) ||
+                            (a.guest_address || '').toLowerCase().includes(q) ||
+                            (a.request_number || '').toLowerCase().includes(q)
+                          );
+                        })
+                      : guestQuoteAssignments;
+                    return filteredGuest.length === 0 ? (
+                      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center">
+                        <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500">No guest quote assignments match your search.</p>
+                      </div>
+                    ) : (
                     <div className="space-y-4">
-                      {guestQuoteAssignments.map((gq) => {
+                      {filteredGuest.map((gq) => {
                         const isAssigned = gq.status === 'pro_assigned';
                         const isQuoted = gq.status === 'pro_quoted';
                         const isQuotedAdmin = gq.status === 'quoted';
@@ -1613,6 +1743,8 @@ export default function ProDashboardPage() {
                         );
                       })}
                     </div>
+                    );
+                  })()
                   )}
                 </div>
               </div>
