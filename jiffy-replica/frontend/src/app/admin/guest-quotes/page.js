@@ -294,6 +294,7 @@ export default function AdminGuestQuotesPage() {
               total_with_tax: parseFloat(bd.total.toFixed(2)),
               admin_message: quoteMessage || null,
               admin_notes: req.admin_notes || null,
+              quote_valid_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
               // Payment / invoice tracking
               stripe_session_id: req.stripe_session_id || null,
               stripe_payment_url: req.stripe_payment_url || null,
@@ -390,6 +391,7 @@ export default function AdminGuestQuotesPage() {
               // Stripe (may be null until page refreshes — backend sets this)
               stripe_payment_url: req.stripe_payment_url || null,
               stripe_session_id: req.stripe_session_id || null,
+              quote_valid_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             }),
           }).catch(() => {}); // fire-and-forget
         }

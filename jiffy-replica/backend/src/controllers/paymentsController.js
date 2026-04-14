@@ -249,75 +249,75 @@ exports.createPaymentIntent = async (req, res) => {
     }
 };
 
-exports.handleWebhook = async (req, res) => {
+exports.handleWebhook = (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+
     try {
-        const sig = req.headers['stripe-signature'];
-        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-        let event;
-
-        try {
-            event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-        } catch (err) {
-            logger.error('Webhook signature verification failed', { error: err.message });
-            return res.status(400).send(`Webhook Error: ${err.message}`);
-        }
-
-        // Idempotency check — skip already-processed events (BUG-005 fix)
-        const { data: existingEvent } = await supabaseAdmin
-            .from('stripe_webhook_events')
-            .select('id')
-            .eq('id', event.id)
-            .single();
-
-        if (existingEvent) {
-            logger.info('Duplicate webhook event skipped', { eventId: event.id, type: event.type });
-            return res.json({ received: true });
-        }
-
-        // Record event as processed before handling (prevent race on retries)
-        await supabaseAdmin
-            .from('stripe_webhook_events')
-            .insert({ id: event.id, event_type: event.type });
-
-        switch (event.type) {
-            case 'payment_intent.amount_capturable_updated':
-                // Fires when manual-capture hold is confirmed on the card
-                await handlePaymentHeld(event.data.object);
-                break;
-            case 'payment_intent.succeeded':
-                // Fires when payment is actually captured (charged)
-                await handlePaymentSuccess(event.data.object);
-                break;
-            case 'payment_intent.payment_failed':
-                await handlePaymentFailure(event.data.object);
-                break;
-            case 'payment_intent.canceled':
-                await handlePaymentCanceled(event.data.object);
-                break;
-            case 'checkout.session.completed': {
-                // Handle guest quote payments via Stripe Checkout
-                const session = event.data.object;
-                if (session.metadata?.type === 'guest_quote') {
-                    const { handleGuestQuotePayment } = require('./guestQuotesController');
-                    await handleGuestQuotePayment(session);
-                } else if (session.metadata?.type === 'invoice') {
-                    await handleInvoiceCheckoutCompleted(session);
-                }
-                break;
-            }
-            default:
-                logger.info('Unhandled event type', { type: event.type });
-        }
-
-        res.json({ received: true });
-    } catch (error) {
-        logger.error('Webhook handler error', { error: error.message });
-        res.status(500).json({
-            success: false,
-            message: 'Webhook processing failed'
-        });
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+        logger.error('Webhook signature verification failed', { error: err.message });
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+
+    // Acknowledge Stripe immediately — must not block on DB or business logic
+    res.json({ received: true });
+
+    // Process the event asynchronously after responding
+    (async () => {
+        try {
+            // Idempotency check — skip already-processed events (BUG-005 fix)
+            const { data: existingEvent } = await supabaseAdmin
+                .from('stripe_webhook_events')
+                .select('id')
+                .eq('id', event.id)
+                .single();
+
+            if (existingEvent) {
+                logger.info('Duplicate webhook event skipped', { eventId: event.id, type: event.type });
+                return;
+            }
+
+            // Record event as processed before handling (prevent race on retries)
+            await supabaseAdmin
+                .from('stripe_webhook_events')
+                .insert({ id: event.id, event_type: event.type });
+
+            switch (event.type) {
+                case 'payment_intent.amount_capturable_updated':
+                    // Fires when manual-capture hold is confirmed on the card
+                    await handlePaymentHeld(event.data.object);
+                    break;
+                case 'payment_intent.succeeded':
+                    // Fires when payment is actually captured (charged)
+                    await handlePaymentSuccess(event.data.object);
+                    break;
+                case 'payment_intent.payment_failed':
+                    await handlePaymentFailure(event.data.object);
+                    break;
+                case 'payment_intent.canceled':
+                    await handlePaymentCanceled(event.data.object);
+                    break;
+                case 'checkout.session.completed': {
+                    // Handle guest quote payments via Stripe Checkout
+                    const session = event.data.object;
+                    if (session.metadata?.type === 'guest_quote') {
+                        const { handleGuestQuotePayment } = require('./guestQuotesController');
+                        await handleGuestQuotePayment(session);
+                    } else if (session.metadata?.type === 'invoice') {
+                        await handleInvoiceCheckoutCompleted(session);
+                    }
+                    break;
+                }
+                default:
+                    logger.info('Unhandled event type', { type: event.type });
+            }
+        } catch (error) {
+            logger.error('Webhook async processing error', { error: error.message, eventId: event.id, eventType: event.type });
+        }
+    })();
 };
 
 // Webhook: Stripe Checkout completed for a pro-issued invoice

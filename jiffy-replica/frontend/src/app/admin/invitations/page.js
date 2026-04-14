@@ -95,6 +95,7 @@ export default function AdminInvitationsPage() {
             email: formData.email,
             phone: formData.phone,
             invitation_url: response.data.data.invitation_url,
+            invitation_valid_until: response.data.data.invitation.expires_at,
           }),
         }).catch(() => {});
         setFormData({ email: '', full_name: '', phone: '', admin_permissions: {} });

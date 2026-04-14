@@ -32,6 +32,7 @@ const invoiceRoutes = require('./routes/invoice');
 const adminManageRoutes = require('./routes/adminManage');
 const notificationsRoutes = require('./routes/notifications');
 const guestQuotesRoutes = require('./routes/guestQuotes');
+const ghlWebhookRoutes = require('./routes/ghlWebhook');
 const { startHoldExpirationJob } = require('./services/holdExpirationJob');
 const socketHelper = require('./utils/socketHelper');
 
@@ -132,6 +133,8 @@ const limiter = rateLimit({
         if (process.env.NODE_ENV !== 'production' && req.method === 'GET') return true;
         // Always skip auth/me (called frequently by auth provider)
         if (req.path === '/auth/me' || req.path === '/api/auth/me') return true;
+        // Always skip Stripe webhook — Stripe must never hit a 429
+        if (req.originalUrl === '/api/payments/webhook') return true;
         return false;
     },
 });
@@ -166,6 +169,7 @@ app.use('/api/pro-profile-updates', proProfileUpdatesRoutes);
 app.use('/api/payouts', payoutsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/guest-quotes', guestQuotesRoutes);
+app.use('/api/webhooks', ghlWebhookRoutes);
 app.use('/api', invoiceRoutes);
 
 // Serve uploaded images
