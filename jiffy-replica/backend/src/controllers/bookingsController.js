@@ -3324,14 +3324,18 @@ exports.getAllDisputes = async (req, res) => {
 
         // Get unread message counts for each dispute
         const disputeIds = disputes.map(d => d.id);
-        const { data: unreadCounts } = await supabaseAdmin
-            .from('dispute_messages')
-            .select('booking_id')
-            .in('booking_id', disputeIds)
-            .eq('sender_role', 'customer')
-            .eq('is_read', false);
+        let unreadCounts = [];
+        if (disputeIds.length > 0) {
+            const { data } = await supabaseAdmin
+                .from('dispute_messages')
+                .select('booking_id')
+                .in('booking_id', disputeIds)
+                .eq('sender_role', 'customer')
+                .eq('is_read', false);
+            unreadCounts = data || [];
+        }
 
-        const unreadMap = (unreadCounts || []).reduce((acc, msg) => {
+        const unreadMap = unreadCounts.reduce((acc, msg) => {
             acc[msg.booking_id] = (acc[msg.booking_id] || 0) + 1;
             return acc;
         }, {});

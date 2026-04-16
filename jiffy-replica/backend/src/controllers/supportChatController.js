@@ -125,6 +125,14 @@ exports.sendMessage = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Access denied' });
         }
 
+        // If customer is messaging a closed conversation, reopen it
+        if (!isAdmin && conv.status === 'closed') {
+            await supabaseAdmin
+                .from('support_conversations')
+                .update({ status: 'open', updated_at: new Date().toISOString() })
+                .eq('id', conversationId);
+        }
+
         // Insert message
         const { data: newMessage, error } = await supabaseAdmin
             .from('support_messages')

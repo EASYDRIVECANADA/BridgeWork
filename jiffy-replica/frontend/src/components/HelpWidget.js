@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supportChatAPI } from '@/lib/api';
 import io from 'socket.io-client';
+import { supabase } from '@/lib/supabase';
 
 const helpTopics = [
   { label: 'How do I book a service?', href: '/services' },
@@ -45,32 +46,49 @@ export default function HelpWidget() {
   useEffect(() => {
     if (view === 'chat' && conversationId && isAuthenticated) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-      const socket = io(apiUrl, { transports: ['websocket', 'polling'] });
-      socketRef.current = socket;
 
-      socket.on('connect', () => {
-        socket.emit('authenticate', user.id);
-        socket.emit('join_support', conversationId);
-      });
+      let socket;
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        socket = io(apiUrl, {
+          transports: ['websocket', 'polling'],
+          auth: { token: session?.access_token || '' },
+        });
+        socketRef.current = socket;
 
-      socket.on('new_support_message', (newMsg) => {
-        if (newMsg.sender_id !== user.id) {
-          setMessages((prev) => [...prev, newMsg]);
-          scrollToBottom();
-        }
+        socket.on('connect', () => {
+          socket.emit('authenticate', user.id);
+          socket.emit('join_support', conversationId);
+        });
+
+        socket.on('new_support_message', (newMsg) => {
+          if (newMsg.sender_id !== user.id) {
+            setMessages((prev) => [...prev, newMsg]);
+            scrollToBottom();
+          }
+        });
       });
 
       return () => {
-        socket.disconnect();
-        socketRef.current = null;
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
       };
     }
   }, [view, conversationId, isAuthenticated, user?.id, scrollToBottom]);
 
   // Load conversation when switching to chat view
   useEffect(() => {
-    if (view === 'chat' && isAuthenticated && !conversationId) {
-      loadConversation();
+    if (view === 'chat' && isAuthenticated) {
+      if (!conversationId) {
+        loadConversation();
+      } else {
+        // Refresh messages in case admin replied while widget was closed
+        supportChatAPI.getMessages(conversationId).then((res) => {
+          setMessages(res.data.data.messages || []);
+          scrollToBottom();
+        }).catch(() => {});
+      }
     }
   }, [view, isAuthenticated]);
 

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, ChevronDown, LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, User, MessageSquare, ClipboardList, UserCheck, Shield, Receipt, Bell, DollarSign, Crown } from 'lucide-react';
+import { Menu, X, ChevronDown, LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, User, MessageSquare, ClipboardList, UserCheck, Shield, Receipt, Bell, DollarSign, Crown, HeadphonesIcon, AlertTriangle } from 'lucide-react';
 import { signOut } from '@/store/slices/authSlice';
 import { proProfileUpdatesAPI } from '@/lib/api';
 import NotificationBell from '@/components/NotificationBell';
@@ -267,6 +267,30 @@ export default function Navbar() {
                       )}
                     </div>
 
+                    {/* Support Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveDropdown(activeDropdown === 'support' ? null : 'support')}
+                        className={navLinkClass + " flex items-center gap-1.5"}
+                      >
+                        <HeadphonesIcon className="w-4 h-4" />
+                        Support
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'support' ? 'rotate-180' : ''}`} />
+                      </button>
+                      {activeDropdown === 'support' && (
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                          <Link href="/admin/support-chat" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
+                            <MessageSquare className="w-4 h-4" />
+                            Support Chat
+                          </Link>
+                          <Link href="/admin/disputes" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#0E7480]/10 hover:text-[#0E7480] transition-colors" onClick={() => setActiveDropdown(null)}>
+                            <AlertTriangle className="w-4 h-4" />
+                            Disputes
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Divider */}
                     <div className="h-6 w-px bg-white/20 mx-2" />
 
@@ -492,6 +516,20 @@ export default function Navbar() {
                     <DollarSign className="w-5 h-5" />
                     Pro Payouts
                   </Link>
+
+                  {/* Support Section */}
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-white/50 text-xs font-medium uppercase tracking-wider">Support</p>
+                  </div>
+                  <Link href="/admin/support-chat" className="flex items-center gap-3 px-4 py-2.5 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <MessageSquare className="w-5 h-5" />
+                    Support Chat
+                  </Link>
+                  <Link href="/admin/disputes" className="flex items-center gap-3 px-4 py-2.5 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
+                    <AlertTriangle className="w-5 h-5" />
+                    Disputes
+                  </Link>
+
                   {isSuperAdmin && (
                     <>
                       <Link href="/admin/manage-admins" className="flex items-center gap-3 px-4 py-2.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded-lg transition-colors" onClick={() => setIsMenuOpen(false)}>
