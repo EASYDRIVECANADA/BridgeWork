@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from '@/store/slices/authSlice';
 import { toast } from 'react-toastify';
@@ -11,6 +11,8 @@ import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const dispatch = useDispatch();
   const { isLoading, error, isAuthenticated, profile } = useSelector((state) => state.auth);
   const [deactivationError, setDeactivationError] = useState('');
@@ -34,10 +36,14 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated) {
       toast.success('Login successful!');
-      const dest = profile?.role === 'admin' ? '/admin/revenue' : profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard';
-      router.push(dest);
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        const dest = profile?.role === 'admin' ? '/admin/revenue' : profile?.role === 'pro' ? '/pro-dashboard' : '/dashboard';
+        router.push(dest);
+      }
     }
-  }, [isAuthenticated, profile, router, isLoading]);
+  }, [isAuthenticated, profile, router, isLoading, redirectTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

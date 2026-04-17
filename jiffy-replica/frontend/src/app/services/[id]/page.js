@@ -578,11 +578,13 @@ export default function ServiceDetailPage() {
 const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                     const hasEmergency = apiService?.emergency === 'yes';
                     
-                    // Count how many options are available
-                    const optionCount = [hasFreeQuote, hasRate, hasEmergency].filter(Boolean).length;
+                    // Count how many options are visible (Rate/Emergency hidden for unauthenticated users)
+                    const visibleRate = hasRate && !!user;
+                    const visibleEmergency = hasEmergency && !!user;
+                    const optionCount = [hasFreeQuote, visibleRate, visibleEmergency].filter(Boolean).length;
                     
                     // Determine grid columns based on option count
-                    const gridCols = optionCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
+                    const gridCols = optionCount === 3 ? 'grid-cols-3' : optionCount === 1 ? 'grid-cols-1' : 'grid-cols-2';
                     
                     return (
                       <div className={`grid ${gridCols} gap-3 mb-4`}>
@@ -606,7 +608,7 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                         )}
 
                         {/* Rate-based Card */}
-                        {hasRate && (
+                        {hasRate && !!user && (
                           <button
                             type="button"
                             onClick={() => setServiceType('rate')}
@@ -625,7 +627,7 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                         )}
 
                         {/* Emergency Service Card */}
-                        {hasEmergency && (
+                        {hasEmergency && !!user && (
                           <button
                             type="button"
                             onClick={() => setServiceType('emergency')}
@@ -672,6 +674,22 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
 
                   <div className="border-t border-gray-200 my-3"></div>
 
+                  {/* Login prompt for unauthenticated users on rate-only services */}
+                  {!user && !(apiService?.rate === 'quote' || apiService?.rate === 'both' || apiService?.pricing_type === 'custom') ? (
+                    <div className="text-center py-6 px-4">
+                      <div className="text-3xl mb-3">🔒</div>
+                      <p className="text-sm font-semibold text-gray-800 mb-1">Login required to book this service</p>
+                      <p className="text-xs text-gray-500 mb-5">Create a free account or log in to book {displayName}.</p>
+                      <div className="flex flex-col gap-2">
+                        <Link href="/login" className="w-full bg-[#0E7480] hover:bg-[#0d6670] text-white text-sm font-semibold py-2.5 rounded-lg transition-colors text-center">
+                          Login
+                        </Link>
+                        <Link href="/signup" className="w-full border border-[#0E7480] text-[#0E7480] hover:bg-[#0E7480]/10 text-sm font-semibold py-2.5 rounded-lg transition-colors text-center">
+                          Sign Up — It&apos;s Free
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
                   <form onSubmit={handleBookingSubmit} className="space-y-4">
                     {/* SECTION: Guest Info (only for unauthenticated quote requests) */}
                     {!user && serviceType === 'quote' && (
@@ -900,6 +918,7 @@ const hasRate = apiService?.rate === 'yes' || apiService?.rate === 'both';
                         : 'You won\'t be charged until the job is complete'}
                     </p>
                   </form>
+                  )}
                 </div>
               </div>
             </div>

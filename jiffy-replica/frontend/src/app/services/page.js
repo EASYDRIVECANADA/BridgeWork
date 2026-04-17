@@ -3,15 +3,18 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import { useSelector } from 'react-redux';
 import { Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 import api from '@/lib/api';
 
 function ServicesPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const serviceType = searchParams.get('type') || 'residential';
+  const { user } = useSelector((state) => state.auth);
   const [categories, setCategories] = useState([]);
   const [services, setServices] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
@@ -85,7 +88,14 @@ function ServicesPageContent() {
 
   const handleServiceClick = (e, service) => {
     e.preventDefault();
-    // Navigate directly to the service booking page — no intermediate modal
+    // If the service has no free quote option, require login
+    const hasFreeQuote = service.rate === 'quote' || service.rate === 'both' || service.pricing_type === 'custom';
+    if (!user && !hasFreeQuote) {
+      toast.info('An account is required to book rate-based services. Please log in or sign up.', { toastId: 'rate-login-required' });
+      router.push(`/login?redirect=/services/${service.id}`);
+      return;
+    }
+    // Navigate directly to the service booking page
     router.push(`/services/${service.id}`);
   };
 
