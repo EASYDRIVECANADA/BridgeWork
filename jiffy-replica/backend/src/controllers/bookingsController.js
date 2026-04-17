@@ -1146,7 +1146,7 @@ exports.declineQuoteAssignment = async (req, res) => {
 
         const { error: updateError } = await supabaseAdmin
             .from('quote_assignments')
-            .update({ status: 'declined', updated_at: new Date().toISOString() })
+            .update({ status: 'declined' })
             .eq('id', assignment.id);
 
         if (updateError) {
