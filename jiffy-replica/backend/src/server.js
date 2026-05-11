@@ -129,6 +129,8 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => {
+        // Always skip OPTIONS (CORS preflight) requests
+        if (req.method === 'OPTIONS') return true;
         // Skip rate limiting for read-only data fetches in development
         if (process.env.NODE_ENV !== 'production' && req.method === 'GET') return true;
         // Always skip auth/me (called frequently by auth provider)
