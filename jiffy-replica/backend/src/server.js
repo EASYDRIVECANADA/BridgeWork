@@ -7,7 +7,6 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const WebSocket = require('ws');
 const logger = require('./utils/logger');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const { supabaseAdmin } = require('./config/supabase');
@@ -71,7 +70,7 @@ const isAllowedOrigin = (origin) => {
 };
 
 const io = new Server(httpServer, {
-    wsEngine: 'ws',
+    transports: ['websocket', 'polling'],
     cors: {
         origin: (origin, callback) => {
             if (isAllowedOrigin(origin)) {
