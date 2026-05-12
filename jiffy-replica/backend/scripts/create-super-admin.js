@@ -44,7 +44,6 @@ async function main() {
         full_name: ADMIN_NAME,
         role: 'admin',
         is_superadmin: true,
-        is_verified: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     });
