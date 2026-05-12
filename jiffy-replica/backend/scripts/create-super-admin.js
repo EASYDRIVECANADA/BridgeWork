@@ -7,9 +7,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-const ADMIN_EMAIL = 'admin@bridgework.ca';
-const ADMIN_PASSWORD = 'BridgeWork@Admin2026!';
-const ADMIN_NAME = 'BridgeWork';
+const ADMIN_EMAIL = 'superadmin@bridgework.ca';
+const ADMIN_PASSWORD = 'BridgeWork@Superadmin2026!';
+const ADMIN_NAME = 'BridgeWorkSuperAdmin';
 
 async function main() {
     console.log('Creating super admin account...');
@@ -43,6 +43,7 @@ async function main() {
         email: ADMIN_EMAIL,
         full_name: ADMIN_NAME,
         role: 'admin',
+        is_superadmin: true,
         is_verified: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
