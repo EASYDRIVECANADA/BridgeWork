@@ -39,7 +39,8 @@
     "resend": "^6.9.2",
     "socket.io": "^4.6.0",
     "stripe": "^14.10.0",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "ws": "^8.14.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
