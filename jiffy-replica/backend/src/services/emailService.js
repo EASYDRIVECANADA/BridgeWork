@@ -247,17 +247,18 @@ function contactFormEmailHTML(name, email, phone, subject, message) {
 }
 
 // ─── Send Contact Form Email ─────────────────────────────────────────────────
-async function sendContactFormEmail(name, email, phone, subject, message) {
+async function sendContactFormEmail(name, email, phone, subject, message, recipientEmails) {
     if (!resend) {
         logger.warn('Email service not configured - skipping contact form email', { from: email });
         return { success: false, error: 'Email service not configured' };
     }
     
     const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'bridgeworkservice@gmail.com';
+    const recipients = Array.isArray(recipientEmails) && recipientEmails.length > 0 ? recipientEmails : [CONTACT_EMAIL];
     try {
         const { data, error } = await resend.emails.send({
             from: FROM_EMAIL,
-            to: [CONTACT_EMAIL],
+            to: recipients,
             reply_to: email,
             subject: `[BridgeWork Contact] ${subject}`,
             html: contactFormEmailHTML(name, email, phone, subject, message),
@@ -268,10 +269,145 @@ async function sendContactFormEmail(name, email, phone, subject, message) {
             return { success: false, error: error.message };
         }
 
-        logger.info('Contact form email sent', { to: CONTACT_EMAIL, from: email, id: data?.id });
+        logger.info('Contact form email sent', { to: recipients, from: email, id: data?.id });
         return { success: true, id: data?.id };
     } catch (err) {
         logger.error('Contact form email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
+function proSignupAdminEmailHTML(signup) {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">New Pro Signup</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            A service professional created a BridgeWork Pro account.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+            <tr>
+                <td style="padding:16px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+                    <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                        <strong>Name:</strong> ${signup.full_name || 'Not provided'}<br>
+                        <strong>Email:</strong> <a href="mailto:${signup.email}" style="color:#0E7480;text-decoration:none;">${signup.email}</a><br>
+                        ${signup.phone ? `<strong>Phone:</strong> ${signup.phone}<br>` : ''}
+                        ${signup.referral_code ? `<strong>Referral Code:</strong> ${signup.referral_code}<br>` : ''}
+                        <strong>Source:</strong> ${signup.signup_source || 'become-pro'}
+                    </p>
+                </td>
+            </tr>
+        </table>
+        <p style="margin:24px 0 0;">
+            <a href="${frontendUrl}/admin/pro-applications" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Open Pro Applications</a>
+        </p>`;
+    return wrapInLayout(content);
+}
+
+async function sendAdminProSignupEmail(adminEmails, signup) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails,
+            subject: `[BridgeWork] New Pro Signup - ${signup.full_name || signup.email}`,
+            html: proSignupAdminEmailHTML(signup),
+        });
+        if (error) {
+            logger.error('Failed to send admin pro signup email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+        logger.info('Admin pro signup notification sent', { to: adminEmails, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Admin pro signup email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
+function proApplicationReadyAdminEmailHTML(application) {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const profile = application.profiles || {};
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Pro Application Ready for Review</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            A pro completed onboarding and is waiting for admin approval.
+        </p>
+        <div style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;padding:16px;margin:20px 0;">
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                <strong>Business:</strong> ${application.business_name || 'Not provided'}<br>
+                <strong>Name:</strong> ${profile.full_name || 'Not provided'}<br>
+                <strong>Email:</strong> ${profile.email || 'Not provided'}<br>
+                ${profile.phone ? `<strong>Phone:</strong> ${profile.phone}<br>` : ''}
+                <strong>Services Selected:</strong> ${(application.service_categories || []).length}
+            </p>
+        </div>
+        <p style="margin:24px 0 0;">
+            <a href="${frontendUrl}/admin/pro-applications" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Review Application</a>
+        </p>`;
+    return wrapInLayout(content);
+}
+
+async function sendAdminProApplicationReadyEmail(adminEmails, application) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const profile = application.profiles || {};
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails,
+            subject: `[BridgeWork] Pro Application Ready - ${application.business_name || profile.full_name || profile.email || 'New Pro'}`,
+            html: proApplicationReadyAdminEmailHTML(application),
+        });
+        if (error) {
+            logger.error('Failed to send pro application ready email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+        logger.info('Pro application ready email sent', { to: adminEmails, proProfileId: application.id, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Pro application ready email exception', { error: err.message });
+        return { success: false, error: err.message };
+    }
+}
+
+function adminCreatedProEmailHTML(pro) {
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const content = `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:600;">Pro Account Created by Admin</h2>
+        <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.7;">
+            Staff created a pro account that is already confirmed and approved.
+        </p>
+        <div style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;padding:16px;margin:20px 0;">
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.8;">
+                <strong>Name:</strong> ${pro.full_name}<br>
+                <strong>Email:</strong> ${pro.email}<br>
+                <strong>Business:</strong> ${pro.business_name || pro.full_name}<br>
+                ${pro.phone ? `<strong>Phone:</strong> ${pro.phone}<br>` : ''}
+                <strong>Status:</strong> Approved
+            </p>
+        </div>
+        <p style="margin:24px 0 0;">
+            <a href="${frontendUrl}/admin/pro-applications" style="display:inline-block;background:#0E7480;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">View Approved Pros</a>
+        </p>`;
+    return wrapInLayout(content);
+}
+
+async function sendAdminCreatedProEmail(adminEmails, pro) {
+    if (!resend) return { success: false, error: 'Email service not configured' };
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: adminEmails,
+            subject: `[BridgeWork] Pro Account Created - ${pro.full_name || pro.email}`,
+            html: adminCreatedProEmailHTML(pro),
+        });
+        if (error) {
+            logger.error('Failed to send admin-created pro email', { error: error.message });
+            return { success: false, error: error.message };
+        }
+        logger.info('Admin-created pro email sent', { to: adminEmails, proProfileId: pro.pro_profile_id, id: data?.id });
+        return { success: true, id: data?.id };
+    } catch (err) {
+        logger.error('Admin-created pro email exception', { error: err.message });
         return { success: false, error: err.message };
     }
 }
@@ -1591,8 +1727,11 @@ module.exports = {
     sendWelcomeEmail,
     sendPasswordResetEmail,
     sendContactFormEmail,
+    sendAdminCreatedProEmail,
     sendAdminInvitation,
     sendNewBookingAdminEmail,
+    sendAdminProApplicationReadyEmail,
+    sendAdminProSignupEmail,
     sendProJobAlertEmail,
     sendProQuoteAssignmentEmail,
     sendHomeownerProAcceptedEmail,

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { onboardingAPI, servicesAPI } from '@/lib/api';
 import { getAdminProPasswordValidationError, normalizeCommissionRate } from '@/lib/adminProApplications';
+import { getFilterAfterAdminCreateProSuccess } from '@/lib/adminProApplicationsUi';
 import { toast } from 'react-toastify';
 
 export default function AdminProApplicationsPage() {
@@ -111,10 +112,14 @@ export default function AdminProApplicationsPage() {
         if (payload[k] === '') payload[k] = undefined;
       });
       const res = await onboardingAPI.adminCreatePro(payload);
-      toast.success(res.data?.message || 'Pro account created!');
+      const successFilter = getFilterAfterAdminCreateProSuccess();
+      toast.success(`${res.data?.message || 'Pro account created!'} Showing approved pros.`);
       setShowAddModal(false);
       resetAddForm();
-      loadApplications();
+      setFilter(successFilter);
+      if (filter === successFilter) {
+        loadApplications();
+      }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to create pro account');
     } finally {

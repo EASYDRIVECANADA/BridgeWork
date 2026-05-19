@@ -1,6 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const { PLATFORM_COMMISSION_RATE } = require('../utils/commissionRate');
+const { sendAdminCreatedProEmail, sendAdminProApplicationReadyEmail } = require('../services/emailService');
+const { getAdminNotificationRecipients } = require('../services/adminNotificationRecipients');
 
 // Onboarding steps:
 // 0 = not started
@@ -342,7 +344,7 @@ exports.submitRequirements = async (req, res) => {
             .from('pro_profiles')
             .update(updateData)
             .eq('user_id', req.user.id)
-            .select()
+            .select('*, profiles!pro_profiles_user_id_fkey(full_name, email, phone)')
             .single();
 
         if (error) {
@@ -351,6 +353,17 @@ exports.submitRequirements = async (req, res) => {
         }
 
         logger.info('Professional requirements submitted — onboarding complete, pending admin approval', { userId: req.user.id });
+
+        try {
+            const adminEmails = await getAdminNotificationRecipients();
+            await sendAdminProApplicationReadyEmail(adminEmails, data);
+        } catch (emailErr) {
+            logger.warn('Failed to send pro application ready notification email', {
+                error: emailErr.message,
+                proProfileId: data.id
+            });
+        }
+
         res.json({
             success: true,
             message: 'Onboarding complete! Your application is now pending admin review.',
@@ -820,6 +833,23 @@ exports.adminCreatePro = async (req, res) => {
         }
 
         logger.info('Admin created pro account', { userId, proProfileId: proProfile.id, adminId: req.user.id, email });
+
+        try {
+            const adminEmails = await getAdminNotificationRecipients();
+            await sendAdminCreatedProEmail(adminEmails, {
+                user_id: userId,
+                pro_profile_id: proProfile.id,
+                email,
+                full_name,
+                phone: phone || null,
+                business_name: proProfile.business_name,
+            });
+        } catch (emailErr) {
+            logger.warn('Failed to send admin-created pro notification email', {
+                error: emailErr.message,
+                proProfileId: proProfile.id
+            });
+        }
 
         res.status(201).json({
             success: true,

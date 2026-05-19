@@ -1,6 +1,8 @@
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
+const { sendAdminProSignupEmail } = require('../services/emailService');
+const { getAdminNotificationRecipients } = require('../services/adminNotificationRecipients');
 
 const PRO_SIGNUP_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/abbrIJCoCxWRtUOHdFzW/webhook-trigger/dab09a81-2ca1-448f-906b-3a6b12c07f5e';
 
@@ -140,6 +142,25 @@ exports.signup = async (req, res) => {
                 referral_code: referral_code || null,
                 signup_source: signup_source || 'become-pro'
             });
+
+            try {
+                const adminEmails = await getAdminNotificationRecipients();
+                await sendAdminProSignupEmail(adminEmails, {
+                    user_id: authData.user.id,
+                    first_name: derivedFirstName,
+                    last_name: derivedLastName,
+                    full_name,
+                    email,
+                    phone: phone || null,
+                    referral_code: referral_code || null,
+                    signup_source: signup_source || 'become-pro'
+                });
+            } catch (emailErr) {
+                logger.warn('Failed to send admin pro signup notification email', {
+                    error: emailErr.message,
+                    userId: authData.user.id
+                });
+            }
         }
 
         // Fire webhook for homeowner (user) signups

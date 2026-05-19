@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { findNearbyPros } = require('../services/proMatchingService');
 const { createNotification } = require('../services/notificationService');
 const { sendNewBookingAdminEmail, sendProJobAlertEmail, sendProQuoteAssignmentEmail, sendHomeownerQuoteReceivedEmail, sendProQuoteAcceptedEmail, sendHomeownerQuoteAcceptedConfirmationEmail, sendBookingCancellationEmail } = require('../services/emailService');
+const { getAdminNotificationRecipients } = require('../services/adminNotificationRecipients');
 const { writeAuditLog } = require('../services/auditService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
@@ -132,24 +133,7 @@ exports.createBooking = async (req, res) => {
 
         // Email all admins + notification list about the new booking
         try {
-            const { data: adminProfiles } = await supabaseAdmin
-                .from('profiles')
-                .select('email')
-                .eq('role', 'admin')
-                .eq('is_active', true);
-
-            const adminEmails = (adminProfiles || []).map(a => a.email).filter(Boolean);
-
-            // Also fetch extra notification emails from platform_settings
-            const { data: notifSetting } = await supabaseAdmin
-                .from('platform_settings')
-                .select('value')
-                .eq('key', 'notification_emails')
-                .eq('category', 'notifications')
-                .maybeSingle();
-            let extraEmails = [];
-            try { extraEmails = notifSetting?.value ? JSON.parse(notifSetting.value) : []; } catch (_) { /* ignore malformed JSON */ }
-            const allEmails = [...new Set([...adminEmails, ...extraEmails])];
+            const allEmails = await getAdminNotificationRecipients();
 
             if (allEmails.length > 0) {
                 await sendNewBookingAdminEmail(

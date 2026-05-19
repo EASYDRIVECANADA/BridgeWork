@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { getAdminPermissionDenialMessage } from '@/lib/adminProApplicationsUi';
 
 /**
  * Permission keys correspond to admin_permissions JSONB fields:
@@ -33,7 +34,7 @@ export function useAdminPermission(permissionKey) {
     if (profile.is_superadmin) return;
     if (permissionKey) {
       if (!profile.admin_permissions || profile.admin_permissions[permissionKey] !== true) {
-        toast.error('You do not have permission to access this page.');
+        toast.error(getAdminPermissionDenialMessage(permissionKey));
         router.push('/admin/revenue');
       }
     }

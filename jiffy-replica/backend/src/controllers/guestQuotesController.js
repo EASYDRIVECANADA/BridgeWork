@@ -13,6 +13,7 @@ const {
     sendAdminProGuestQuoteSubmittedEmail,
 } = require('../services/emailService');
 const { createNotification } = require('../services/notificationService');
+const { getAdminNotificationRecipients } = require('../services/adminNotificationRecipients');
 
 // ==================== PUBLIC: Submit guest quote request ====================
 
@@ -97,8 +98,8 @@ exports.submitGuestQuote = async (req, res) => {
                 });
             }
 
-            // Email admins
-            const adminEmails = (admins || []).map(a => a.email).filter(Boolean);
+            // Email admins + configured business notification recipients
+            const adminEmails = await getAdminNotificationRecipients();
             if (adminEmails.length > 0) {
                 await sendAdminNewGuestQuoteEmail(adminEmails, guestRequest);
             }

@@ -180,15 +180,17 @@ app.use('/uploads', express.static('uploads'));
 
 // ─── Contact Form Endpoint ───────────────────────────────────────────────────
 const { sendContactFormEmail } = require('./services/emailService');
+const { getAdminNotificationRecipients } = require('./services/adminNotificationRecipients');
 app.post('/api/contact', async (req, res) => {
     try {
         const { name, email, phone, subject, message } = req.body;
         if (!name || !email || !subject || !message) {
             return res.status(400).json({ success: false, message: 'Name, email, subject, and message are required.' });
         }
-        const result = await sendContactFormEmail(name, email, phone || '', subject, message);
+        const notificationEmails = await getAdminNotificationRecipients();
+        const result = await sendContactFormEmail(name, email, phone || '', subject, message, notificationEmails);
         if (!result.success) {
-            return res.status(500).json({ success: false, message: 'Failed to send message. Please try again.' });
+            logger.warn('Contact form notification email was not sent', { error: result.error, from: email });
         }
         res.json({ success: true, message: 'Your message has been sent. We will get back to you soon!' });
     } catch (error) {
