@@ -10,6 +10,7 @@ import {
   DollarSign, Calendar, ExternalLink, Plus, X, Eye, EyeOff
 } from 'lucide-react';
 import { onboardingAPI, servicesAPI } from '@/lib/api';
+import { getAdminProPasswordValidationError, normalizeCommissionRate } from '@/lib/adminProApplications';
 import { toast } from 'react-toastify';
 
 export default function AdminProApplicationsPage() {
@@ -92,8 +93,9 @@ export default function AdminProApplicationsPage() {
       toast.error('Email, password, and full name are required');
       return;
     }
-    if (addForm.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    const passwordError = getAdminProPasswordValidationError(addForm.password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     setAddLoading(true);
@@ -130,10 +132,21 @@ export default function AdminProApplicationsPage() {
   };
 
   const handleApprove = async (proProfileId) => {
+    const { value, error } = normalizeCommissionRate({
+      commissionRate,
+      customCommission,
+      useCustomRate,
+    });
+
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
     setActionLoading(proProfileId);
     try {
       await onboardingAPI.approveApplication(proProfileId, {
-        commission_rate: parseFloat(commissionRate)
+        commission_rate: value
       });
       toast.success('Pro application approved!');
       loadApplications();
@@ -385,10 +398,6 @@ export default function AdminProApplicationsPage() {
                                   value={customCommission}
                                   onChange={(e) => {
                                     setCustomCommission(e.target.value);
-                                    const val = parseFloat(e.target.value);
-                                    if (val > 0 && val <= 50) {
-                                      setCommissionRate((val / 100).toFixed(4));
-                                    }
                                   }}
                                   placeholder="e.g. 17"
                                   className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0E7480] outline-none"
@@ -455,7 +464,7 @@ export default function AdminProApplicationsPage() {
                     <div className="col-span-2 sm:col-span-1">
                       <label className="text-xs text-gray-500 mb-1 block">Password *</label>
                       <div className="relative">
-                        <input type={showPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none pr-10" />
+                        <input type={showPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 8 chars, uppercase, number, symbol" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0E7480] outline-none pr-10" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
