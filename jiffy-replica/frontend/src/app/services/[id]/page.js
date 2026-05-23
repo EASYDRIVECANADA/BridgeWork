@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, CheckCircle, Calendar, Clock, Loader2, Phone, FileText, User, Mail } from 'lucide-react';
 import { servicesAPI, bookingsAPI, guestQuotesAPI } from '@/lib/api';
+import { resolveServiceForRoute } from '@/lib/serviceRouteResolver';
 import { toast } from 'react-toastify';
 
 export default function ServiceDetailPage() {
@@ -170,38 +171,12 @@ export default function ServiceDetailPage() {
         const res = await servicesAPI.getById(serviceId);
         setApiService(res.data.data.service);
       } catch (err) {
-        // If numeric ID (mock), find the mock service name and match to a real DB service
+        // Resolve legacy numeric IDs and slug-style routes against live services.
         try {
           const allRes = await servicesAPI.getAll();
           const dbServices = allRes.data?.data?.services || [];
-          if (dbServices.length > 0) {
-            // Find the mock service by numeric ID to get its name
-            const mockService = allServices.find(s => s.id === parseInt(serviceId));
-            if (mockService) {
-              // Try exact name match first
-              const matched = dbServices.find(
-                (s) => s.name.toLowerCase() === mockService.name.toLowerCase()
-              );
-              if (matched) {
-                setApiService(matched);
-              } else {
-                // Try partial/fuzzy match (e.g. "Plumbing" matches "Plumbing Repair")
-                const partial = dbServices.find(
-                  (s) =>
-                    s.name.toLowerCase().includes(mockService.name.toLowerCase()) ||
-                    mockService.name.toLowerCase().includes(s.name.toLowerCase())
-                );
-                if (partial) {
-                  setApiService(partial);
-                } else {
-                  // No exact/partial match — use first DB service as fallback so booking works
-                  // The correct mock service name will be sent via service_name override
-                  setApiService({ ...dbServices[0], _fallbackName: mockService.name });
-                }
-              }
-            } else {
-            }
-          }
+          const resolvedService = resolveServiceForRoute(serviceId, dbServices, allServices);
+          if (resolvedService) setApiService(resolvedService);
         } catch (e) {
           // Using mock data only
         }
