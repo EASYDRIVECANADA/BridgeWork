@@ -28,7 +28,7 @@ exports.updateAdminPermissions = async (req, res) => {
         const VALID_PERMISSION_KEYS = [
             'revenue', 'services', 'categories', 'pro_applications',
             'profile_updates', 'invitations', 'payouts', 'quotations',
-            'quote_assignments', 'quote_requests', 'proofs', 'support_chat', 'disputes'
+            'quote_assignments', 'quote_requests', 'guest_quotes', 'proofs', 'support_chat', 'disputes'
         ];
 
         if (admin_permissions !== null && admin_permissions !== undefined) {

@@ -8,4 +8,17 @@ describe('AdminInvitationsPage auth guard', () => {
     expect(pageSource).toContain('authInitialized');
     expect(pageSource).toContain('if (!authInitialized) return;');
   });
+
+  test('includes guest quotes in selectable admin permissions', () => {
+    const permissionsBlock = pageSource.match(/const ALL_PERMISSIONS = \[[\s\S]*?\];/);
+
+    expect(permissionsBlock?.[0]).toContain("key: 'guest_quotes'");
+    expect(permissionsBlock?.[0]).toContain("label: 'Guest Quotes'");
+  });
+
+  test('direct admin creation validates the same password rules as the backend', () => {
+    expect(pageSource).toContain('directFormData.password.length < 8');
+    expect(pageSource).toContain('Password must be at least 8 characters');
+    expect(pageSource).toContain('Password must contain at least one uppercase letter, one number, and one special character');
+  });
 });

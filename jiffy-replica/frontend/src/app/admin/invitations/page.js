@@ -28,6 +28,7 @@ export default function AdminInvitationsPage() {
     { key: 'quotations', label: 'Quotations' },
     { key: 'quote_assignments', label: 'Quote Assignments' },
     { key: 'quote_requests', label: 'Quote Requests' },
+    { key: 'guest_quotes', label: 'Guest Quotes' },
     { key: 'proofs', label: 'Job Proofs' },
     { key: 'support_chat', label: 'Support Chat' },
     { key: 'disputes', label: 'Disputes' },
@@ -139,8 +140,14 @@ export default function AdminInvitationsPage() {
       return;
     }
 
-    if (directFormData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (directFormData.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    const passwordComplexityRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+    if (!passwordComplexityRegex.test(directFormData.password)) {
+      toast.error('Password must contain at least one uppercase letter, one number, and one special character');
       return;
     }
 
@@ -596,11 +603,11 @@ export default function AdminInvitationsPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={directFormData.password}
                   onChange={(e) => setDirectFormData({ ...directFormData, password: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 chars, uppercase, number, symbol"
                 />
               </div>
 
@@ -611,7 +618,7 @@ export default function AdminInvitationsPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={directFormData.confirmPassword}
                   onChange={(e) => setDirectFormData({ ...directFormData, confirmPassword: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0E7480] focus:border-transparent"

@@ -253,6 +253,10 @@ export default function Navbar() {
                           {isSuperAdmin && (
                             <>
                               <div className="h-px bg-gray-100 my-1" />
+                              <Link href="/admin/invitations" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors" onClick={() => setActiveDropdown(null)}>
+                                <Shield className="w-4 h-4" />
+                                Admin Invitations
+                              </Link>
                               <Link href="/admin/manage-admins" className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors" onClick={() => setActiveDropdown(null)}>
                                 <Crown className="w-4 h-4" />
                                 Manage Admins
