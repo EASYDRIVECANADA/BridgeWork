@@ -10,7 +10,7 @@ import api from '@/lib/api';
 
 export default function AdminInvitationsPage() {
   const router = useRouter();
-  const { profile } = useSelector((state) => state.auth);
+  const { profile, authInitialized } = useSelector((state) => state.auth);
   useAdminPermission('invitations');
   const [invitations, setInvitations] = useState([]);
   const [adminAccounts, setAdminAccounts] = useState([]);
@@ -50,12 +50,13 @@ export default function AdminInvitationsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!authInitialized) return;
     if (profile?.role !== 'admin') {
       router.push('/');
       return;
     }
     fetchData();
-  }, [profile, router]);
+  }, [authInitialized, profile, router]);
 
   const fetchData = async () => {
     try {
