@@ -16,7 +16,6 @@
     "@stripe/stripe-js": "^2.4.0",
     "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.5",
-    "bridgework-root": "file:../..",
     "date-fns": "^3.0.6",
     "framer-motion": "^10.18.0",
     "jspdf": "^4.2.1",
