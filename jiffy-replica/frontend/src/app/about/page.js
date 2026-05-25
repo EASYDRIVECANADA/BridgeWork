@@ -5,55 +5,6 @@ import Link from 'next/link';
 import { Lightbulb } from 'lucide-react';
 
 export default function AboutPage() {
-  const teamMembers = [
-    {
-      name: 'Paul Arlin',
-      title: 'Chief Marketplace Officer',
-      subtitle: 'Co-Founder',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400'
-    },
-    {
-      name: 'Milanie Bano',
-      title: 'Mobile Developer',
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400'
-    },
-    {
-      name: 'Caroline Beaudoin',
-      title: 'Customer Experience',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=400'
-    },
-    {
-      name: 'Rosita Beck',
-      title: 'Head of Customer Experience',
-      image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=400'
-    },
-    {
-      name: 'Rush Benazir',
-      title: 'Mobile Developer',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400'
-    },
-    {
-      name: 'Amanda Beret',
-      title: 'Senior Marketing Manager',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400'
-    },
-    {
-      name: 'Sonia Boisvert',
-      title: 'Marketing Advisor',
-      image: 'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?q=80&w=400'
-    },
-    {
-      name: 'Michael Choi',
-      title: 'Chief Technology Officer',
-      image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400'
-    },
-    {
-      name: 'Hector Clare',
-      title: 'Web Developer',
-      image: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?q=80&w=400'
-    }
-  ];
-
   const pressQuotes = [
     {
       logo: 'THE GLOBE AND MAIL',
@@ -124,36 +75,6 @@ export default function AboutPage() {
                 className="w-full max-w-md"
               />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Our Team Section */}
-      <section className="py-20 bg-gray-100">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-[#0E7480]">
-            OUR TEAM
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
-            {teamMembers.map((member, index) => (
-              <div key={index} className="flex flex-col items-center text-center">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-gray-200 mb-4">
-                  <Image
-                    src={member.image}
-                    alt={member.name}
-                    width={160}
-                    height={160}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1">{member.name}</h3>
-                <p className="text-sm text-gray-600">{member.title}</p>
-                {member.subtitle && (
-                  <p className="text-xs text-gray-500">{member.subtitle}</p>
-                )}
-              </div>
-            ))}
           </div>
         </div>
       </section>
