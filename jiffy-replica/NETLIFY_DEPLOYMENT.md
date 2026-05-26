@@ -46,13 +46,13 @@ npm run build
 Add these in Netlify before deploying API-backed previews:
 
 ```
-SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api
 LEGACY_API_BASE_URL=https://your-current-backend.example.com
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://ndxauksylgoxtdoxwsjk.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-`SUPABASE_EDGE_API_URL` is the target one-deploy API backend. `LEGACY_API_BASE_URL` is temporary during phased migration and should be removed after all routes are migrated to Supabase Edge Functions.
+`SUPABASE_EDGE_API_URL` is the target one-deploy API backend. `LEGACY_API_BASE_URL` is temporary during phased migration and should be removed after all routes are migrated to Supabase Edge Functions. Keep the existing Render URL in `NEXT_PUBLIC_API_URL` only as a temporary emergency fallback until Edge parity is verified.
 
 ### 4. Deploy
 
@@ -136,7 +136,7 @@ If you need to add environment variables later:
 1. Go to **Site settings** → **Environment variables**
 2. Add variables:
    ```
-   SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+   SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api
    LEGACY_API_BASE_URL=https://your-current-backend.example.com
    ```
 3. Redeploy the site
@@ -165,7 +165,7 @@ Your `frontend/netlify.toml` is already configured with:
 1. **Deploy Supabase Edge Function**: `bridgework-api`
 2. **Add environment variables** in Netlify:
    ```
-   SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+   SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api
    LEGACY_API_BASE_URL=https://your-current-backend.example.com
    ```
 3. **Redeploy** frontend
