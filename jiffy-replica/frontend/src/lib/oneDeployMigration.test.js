@@ -39,6 +39,8 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).not.toContain('../_shared/');
     expect(edgeSource).toContain('handleServicesRequest');
     expect(edgeSource).toContain('LEGACY_API_BASE_URL');
+    expect(edgeSource).toContain('FUNCTION_PREFIXES');
+    expect(edgeSource).toContain('"/functions/v1/bridgework-api"');
     expect(edgeSource).toContain('"/health"');
     expect(edgeSource).toContain('"/api/services"');
     expect(edgeSource).toContain('"/api/services/categories"');
@@ -57,7 +59,7 @@ describe('one deploy migration foundation', () => {
   test('Supabase config targets the BridgeWork production project ref', () => {
     const configSource = fs.readFileSync(path.join(repoRoot, 'supabase', 'config.toml'), 'utf8');
 
-    expect(configSource).toContain('project_id = "ndxauksylgoxtdoxwsjk"');
+    expect(configSource).toContain('project_id = "oazubtxbiqgpvyiphvis"');
     expect(configSource).toContain('[functions.bridgework-api]');
     expect(configSource).toContain('verify_jwt = false');
   });
@@ -66,9 +68,9 @@ describe('one deploy migration foundation', () => {
     const deploymentDoc = fs.readFileSync(path.join(repoRoot, 'NETLIFY_DEPLOYMENT.md'), 'utf8');
 
     expect(deploymentDoc).toContain(
-      'SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api'
+      'SUPABASE_EDGE_API_URL=https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api'
     );
-    expect(deploymentDoc).not.toContain('https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api');
+    expect(deploymentDoc).not.toContain('https://YOUR_PROJECT_REF.supabase.co/functions/v1/bridgework-api');
   });
 
   test('Phase 2 runbook includes deploy and live smoke commands', () => {
@@ -77,9 +79,9 @@ describe('one deploy migration foundation', () => {
       'utf8'
     );
 
-    expect(runbook).toContain('npx supabase functions deploy bridgework-api --project-ref ndxauksylgoxtdoxwsjk');
+    expect(runbook).toContain('npx supabase functions deploy bridgework-api --project-ref oazubtxbiqgpvyiphvis');
     expect(runbook).toContain('The function is self-contained for dashboard deployment');
-    expect(runbook).toContain('SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api');
+    expect(runbook).toContain('SUPABASE_EDGE_API_URL=https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api');
     expect(runbook).toContain('https://bridgeworkservices.com/api/services?search=hvac&sales_channel=residential');
   });
 });

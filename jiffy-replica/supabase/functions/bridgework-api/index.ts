@@ -40,12 +40,14 @@ function createSupabaseAdmin() {
 type SupabaseAdmin = ReturnType<typeof createSupabaseAdmin>;
 
 const LEGACY_API_BASE_URL = Deno.env.get("LEGACY_API_BASE_URL")?.replace(/\/+$/, "");
-const FUNCTION_PREFIX = "/bridgework-api";
+const FUNCTION_PREFIXES = ["/functions/v1/bridgework-api", "/bridgework-api"];
 
 function getRoutePath(url: URL) {
-  if (url.pathname === FUNCTION_PREFIX) return "/";
-  if (url.pathname.startsWith(`${FUNCTION_PREFIX}/`)) {
-    return url.pathname.slice(FUNCTION_PREFIX.length);
+  for (const prefix of FUNCTION_PREFIXES) {
+    if (url.pathname === prefix) return "/";
+    if (url.pathname.startsWith(`${prefix}/`)) {
+      return url.pathname.slice(prefix.length);
+    }
   }
   return url.pathname;
 }

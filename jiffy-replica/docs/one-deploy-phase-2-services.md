@@ -17,10 +17,10 @@ All other `/api/*` routes continue to proxy to `LEGACY_API_BASE_URL` when that v
 
 ## Supabase Deploy
 
-Run from `jiffy-replica` with a Supabase account that has deploy access to project `ndxauksylgoxtdoxwsjk`:
+Run from `jiffy-replica` with a Supabase account that has deploy access to project `oazubtxbiqgpvyiphvis`:
 
 ```bash
-npx supabase functions deploy bridgework-api --project-ref ndxauksylgoxtdoxwsjk
+npx supabase functions deploy bridgework-api --project-ref oazubtxbiqgpvyiphvis
 ```
 
 If deploying manually in the Supabase dashboard, create or edit the `bridgework-api` function and paste the contents of `supabase/functions/bridgework-api/index.ts`. The function is self-contained for dashboard deployment and does not require uploading the repo's `_shared` folder.
@@ -32,7 +32,7 @@ This local machine reached the project but received a `403` from Supabase, so an
 Set these in Netlify, then redeploy the site:
 
 ```bash
-SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api
+SUPABASE_EDGE_API_URL=https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api
 LEGACY_API_BASE_URL=https://your-current-render-backend.example.com
 NEXT_PUBLIC_API_URL=https://your-current-render-backend.example.com
 ```
@@ -44,9 +44,9 @@ NEXT_PUBLIC_API_URL=https://your-current-render-backend.example.com
 After deploying the function:
 
 ```bash
-curl https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api/health
-curl "https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api/api/services?search=hvac&sales_channel=residential"
-curl "https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api/api/services/categories?sales_channel=residential"
+curl https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api/health
+curl "https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api/api/services?search=hvac&sales_channel=residential"
+curl "https://oazubtxbiqgpvyiphvis.supabase.co/functions/v1/bridgework-api/api/services/categories?sales_channel=residential"
 ```
 
 After setting Netlify env vars and redeploying:
