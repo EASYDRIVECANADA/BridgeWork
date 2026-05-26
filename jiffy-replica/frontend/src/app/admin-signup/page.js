@@ -46,7 +46,7 @@ function AdminSignupContent() {
   const verifyToken = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin-invitations/verify/${token}`
+        `/api/admin-invitations/verify/${token}`
       );
       
       if (response.data.success) {
@@ -84,7 +84,7 @@ function AdminSignupContent() {
 
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin-invitations/accept`,
+        '/api/admin-invitations/accept',
         { token, password }
       );
 

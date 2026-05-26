@@ -10,7 +10,6 @@ import { setUser, clearAuth } from '@/store/slices/authSlice';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { fetchUnreadCount, addRealtimeMessage } from '@/store/slices/messagesSlice';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const DEACTIVATED_ACCOUNT_MESSAGE = 'Your account was deactivated';
 
 function AuthProvider({ children }) {
@@ -23,12 +22,12 @@ function AuthProvider({ children }) {
   useEffect(() => {
     // Fetch profile using a DIRECT axios call with the token passed explicitly.
     // We CANNOT use the api.js interceptor here because it calls getSession()
-    // which deadlocks when called inside onAuthStateChange.
-    const fetchProfile = async (accessToken) => {
-      try {
-        const response = await axios.get(`${API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+      // which deadlocks when called inside onAuthStateChange.
+      const fetchProfile = async (accessToken) => {
+        try {
+          const response = await axios.get('/api/auth/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
         const profile = response.data?.data?.profile;
         return { profile: profile || null, deactivated: false, message: null };
       } catch (err) {

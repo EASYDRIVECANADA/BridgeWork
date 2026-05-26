@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { supportChatAPI } from '@/lib/api';
 import io from 'socket.io-client';
 import { supabase } from '@/lib/supabase';
+import { getSocketUrl } from '@/lib/socket';
 
 const helpTopics = [
   { label: 'How do I book a service?', href: '/services' },
@@ -45,7 +46,7 @@ export default function HelpWidget() {
   // Connect socket when chat opens
   useEffect(() => {
     if (view === 'chat' && conversationId && isAuthenticated) {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      const apiUrl = getSocketUrl();
 
       let socket;
       supabase.auth.getSession().then(({ data: { session } }) => {

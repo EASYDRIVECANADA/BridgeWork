@@ -1,13 +1,18 @@
 import { io } from 'socket.io-client';
 import { supabase } from '@/lib/supabase';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+export const getSocketUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
 
 let socket = null;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(getSocketUrl(), {
       autoConnect: false,
       reconnection: true,
       reconnectionAttempts: 5,

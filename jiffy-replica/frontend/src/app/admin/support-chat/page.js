@@ -7,6 +7,7 @@ import { useAdminPermission } from '@/hooks/useAdminPermission';
 import { MessageCircle, Send, X, ArrowLeft, Loader2, Clock, User, CheckCircle } from 'lucide-react';
 import { supportChatAPI } from '@/lib/api';
 import io from 'socket.io-client';
+import { getSocketUrl } from '@/lib/socket';
 
 export default function AdminSupportChatPage() {
   const { user, profile } = useSelector((state) => state.auth);
@@ -42,7 +43,7 @@ export default function AdminSupportChatPage() {
   useEffect(() => {
     if (!user || profile?.role !== 'admin') return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const apiUrl = getSocketUrl();
     const socket = io(apiUrl, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 

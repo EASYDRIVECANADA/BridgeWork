@@ -42,9 +42,17 @@ npm run build
 .next
 ```
 
-**Environment variables (optional for now):**
-- You can skip this for now since we're deploying frontend only
-- Later, you'll add `NEXT_PUBLIC_API_URL` when backend is ready
+**Environment variables:**
+Add these in Netlify before deploying API-backed previews:
+
+```
+SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+LEGACY_API_BASE_URL=https://your-current-backend.example.com
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+`SUPABASE_EDGE_API_URL` is the target one-deploy API backend. `LEGACY_API_BASE_URL` is temporary during phased migration and should be removed after all routes are migrated to Supabase Edge Functions.
 
 ### 4. Deploy
 
@@ -128,7 +136,8 @@ If you need to add environment variables later:
 1. Go to **Site settings** → **Environment variables**
 2. Add variables:
    ```
-   NEXT_PUBLIC_API_URL=https://your-backend-api.com
+   SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+   LEGACY_API_BASE_URL=https://your-current-backend.example.com
    ```
 3. Redeploy the site
 
@@ -151,15 +160,16 @@ Your `frontend/netlify.toml` is already configured with:
 
 ## Next Steps
 
-### When Backend is Ready:
+### Supabase Edge API Migration:
 
-1. **Deploy backend** (e.g., Railway, Render, Heroku)
+1. **Deploy Supabase Edge Function**: `bridgework-api`
 2. **Add environment variables** in Netlify:
    ```
-   NEXT_PUBLIC_API_URL=https://your-backend-url.com/api
+   SUPABASE_EDGE_API_URL=https://YOUR_PROJECT_REF.functions.supabase.co/bridgework-api
+   LEGACY_API_BASE_URL=https://your-current-backend.example.com
    ```
-3. **Update API calls** in frontend to use `process.env.NEXT_PUBLIC_API_URL`
-4. **Redeploy** frontend
+3. **Redeploy** frontend
+4. **Remove `LEGACY_API_BASE_URL`** after all `/api/*` routes are migrated to Supabase Edge Functions
 
 ### Recommended Netlify Settings:
 

@@ -1,0 +1,4 @@
+project_id = "bridgework"
+
+[functions.bridgework-api]
+verify_jwt = false
