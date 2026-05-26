@@ -19,6 +19,9 @@ const getApiBaseUrl = () => {
   const legacyUrl = process.env.LEGACY_API_BASE_URL;
   if (legacyUrl) return legacyUrl.replace(/\/+$/, '');
 
+  const publicLegacyUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (publicLegacyUrl) return publicLegacyUrl.replace(/\/+$/, '');
+
   if (process.env.NODE_ENV !== 'production') return DEFAULT_LOCAL_BACKEND;
 
   return null;

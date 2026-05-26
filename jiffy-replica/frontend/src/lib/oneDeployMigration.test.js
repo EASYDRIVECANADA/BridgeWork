@@ -42,4 +42,14 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).toContain('"/api/services"');
     expect(edgeSource).toContain('"/api/services/categories"');
   });
+
+  test('Next API proxy keeps the previous public API env as a temporary fallback', () => {
+    const proxySource = fs.readFileSync(
+      path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
+      'utf8'
+    );
+
+    expect(proxySource).toContain('process.env.NEXT_PUBLIC_API_URL');
+    expect(proxySource).toContain('const publicLegacyUrl = process.env.NEXT_PUBLIC_API_URL;');
+  });
 });
