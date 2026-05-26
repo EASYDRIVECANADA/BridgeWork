@@ -23,6 +23,8 @@ Run from `jiffy-replica` with a Supabase account that has deploy access to proje
 npx supabase functions deploy bridgework-api --project-ref ndxauksylgoxtdoxwsjk
 ```
 
+If deploying manually in the Supabase dashboard, create or edit the `bridgework-api` function and paste the contents of `supabase/functions/bridgework-api/index.ts`. The function is self-contained for dashboard deployment and does not require uploading the repo's `_shared` folder.
+
 This local machine reached the project but received a `403` from Supabase, so an authorized owner/admin account must run the deploy or provide a valid Supabase access token.
 
 ## Netlify Environment

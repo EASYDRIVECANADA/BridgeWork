@@ -1,5 +1,41 @@
-import { createSupabaseAdmin } from "../_shared/supabase.ts";
-import { corsHeaders, errorResponse, jsonResponse } from "../_shared/responses.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+};
+
+function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+      ...(init.headers || {}),
+    },
+  });
+}
+
+function errorResponse(message: string, status = 500) {
+  return jsonResponse({ success: false, message }, { status });
+}
+
+function createSupabaseAdmin() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase admin environment is not configured");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 type SupabaseAdmin = ReturnType<typeof createSupabaseAdmin>;
 

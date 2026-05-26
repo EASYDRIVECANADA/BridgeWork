@@ -36,6 +36,7 @@ describe('one deploy migration foundation', () => {
       'utf8'
     );
 
+    expect(edgeSource).not.toContain('../_shared/');
     expect(edgeSource).toContain('handleServicesRequest');
     expect(edgeSource).toContain('LEGACY_API_BASE_URL');
     expect(edgeSource).toContain('"/health"');
@@ -77,6 +78,7 @@ describe('one deploy migration foundation', () => {
     );
 
     expect(runbook).toContain('npx supabase functions deploy bridgework-api --project-ref ndxauksylgoxtdoxwsjk');
+    expect(runbook).toContain('The function is self-contained for dashboard deployment');
     expect(runbook).toContain('SUPABASE_EDGE_API_URL=https://ndxauksylgoxtdoxwsjk.functions.supabase.co/bridgework-api');
     expect(runbook).toContain('https://bridgeworkservices.com/api/services?search=hvac&sales_channel=residential');
   });
