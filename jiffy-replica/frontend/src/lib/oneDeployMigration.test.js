@@ -83,8 +83,18 @@ describe('one deploy migration foundation', () => {
       'utf8'
     );
 
+    expect(proxySource).toContain('getMigratedApiBaseUrl');
+    expect(proxySource).toContain('MIGRATED_EDGE_ROUTES');
     expect(proxySource).toContain('process.env.NEXT_PUBLIC_API_URL');
     expect(proxySource).toContain('const publicLegacyUrl = process.env.NEXT_PUBLIC_API_URL;');
+  });
+
+  test('Socket.IO uses a temporary legacy backend URL instead of the Netlify origin', () => {
+    const socketSource = fs.readFileSync(path.join(__dirname, 'socket.js'), 'utf8');
+
+    expect(socketSource).toContain('NEXT_PUBLIC_SOCKET_URL');
+    expect(socketSource).toContain('NEXT_PUBLIC_API_URL');
+    expect(socketSource).toContain('window.location.origin');
   });
 
   test('Supabase config targets the BridgeWork production project ref', () => {

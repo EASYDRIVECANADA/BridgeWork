@@ -1,7 +1,15 @@
 import { io } from 'socket.io-client';
 import { supabase } from '@/lib/supabase';
 
+const cleanSocketUrl = (url) => {
+  if (!url) return '';
+  return url.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+};
+
 export const getSocketUrl = () => {
+  const configuredUrl = cleanSocketUrl(process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL);
+  if (configuredUrl) return configuredUrl;
+
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }

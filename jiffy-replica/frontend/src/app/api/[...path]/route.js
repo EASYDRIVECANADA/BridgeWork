@@ -1,5 +1,13 @@
 const DEFAULT_LOCAL_BACKEND = 'http://localhost:5000';
 
+const MIGRATED_EDGE_ROUTES = [
+  /^\/api\/services(?:\/|$)/,
+  /^\/api\/admin-invitations(?:\/|$)/,
+  /^\/api\/admin\/invitations(?:\/|$)/,
+  /^\/api\/admin\/manage-admins(?:\/|$)/,
+  /^\/api\/auth\/(?:login|logout|refresh|me|profile|change-password)$/,
+];
+
 const hopByHopHeaders = new Set([
   'connection',
   'keep-alive',
@@ -12,27 +20,43 @@ const hopByHopHeaders = new Set([
   'host',
 ]);
 
-const getApiBaseUrl = () => {
-  const edgeUrl = process.env.SUPABASE_EDGE_API_URL;
-  if (edgeUrl) return edgeUrl.replace(/\/+$/, '');
+const cleanBaseUrl = (url) => url?.replace(/\/+$/, '') || null;
 
+const getEdgeApiBaseUrl = () => {
+  const edgeUrl = process.env.SUPABASE_EDGE_API_URL;
+  return cleanBaseUrl(edgeUrl);
+};
+
+const getLegacyApiBaseUrl = () => {
   const legacyUrl = process.env.LEGACY_API_BASE_URL;
-  if (legacyUrl) return legacyUrl.replace(/\/+$/, '');
+  if (legacyUrl) return cleanBaseUrl(legacyUrl);
 
   const publicLegacyUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (publicLegacyUrl) return publicLegacyUrl.replace(/\/+$/, '');
+  if (publicLegacyUrl) return cleanBaseUrl(publicLegacyUrl);
 
   if (process.env.NODE_ENV !== 'production') return DEFAULT_LOCAL_BACKEND;
 
   return null;
 };
 
+const isMigratedApiPath = (apiPath) => MIGRATED_EDGE_ROUTES.some((route) => route.test(apiPath));
+
+const getMigratedApiBaseUrl = (apiPath) => {
+  const edgeUrl = getEdgeApiBaseUrl();
+  if (edgeUrl && isMigratedApiPath(apiPath)) return edgeUrl;
+
+  const legacyUrl = getLegacyApiBaseUrl();
+  if (legacyUrl) return legacyUrl;
+
+  return edgeUrl;
+};
+
 const buildTargetUrl = (request, pathSegments) => {
-  const baseUrl = getApiBaseUrl();
+  const apiPath = `/api/${pathSegments.join('/')}`;
+  const baseUrl = getMigratedApiBaseUrl(apiPath);
   if (!baseUrl) return null;
 
   const sourceUrl = new URL(request.url);
-  const apiPath = `/api/${pathSegments.join('/')}`;
   return `${baseUrl}${apiPath}${sourceUrl.search}`;
 };
 
@@ -53,7 +77,7 @@ async function proxyRequest(request, context) {
     return Response.json(
       {
         success: false,
-        message: 'API backend is not configured. Set SUPABASE_EDGE_API_URL for Netlify.',
+        message: 'API backend is not configured. Set SUPABASE_EDGE_API_URL and LEGACY_API_BASE_URL for Netlify.',
       },
       { status: 502 }
     );
