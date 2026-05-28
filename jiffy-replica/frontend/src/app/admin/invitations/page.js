@@ -174,6 +174,7 @@ export default function AdminInvitationsPage() {
         }).catch(() => {});
         setDirectFormData({ email: '', full_name: '', phone: '', password: '', confirmPassword: '', admin_permissions: {} });
         setShowDirectCreateModal(false);
+        fetchInvitations();
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create admin account');

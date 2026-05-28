@@ -21,4 +21,11 @@ describe('AdminInvitationsPage auth guard', () => {
     expect(pageSource).toContain('Password must be at least 8 characters');
     expect(pageSource).toContain('Password must contain at least one uppercase letter, one number, and one special character');
   });
+
+  test('direct admin creation refreshes admin accounts after success', () => {
+    const directCreateHandler = pageSource.match(/const handleDirectCreate = async[\s\S]*?^\s{2}\};/m);
+
+    expect(directCreateHandler?.[0]).toContain("toast.success('Admin account created successfully! They can now log in.')");
+    expect(directCreateHandler?.[0]).toContain('fetchInvitations();');
+  });
 });
