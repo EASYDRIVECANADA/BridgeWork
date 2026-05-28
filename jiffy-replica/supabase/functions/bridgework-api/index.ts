@@ -93,6 +93,22 @@ async function readJson(req: Request) {
 }
 
 async function authenticateAdmin(req: Request, supabase: SupabaseAdmin, requireSuperAdmin = false) {
+  const auth = await authenticateUser(req, supabase);
+  if (auth.response) return auth;
+
+  const profile = auth.profile!;
+  if (profile.role !== "admin") {
+    return { response: errorResponse("Insufficient permissions", 403) };
+  }
+
+  if (requireSuperAdmin && !profile.is_superadmin) {
+    return { response: errorResponse("SuperAdmin access required", 403) };
+  }
+
+  return auth;
+}
+
+async function authenticateUser(req: Request, supabase: SupabaseAdmin) {
   const authHeader = req.headers.get("authorization") || "";
   if (!authHeader.startsWith("Bearer ")) {
     return { response: errorResponse("Authentication token required", 401) };
@@ -118,14 +134,6 @@ async function authenticateAdmin(req: Request, supabase: SupabaseAdmin, requireS
 
   if (!profile.is_active) {
     return { response: errorResponse("Your account was deactivated", 403) };
-  }
-
-  if (profile.role !== "admin") {
-    return { response: errorResponse("Insufficient permissions", 403) };
-  }
-
-  if (requireSuperAdmin && !profile.is_superadmin) {
-    return { response: errorResponse("SuperAdmin access required", 403) };
   }
 
   return { user, profile };
@@ -280,6 +288,149 @@ async function handleServicesRequest(req: Request, url: URL, supabase: SupabaseA
 
     if (error || !data) return errorResponse("Service not found", 404);
     return jsonResponse({ success: true, data: { service: data } });
+  }
+
+  return null;
+}
+
+function getClientIp(req: Request) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("x-real-ip")
+    || null;
+}
+
+async function handleAuthRequest(req: Request, url: URL, supabase: SupabaseAdmin) {
+  const pathname = getRoutePath(url);
+  if (!pathname.startsWith("/api/auth")) return null;
+
+  if (pathname === "/api/auth/login" && req.method === "POST") {
+    const body = await readJson(req);
+    const { email, password } = body as { email?: string; password?: string };
+
+    if (!email || !password) return errorResponse("Invalid email or password", 401);
+    const normalizedEmail = email.toLowerCase();
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    const { data: recentFailures } = await supabase
+      .from("login_attempts")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .eq("success", false)
+      .gte("attempted_at", fifteenMinutesAgo);
+
+    if (recentFailures && recentFailures.length >= 5) {
+      return errorResponse("Too many failed login attempts. Please try again in 15 minutes.", 429);
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
+    if (error || !data?.user || !data?.session) {
+      await supabase.from("login_attempts").insert({
+        email: normalizedEmail,
+        ip_address: getClientIp(req),
+        success: false,
+      });
+      return errorResponse("Invalid email or password", 401);
+    }
+
+    await supabase.from("login_attempts").insert({
+      email: normalizedEmail,
+      ip_address: getClientIp(req),
+      success: true,
+    });
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profile && !profile.is_active) {
+      return errorResponse("Your account was deactivated", 403);
+    }
+
+    await supabase.from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", data.user.id);
+
+    return jsonResponse({
+      success: true,
+      message: "Login successful",
+      data: {
+        user: data.user,
+        profile,
+        session: data.session,
+      },
+    });
+  }
+
+  if (pathname === "/api/auth/logout" && req.method === "POST") {
+    return jsonResponse({ success: true, message: "Logged out successfully" });
+  }
+
+  if (pathname === "/api/auth/refresh" && req.method === "POST") {
+    const body = await readJson(req);
+    const { refresh_token } = body as { refresh_token?: string };
+    if (!refresh_token) return errorResponse("Refresh token required", 400);
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+    if (error || !data?.session) return errorResponse("Invalid refresh token", 401);
+
+    return jsonResponse({
+      success: true,
+      message: "Token refreshed",
+      data: { session: data.session },
+    });
+  }
+
+  if (pathname === "/api/auth/me" && req.method === "GET") {
+    const auth = await authenticateUser(req, supabase);
+    if (auth.response) return auth.response;
+    return jsonResponse({ success: true, data: { user: auth.user, profile: auth.profile } });
+  }
+
+  if (pathname === "/api/auth/profile" && req.method === "PATCH") {
+    const auth = await authenticateUser(req, supabase);
+    if (auth.response) return auth.response;
+
+    const body = await readJson(req);
+    const allowedFields = ["full_name", "phone", "address", "city", "state", "zip_code", "avatar_url"];
+    const updates: Record<string, unknown> = {};
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(body, field)) {
+        updates[field] = (body as Record<string, unknown>)[field];
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", auth.user!.id)
+      .select()
+      .single();
+
+    if (error) return errorResponse("Failed to update profile", 500);
+    return jsonResponse({ success: true, message: "Profile updated successfully", data: { profile: data } });
+  }
+
+  if (pathname === "/api/auth/change-password" && req.method === "POST") {
+    const auth = await authenticateUser(req, supabase);
+    if (auth.response) return auth.response;
+
+    const body = await readJson(req);
+    const { current_password, new_password } = body as { current_password?: string; new_password?: string };
+    if (!current_password) return errorResponse("Current password is required", 400);
+    const passwordError = validatePassword(new_password);
+    if (passwordError) return errorResponse(passwordError, 400);
+
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: auth.user!.email || auth.profile!.email,
+      password: current_password,
+    });
+    if (verifyError) return errorResponse("Current password is incorrect", 401);
+
+    const { error } = await supabase.auth.admin.updateUserById(auth.user!.id, { password: new_password });
+    if (error) return errorResponse(error.message, 400);
+
+    return jsonResponse({ success: true, message: "Password changed successfully" });
   }
 
   return null;
@@ -647,6 +798,11 @@ Deno.serve(async (req) => {
 
   if (pathname.startsWith("/api/services")) {
     const response = await handleServicesRequest(req, url, supabase);
+    if (response) return response;
+  }
+
+  if (pathname.startsWith("/api/auth")) {
+    const response = await handleAuthRequest(req, url, supabase);
     if (response) return response;
   }
 

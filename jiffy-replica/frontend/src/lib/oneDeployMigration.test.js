@@ -61,6 +61,22 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).toContain('VALID_PERMISSION_KEYS');
   });
 
+  test('Supabase Edge bridgework-api function owns core auth and profile routes', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('handleAuthRequest');
+    expect(edgeSource).toContain('authenticateUser');
+    expect(edgeSource).toContain('"/api/auth/login"');
+    expect(edgeSource).toContain('"/api/auth/logout"');
+    expect(edgeSource).toContain('"/api/auth/refresh"');
+    expect(edgeSource).toContain('"/api/auth/me"');
+    expect(edgeSource).toContain('"/api/auth/profile"');
+    expect(edgeSource).toContain('"/api/auth/change-password"');
+  });
+
   test('Next API proxy keeps the previous public API env as a temporary fallback', () => {
     const proxySource = fs.readFileSync(
       path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
