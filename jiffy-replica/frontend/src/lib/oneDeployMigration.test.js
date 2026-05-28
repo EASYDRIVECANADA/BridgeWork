@@ -46,6 +46,21 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).toContain('"/api/services/categories"');
   });
 
+  test('Supabase Edge bridgework-api function owns admin invitation and permission routes', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('handleAdminInvitationRequest');
+    expect(edgeSource).toContain('handleAdminManageRequest');
+    expect(edgeSource).toContain('authenticateAdmin');
+    expect(edgeSource).toContain('"/api/admin-invitations/accept"');
+    expect(edgeSource).toContain('"/api/admin/invitations/direct-create"');
+    expect(edgeSource).toContain('"/api/admin/manage-admins/admins"');
+    expect(edgeSource).toContain('VALID_PERMISSION_KEYS');
+  });
+
   test('Next API proxy keeps the previous public API env as a temporary fallback', () => {
     const proxySource = fs.readFileSync(
       path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
