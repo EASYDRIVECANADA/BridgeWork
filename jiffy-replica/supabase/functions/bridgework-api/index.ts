@@ -1506,7 +1506,7 @@ async function handleBookingsRequest(req: Request, url: URL, supabase: SupabaseA
       .from("booking_quotations")
       .select(`
         *,
-        bookings (
+        bookings!booking_quotations_booking_id_fkey (
           id,
           booking_number,
           service_name,

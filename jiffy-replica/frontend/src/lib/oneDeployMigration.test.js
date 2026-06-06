@@ -125,6 +125,15 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).toContain('Counter-offer accepted! Your quote has been updated.');
   });
 
+  test('Supabase Edge disambiguates pro quotation booking joins', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('bookings!booking_quotations_booking_id_fkey');
+  });
+
   test('Supabase Edge owns homeowner quote view and counter-offer endpoints', () => {
     const edgeSource = fs.readFileSync(
       path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
