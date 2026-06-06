@@ -6,6 +6,9 @@ const MIGRATED_EDGE_ROUTES = [
   /^\/api\/admin\/invitations(?:\/|$)/,
   /^\/api\/admin\/manage-admins(?:\/|$)/,
   /^\/api\/auth\/(?:login|logout|refresh|me|profile|change-password)$/,
+  /^\/api\/bookings(?:\/|$)/,
+  /^\/api\/quotes-invoices(?:\/|$)/,
+  /^\/api\/payments(?:\/|$)/,
 ];
 
 const hopByHopHeaders = new Set([

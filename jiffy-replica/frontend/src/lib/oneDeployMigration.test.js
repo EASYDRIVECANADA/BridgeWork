@@ -77,6 +77,160 @@ describe('one deploy migration foundation', () => {
     expect(edgeSource).toContain('"/api/auth/change-password"');
   });
 
+  test('bookings and quote/invoice route groups are routed through Supabase Edge before legacy fallback', () => {
+    const proxySource = fs.readFileSync(
+      path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
+      'utf8'
+    );
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(proxySource).toContain('/^\\/api\\/bookings(?:\\/|$)/');
+    expect(proxySource).toContain('/^\\/api\\/quotes-invoices(?:\\/|$)/');
+    expect(edgeSource).toContain('handleBookingsRequest');
+    expect(edgeSource).toContain('handleQuotesInvoicesRequest');
+    expect(edgeSource).toContain('pathname.startsWith("/api/bookings")');
+    expect(edgeSource).toContain('pathname.startsWith("/api/quotes-invoices")');
+  });
+
+  test('Supabase Edge owns pro quote request read endpoints for the first bookings migration slice', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('getProProfile');
+    expect(edgeSource).toContain('"/api/bookings/pro/quote-requests"');
+    expect(edgeSource).toContain('quoteRequestDetailMatch');
+    expect(edgeSource).toContain('quote_assignments');
+    expect(edgeSource).toContain('booking_quotations');
+    expect(edgeSource).toContain('can_submit_quote');
+  });
+
+  test('Supabase Edge owns pro quote request write and counter-offer endpoints', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('submitQuotationMatch');
+    expect(edgeSource).toContain('declineQuoteAssignmentMatch');
+    expect(edgeSource).toContain('"/api/bookings/pro/my-quotations"');
+    expect(edgeSource).toContain('respondCounterOfferMatch');
+    expect(edgeSource).toContain('pending_admin_review');
+    expect(edgeSource).toContain('A valid price greater than 0 is required');
+    expect(edgeSource).toContain('Assignment declined successfully');
+    expect(edgeSource).toContain('Counter-offer accepted! Your quote has been updated.');
+  });
+
+  test('Supabase Edge owns homeowner quote view and counter-offer endpoints', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('homeownerBookingQuotationsMatch');
+    expect(edgeSource).toContain('homeownerCounterOfferMatch');
+    expect(edgeSource).toContain('"/api/bookings/:id/quotations"');
+    expect(edgeSource).toContain('pending_admin_review');
+    expect(edgeSource).toContain('Counter-offer sent! The pro will be notified.');
+    expect(edgeSource).toContain('This quotation is not available for counter-offers');
+  });
+
+  test('Supabase Edge owns homeowner quote acceptance endpoint', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('homeownerAcceptQuotationMatch');
+    expect(edgeSource).toContain('"/api/bookings/:bookingId/quotations/:quotationId/accept"');
+    expect(edgeSource).toContain('getTaxRate');
+    expect(edgeSource).toContain('selected_quotation_id');
+    expect(edgeSource).toContain('Auto-generated when the homeowner accepted the selected quote.');
+    expect(edgeSource).toContain('Quote accepted successfully! The pro has been notified to start the job.');
+    expect(edgeSource).toContain('This booking has already been updated. Please refresh and try again.');
+  });
+
+  test('payment read and reporting endpoints route through Supabase Edge before legacy fallback', () => {
+    const proxySource = fs.readFileSync(
+      path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
+      'utf8'
+    );
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(proxySource).toContain('/^\\/api\\/payments(?:\\/|$)/');
+    expect(edgeSource).toContain('handlePaymentsRequest');
+    expect(edgeSource).toContain('pathname.startsWith("/api/payments")');
+    expect(edgeSource).toContain('"/api/payments/transactions"');
+    expect(edgeSource).toContain('"/api/payments/connect/status"');
+    expect(edgeSource).toContain('"/api/payments/connect/earnings"');
+    expect(edgeSource).toContain('"/api/payments/connect/commission-rate"');
+    expect(edgeSource).toContain('"/api/payments/admin/revenue"');
+    expect(edgeSource).toContain('Route is still handled by the legacy payments backend');
+  });
+
+  test('Supabase Edge owns payment intent creation and payment confirmation', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('createPaymentIntentMatch');
+    expect(edgeSource).toContain('confirmPaymentMatch');
+    expect(edgeSource).toContain('stripePaymentIntentRequest');
+    expect(edgeSource).toContain('"/api/payments/create-intent"');
+    expect(edgeSource).toContain('"/api/payments/confirm-payment"');
+    expect(edgeSource).toContain('capture_method: "manual"');
+    expect(edgeSource).toContain('Payment is not available for this booking status.');
+    expect(edgeSource).toContain('No price has been set for this booking yet.');
+    expect(edgeSource).toContain('Payment not in expected state. Status:');
+  });
+
+  test('Supabase Edge owns held payment capture and payout ledger updates', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('capturePaymentMatch');
+    expect(edgeSource).toContain('"/api/payments/capture"');
+    expect(edgeSource).toContain('`/payment_intents/${heldTx.stripe_payment_intent_id}/capture`');
+    expect(edgeSource).toContain('Job is already completed.');
+    expect(edgeSource).toContain('Payment already captured. Job marked as completed.');
+    expect(edgeSource).toContain('No held payment found for this booking.');
+    expect(edgeSource).toContain('Cannot release payment');
+    expect(edgeSource).toContain('pro_payouts');
+    expect(edgeSource).toContain("payout_method: 'stripe_transfer'");
+    expect(edgeSource).toContain("status: 'paid'");
+    expect(edgeSource).toContain('Payment released. Job marked as completed.');
+  });
+
+  test('Supabase Edge owns Stripe payment webhook processing', () => {
+    const edgeSource = fs.readFileSync(
+      path.join(repoRoot, 'supabase', 'functions', 'bridgework-api', 'index.ts'),
+      'utf8'
+    );
+
+    expect(edgeSource).toContain('handleStripeWebhook');
+    expect(edgeSource).toContain('verifyStripeWebhookSignature');
+    expect(edgeSource).toContain('"/api/payments/webhook"');
+    expect(edgeSource).toContain('Webhook Error:');
+    expect(edgeSource).toContain('stripe_webhook_events');
+    expect(edgeSource).toContain("'payment_intent.amount_capturable_updated'");
+    expect(edgeSource).toContain("'payment_intent.succeeded'");
+    expect(edgeSource).toContain("'payment_intent.payment_failed'");
+    expect(edgeSource).toContain("'payment_intent.canceled'");
+    expect(edgeSource).toContain('handleInvoiceCheckoutCompleted');
+    expect(edgeSource).toContain('Payment Hold Expired (Auto)');
+    expect(edgeSource).toContain('{ received: true }');
+  });
+
   test('Next API proxy keeps the previous public API env as a temporary fallback', () => {
     const proxySource = fs.readFileSync(
       path.join(srcRoot, 'app', 'api', '[...path]', 'route.js'),
